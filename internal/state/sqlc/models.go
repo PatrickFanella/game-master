@@ -3,3 +3,178 @@
 //   sqlc v1.29.0
 
 package statedb
+
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type Campaign struct {
+	ID          pgtype.UUID
+	Name        string
+	Description pgtype.Text
+	Genre       pgtype.Text
+	Tone        pgtype.Text
+	Themes      []string
+	Status      string
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type EntityRelationship struct {
+	ID               pgtype.UUID
+	CampaignID       pgtype.UUID
+	SourceEntityType string
+	SourceEntityID   pgtype.UUID
+	TargetEntityType string
+	TargetEntityID   pgtype.UUID
+	RelationshipType string
+	Description      pgtype.Text
+	Strength         pgtype.Int4
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+}
+
+type Faction struct {
+	ID          pgtype.UUID
+	CampaignID  pgtype.UUID
+	Name        string
+	Description pgtype.Text
+	Agenda      pgtype.Text
+	Territory   pgtype.Text
+	Properties  []byte
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type FactionRelationship struct {
+	ID               pgtype.UUID
+	FactionID        pgtype.UUID
+	RelatedFactionID pgtype.UUID
+	RelationshipType string
+	Description      pgtype.Text
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+}
+
+type Item struct {
+	ID                pgtype.UUID
+	CampaignID        pgtype.UUID
+	PlayerCharacterID pgtype.UUID
+	Name              string
+	Description       pgtype.Text
+	ItemType          string
+	Rarity            string
+	Properties        []byte
+	Equipped          bool
+	Quantity          int32
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+}
+
+type Location struct {
+	ID           pgtype.UUID
+	CampaignID   pgtype.UUID
+	Name         string
+	Description  pgtype.Text
+	Region       pgtype.Text
+	LocationType pgtype.Text
+	Properties   []byte
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type LocationConnection struct {
+	ID             pgtype.UUID
+	FromLocationID pgtype.UUID
+	ToLocationID   pgtype.UUID
+	Description    pgtype.Text
+	Bidirectional  bool
+	TravelTime     pgtype.Text
+	CampaignID     pgtype.UUID
+}
+
+type Npc struct {
+	ID          pgtype.UUID
+	CampaignID  pgtype.UUID
+	Name        string
+	Description pgtype.Text
+	Personality pgtype.Text
+	Disposition int32
+	LocationID  pgtype.UUID
+	FactionID   pgtype.UUID
+	Alive       bool
+	Hp          pgtype.Int4
+	Stats       []byte
+	Properties  []byte
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type PlayerCharacter struct {
+	ID                pgtype.UUID
+	CampaignID        pgtype.UUID
+	UserID            pgtype.UUID
+	Name              string
+	Description       pgtype.Text
+	Stats             []byte
+	Hp                int32
+	MaxHp             int32
+	Experience        int32
+	Level             int32
+	Status            string
+	Abilities         []byte
+	CurrentLocationID pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+}
+
+type Quest struct {
+	ID            pgtype.UUID
+	CampaignID    pgtype.UUID
+	ParentQuestID pgtype.UUID
+	Title         string
+	Description   pgtype.Text
+	QuestType     string
+	Status        string
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type QuestObjective struct {
+	ID          pgtype.UUID
+	QuestID     pgtype.UUID
+	Description string
+	Completed   bool
+	OrderIndex  int32
+}
+
+type SessionLog struct {
+	ID           pgtype.UUID
+	CampaignID   pgtype.UUID
+	TurnNumber   int32
+	PlayerInput  string
+	InputType    string
+	LlmResponse  string
+	ToolCalls    []byte
+	LocationID   pgtype.UUID
+	NpcsInvolved []pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
+type User struct {
+	ID        pgtype.UUID
+	Name      string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type WorldFact struct {
+	ID           pgtype.UUID
+	CampaignID   pgtype.UUID
+	Fact         string
+	Category     string
+	Source       string
+	SupersededBy pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
