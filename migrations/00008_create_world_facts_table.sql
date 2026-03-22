@@ -9,7 +9,34 @@ CREATE TABLE world_facts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE FUNCTION validate_world_facts_superseded_campaign()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.superseded_by IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM world_facts wf
+    WHERE wf.id = NEW.superseded_by
+      AND wf.campaign_id = NEW.campaign_id
+  ) THEN
+    RAISE EXCEPTION 'superseded_by must reference a world_facts row in the same campaign';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER world_facts_superseded_campaign_trigger
+BEFORE INSERT OR UPDATE OF campaign_id, superseded_by ON world_facts
+FOR EACH ROW
+EXECUTE FUNCTION validate_world_facts_superseded_campaign();
+
 CREATE INDEX idx_world_facts_campaign_id ON world_facts(campaign_id);
 
 -- +goose Down
+DROP TRIGGER IF EXISTS world_facts_superseded_campaign_trigger ON world_facts;
+DROP FUNCTION IF EXISTS validate_world_facts_superseded_campaign();
 DROP TABLE IF EXISTS world_facts;
