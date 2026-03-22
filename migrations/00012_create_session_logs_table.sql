@@ -7,9 +7,12 @@ CREATE TABLE session_logs (
   input_type TEXT NOT NULL CHECK (input_type IN ('game_action', 'meta', 'narrative')),
   llm_response TEXT NOT NULL,
   tool_calls JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(tool_calls) = 'array'),
-  location_id UUID REFERENCES locations(id) ON DELETE RESTRICT,
+  location_id UUID,
   npcs_involved UUID[] NOT NULL DEFAULT '{}',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT session_logs_location_campaign_fk
+    FOREIGN KEY (location_id, campaign_id)
+    REFERENCES locations(id, campaign_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX idx_session_logs_campaign_id ON session_logs(campaign_id);
