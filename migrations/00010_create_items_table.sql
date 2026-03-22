@@ -17,7 +17,7 @@ CREATE TABLE items (
     REFERENCES campaigns(id) ON DELETE RESTRICT,
   CONSTRAINT items_player_character_campaign_fk
     FOREIGN KEY (player_character_id, campaign_id)
-    REFERENCES player_characters(id, campaign_id) ON DELETE SET NULL
+    REFERENCES player_characters(id, campaign_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX idx_items_campaign_id ON items(campaign_id);
