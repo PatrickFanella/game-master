@@ -10,6 +10,7 @@ CREATE TABLE locations (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX idx_locations_campaign_id ON locations(campaign_id);
 
 -- +goose Down
 DROP TABLE IF EXISTS locations;
