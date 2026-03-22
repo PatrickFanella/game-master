@@ -1,0 +1,10 @@
+version: '2'
+sql:
+  - engine: postgresql
+    schema: ./migrations
+    queries: ./internal/state/queries
+    gen:
+      go:
+        package: statedb
+        out: ./internal/state/sqlc
+        sql_package: pgx/v5

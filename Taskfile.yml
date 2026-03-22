@@ -1,0 +1,32 @@
+version: '3'
+
+vars:
+  DATABASE_URL: '{{default "postgres://game_master:game_master@localhost:5432/game_master?sslmode=disable" .DATABASE_URL}}'
+
+tasks:
+  dev:
+    desc: Run the TUI entrypoint in development mode
+    cmds:
+      - go run ./cmd/tui
+
+  migrate:
+    desc: Run goose migrations against the configured database
+    cmds:
+      - go run github.com/pressly/goose/v3/cmd/goose@v3.24.1 -dir ./migrations postgres '{{.DATABASE_URL}}' up
+
+  generate:
+    desc: Generate type-safe database code with sqlc
+    cmds:
+      - go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.29.0 generate
+
+  test:
+    desc: Run the Go test suite
+    cmds:
+      - go test ./...
+
+  build:
+    desc: Build the server and TUI binaries
+    cmds:
+      - mkdir -p ./bin
+      - go build -o ./bin/tui ./cmd/tui
+      - go build -o ./bin/server ./cmd/server
