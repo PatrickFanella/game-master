@@ -17,6 +17,9 @@ CREATE TABLE player_characters (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+ALTER TABLE player_characters
+  ADD CONSTRAINT player_characters_id_campaign_id_unique UNIQUE (id, campaign_id);
+
 CREATE INDEX idx_player_characters_campaign_id ON player_characters(campaign_id);
 CREATE INDEX idx_player_characters_user_id ON player_characters(user_id);
 CREATE INDEX idx_player_characters_current_location_id ON player_characters(current_location_id);
