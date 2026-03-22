@@ -12,20 +12,28 @@ import (
 
 type Querier interface {
 	CreateCampaign(ctx context.Context, arg CreateCampaignParams) (Campaign, error)
+	CreateConnection(ctx context.Context, arg CreateConnectionParams) (LocationConnection, error)
+	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)
 	CreatePlayerCharacter(ctx context.Context, arg CreatePlayerCharacterParams) (PlayerCharacter, error)
 	CreateUser(ctx context.Context, name string) (User, error)
 	DeleteCampaign(ctx context.Context, id pgtype.UUID) error
+	DeleteConnection(ctx context.Context, arg DeleteConnectionParams) error
 	DeleteUser(ctx context.Context, id pgtype.UUID) error
 	GetCampaignByID(ctx context.Context, id pgtype.UUID) (Campaign, error)
+	GetConnectionsFromLocation(ctx context.Context, arg GetConnectionsFromLocationParams) ([]GetConnectionsFromLocationRow, error)
+	GetLocationByID(ctx context.Context, id pgtype.UUID) (Location, error)
 	GetPlayerCharacterByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]PlayerCharacter, error)
 	GetPlayerCharacterByID(ctx context.Context, id pgtype.UUID) (PlayerCharacter, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserByName(ctx context.Context, name string) (User, error)
 	ListCampaignsByUser(ctx context.Context, createdBy pgtype.UUID) ([]Campaign, error)
+	ListLocationsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Location, error)
+	ListLocationsByRegion(ctx context.Context, arg ListLocationsByRegionParams) ([]Location, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	Ping(ctx context.Context) (int32, error)
 	UpdateCampaign(ctx context.Context, arg UpdateCampaignParams) (Campaign, error)
 	UpdateCampaignStatus(ctx context.Context, arg UpdateCampaignStatusParams) (Campaign, error)
+	UpdateLocation(ctx context.Context, arg UpdateLocationParams) (Location, error)
 	UpdatePlayerCharacter(ctx context.Context, arg UpdatePlayerCharacterParams) (PlayerCharacter, error)
 	UpdatePlayerExperience(ctx context.Context, arg UpdatePlayerExperienceParams) (PlayerCharacter, error)
 	UpdatePlayerHP(ctx context.Context, arg UpdatePlayerHPParams) (PlayerCharacter, error)

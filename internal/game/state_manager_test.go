@@ -104,6 +104,38 @@ func (m *mockQuerier) DeleteCampaign(_ context.Context, _ pgtype.UUID) error {
 	return nil
 }
 
+func (m *mockQuerier) CreateLocation(_ context.Context, _ statedb.CreateLocationParams) (statedb.Location, error) {
+	return statedb.Location{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetLocationByID(_ context.Context, _ pgtype.UUID) (statedb.Location, error) {
+	return statedb.Location{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) ListLocationsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListLocationsByRegion(_ context.Context, _ statedb.ListLocationsByRegionParams) ([]statedb.Location, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) UpdateLocation(_ context.Context, _ statedb.UpdateLocationParams) (statedb.Location, error) {
+	return statedb.Location{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) CreateConnection(_ context.Context, _ statedb.CreateConnectionParams) (statedb.LocationConnection, error) {
+	return statedb.LocationConnection{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetConnectionsFromLocation(_ context.Context, _ statedb.GetConnectionsFromLocationParams) ([]statedb.GetConnectionsFromLocationRow, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) DeleteConnection(_ context.Context, _ statedb.DeleteConnectionParams) error {
+	return nil
+}
+
 func (m *mockQuerier) CreatePlayerCharacter(_ context.Context, _ statedb.CreatePlayerCharacterParams) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, pgx.ErrNoRows
 }
