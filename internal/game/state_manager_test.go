@@ -80,6 +80,30 @@ func (m *mockQuerier) Ping(_ context.Context) (int32, error) {
 	return 1, nil
 }
 
+func (m *mockQuerier) CreateCampaign(_ context.Context, _ statedb.CreateCampaignParams) (statedb.Campaign, error) {
+	return statedb.Campaign{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetCampaignByID(_ context.Context, _ pgtype.UUID) (statedb.Campaign, error) {
+	return statedb.Campaign{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) ListCampaignsByUser(_ context.Context, _ pgtype.UUID) ([]statedb.Campaign, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) UpdateCampaign(_ context.Context, _ statedb.UpdateCampaignParams) (statedb.Campaign, error) {
+	return statedb.Campaign{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) UpdateCampaignStatus(_ context.Context, _ statedb.UpdateCampaignStatusParams) (statedb.Campaign, error) {
+	return statedb.Campaign{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) DeleteCampaign(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+
 func TestGetOrCreateDefaultUser_Creates(t *testing.T) {
 	mq := newMockQuerier()
 	sm := newStateManagerWithQuerier(mq)

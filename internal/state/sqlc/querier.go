@@ -11,12 +11,18 @@ import (
 )
 
 type Querier interface {
+	CreateCampaign(ctx context.Context, arg CreateCampaignParams) (Campaign, error)
 	CreateUser(ctx context.Context, name string) (User, error)
+	DeleteCampaign(ctx context.Context, id pgtype.UUID) error
 	DeleteUser(ctx context.Context, id pgtype.UUID) error
+	GetCampaignByID(ctx context.Context, id pgtype.UUID) (Campaign, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserByName(ctx context.Context, name string) (User, error)
+	ListCampaignsByUser(ctx context.Context, createdBy pgtype.UUID) ([]Campaign, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	Ping(ctx context.Context) (int32, error)
+	UpdateCampaign(ctx context.Context, arg UpdateCampaignParams) (Campaign, error)
+	UpdateCampaignStatus(ctx context.Context, arg UpdateCampaignStatusParams) (Campaign, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 }
 
