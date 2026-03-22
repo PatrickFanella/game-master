@@ -16,7 +16,8 @@ CREATE TABLE quest_objectives (
   quest_id UUID NOT NULL REFERENCES quests(id) ON DELETE CASCADE,
   description TEXT NOT NULL,
   completed BOOLEAN NOT NULL DEFAULT false,
-  order_index INTEGER NOT NULL
+  order_index INTEGER NOT NULL CHECK (order_index >= 0),
+  UNIQUE (quest_id, order_index)
 );
 
 CREATE INDEX idx_quests_campaign_id ON quests(campaign_id);
