@@ -10,7 +10,7 @@ CREATE TABLE player_characters (
   max_hp INTEGER NOT NULL DEFAULT 0,
   experience INTEGER NOT NULL DEFAULT 0,
   level INTEGER NOT NULL DEFAULT 1,
-  status TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
   abilities JSONB NOT NULL DEFAULT '[]'::jsonb,
   current_location_id UUID REFERENCES locations(id) ON DELETE RESTRICT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
