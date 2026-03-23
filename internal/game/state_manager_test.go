@@ -144,6 +144,14 @@ func (m *mockQuerier) CreateNPC(_ context.Context, _ statedb.CreateNPCParams) (s
 	return statedb.Npc{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) CreateObjective(_ context.Context, _ statedb.CreateObjectiveParams) (statedb.QuestObjective, error) {
+	return statedb.QuestObjective{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) CreateQuest(_ context.Context, _ statedb.CreateQuestParams) (statedb.Quest, error) {
+	return statedb.Quest{}, pgx.ErrNoRows
+}
+
 func (m *mockQuerier) GetItemByID(_ context.Context, _ pgtype.UUID) (statedb.Item, error) {
 	return statedb.Item{}, pgx.ErrNoRows
 }
@@ -177,6 +185,26 @@ func (m *mockQuerier) ListNPCsByCampaign(_ context.Context, _ pgtype.UUID) ([]st
 }
 
 func (m *mockQuerier) ListNPCsByLocation(_ context.Context, _ statedb.ListNPCsByLocationParams) ([]statedb.Npc, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListObjectivesByQuest(_ context.Context, _ pgtype.UUID) ([]statedb.QuestObjective, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListQuestsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Quest, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListActiveQuests(_ context.Context, _ pgtype.UUID) ([]statedb.Quest, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListQuestsByType(_ context.Context, _ statedb.ListQuestsByTypeParams) ([]statedb.Quest, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListSubquestsByParentQuest(_ context.Context, _ pgtype.UUID) ([]statedb.Quest, error) {
 	return nil, nil
 }
 
@@ -220,6 +248,10 @@ func (m *mockQuerier) KillNPC(_ context.Context, _ pgtype.UUID) (statedb.Npc, er
 	return statedb.Npc{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) CompleteObjective(_ context.Context, _ pgtype.UUID) (statedb.QuestObjective, error) {
+	return statedb.QuestObjective{}, pgx.ErrNoRows
+}
+
 func (m *mockQuerier) CreateConnection(_ context.Context, _ statedb.CreateConnectionParams) (statedb.LocationConnection, error) {
 	return statedb.LocationConnection{}, pgx.ErrNoRows
 }
@@ -238,6 +270,10 @@ func (m *mockQuerier) CreatePlayerCharacter(_ context.Context, _ statedb.CreateP
 
 func (m *mockQuerier) GetPlayerCharacterByID(_ context.Context, _ pgtype.UUID) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetQuestByID(_ context.Context, _ pgtype.UUID) (statedb.Quest, error) {
+	return statedb.Quest{}, pgx.ErrNoRows
 }
 
 func (m *mockQuerier) GetPlayerCharacterByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.PlayerCharacter, error) {
@@ -266,6 +302,18 @@ func (m *mockQuerier) UpdatePlayerLocation(_ context.Context, _ statedb.UpdatePl
 
 func (m *mockQuerier) UpdatePlayerStatus(_ context.Context, _ statedb.UpdatePlayerStatusParams) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) UpdateQuest(_ context.Context, _ statedb.UpdateQuestParams) (statedb.Quest, error) {
+	return statedb.Quest{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) UpdateQuestStatus(_ context.Context, _ statedb.UpdateQuestStatusParams) (statedb.Quest, error) {
+	return statedb.Quest{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) UpdateObjective(_ context.Context, _ statedb.UpdateObjectiveParams) (statedb.QuestObjective, error) {
+	return statedb.QuestObjective{}, pgx.ErrNoRows
 }
 
 func (m *mockQuerier) DeleteItem(_ context.Context, _ pgtype.UUID) error {

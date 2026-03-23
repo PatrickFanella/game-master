@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	CompleteObjective(ctx context.Context, id pgtype.UUID) (QuestObjective, error)
 	CreateCampaign(ctx context.Context, arg CreateCampaignParams) (Campaign, error)
 	CreateConnection(ctx context.Context, arg CreateConnectionParams) (LocationConnection, error)
 	CreateFaction(ctx context.Context, arg CreateFactionParams) (Faction, error)
@@ -18,7 +19,9 @@ type Querier interface {
 	CreateItem(ctx context.Context, arg CreateItemParams) (Item, error)
 	CreateLocation(ctx context.Context, arg CreateLocationParams) (Location, error)
 	CreateNPC(ctx context.Context, arg CreateNPCParams) (Npc, error)
+	CreateObjective(ctx context.Context, arg CreateObjectiveParams) (QuestObjective, error)
 	CreatePlayerCharacter(ctx context.Context, arg CreatePlayerCharacterParams) (PlayerCharacter, error)
+	CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest, error)
 	CreateUser(ctx context.Context, name string) (User, error)
 	DeleteCampaign(ctx context.Context, id pgtype.UUID) error
 	DeleteConnection(ctx context.Context, arg DeleteConnectionParams) error
@@ -33,9 +36,11 @@ type Querier interface {
 	GetNPCByID(ctx context.Context, id pgtype.UUID) (Npc, error)
 	GetPlayerCharacterByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]PlayerCharacter, error)
 	GetPlayerCharacterByID(ctx context.Context, id pgtype.UUID) (PlayerCharacter, error)
+	GetQuestByID(ctx context.Context, id pgtype.UUID) (Quest, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserByName(ctx context.Context, name string) (User, error)
 	KillNPC(ctx context.Context, id pgtype.UUID) (Npc, error)
+	ListActiveQuests(ctx context.Context, campaignID pgtype.UUID) ([]Quest, error)
 	ListAliveNPCsByLocation(ctx context.Context, arg ListAliveNPCsByLocationParams) ([]Npc, error)
 	ListCampaignsByUser(ctx context.Context, createdBy pgtype.UUID) ([]Campaign, error)
 	ListFactionsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Faction, error)
@@ -46,6 +51,10 @@ type Querier interface {
 	ListNPCsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Npc, error)
 	ListNPCsByFaction(ctx context.Context, arg ListNPCsByFactionParams) ([]Npc, error)
 	ListNPCsByLocation(ctx context.Context, arg ListNPCsByLocationParams) ([]Npc, error)
+	ListObjectivesByQuest(ctx context.Context, questID pgtype.UUID) ([]QuestObjective, error)
+	ListQuestsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Quest, error)
+	ListQuestsByType(ctx context.Context, arg ListQuestsByTypeParams) ([]Quest, error)
+	ListSubquestsByParentQuest(ctx context.Context, parentQuestID pgtype.UUID) ([]Quest, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	Ping(ctx context.Context) (int32, error)
 	TransferItem(ctx context.Context, arg TransferItemParams) (Item, error)
@@ -60,12 +69,15 @@ type Querier interface {
 	UpdateNPC(ctx context.Context, arg UpdateNPCParams) (Npc, error)
 	UpdateNPCDisposition(ctx context.Context, arg UpdateNPCDispositionParams) (Npc, error)
 	UpdateNPCLocation(ctx context.Context, arg UpdateNPCLocationParams) (Npc, error)
+	UpdateObjective(ctx context.Context, arg UpdateObjectiveParams) (QuestObjective, error)
 	UpdatePlayerCharacter(ctx context.Context, arg UpdatePlayerCharacterParams) (PlayerCharacter, error)
 	UpdatePlayerExperience(ctx context.Context, arg UpdatePlayerExperienceParams) (PlayerCharacter, error)
 	UpdatePlayerHP(ctx context.Context, arg UpdatePlayerHPParams) (PlayerCharacter, error)
 	UpdatePlayerLocation(ctx context.Context, arg UpdatePlayerLocationParams) (PlayerCharacter, error)
 	UpdatePlayerStats(ctx context.Context, arg UpdatePlayerStatsParams) (PlayerCharacter, error)
 	UpdatePlayerStatus(ctx context.Context, arg UpdatePlayerStatusParams) (PlayerCharacter, error)
+	UpdateQuest(ctx context.Context, arg UpdateQuestParams) (Quest, error)
+	UpdateQuestStatus(ctx context.Context, arg UpdateQuestStatusParams) (Quest, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 }
 
