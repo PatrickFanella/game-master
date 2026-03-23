@@ -23,6 +23,7 @@ type Querier interface {
 	CreateObjective(ctx context.Context, arg CreateObjectiveParams) (QuestObjective, error)
 	CreatePlayerCharacter(ctx context.Context, arg CreatePlayerCharacterParams) (PlayerCharacter, error)
 	CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest, error)
+	CreateSessionLog(ctx context.Context, arg CreateSessionLogParams) (SessionLog, error)
 	CreateUser(ctx context.Context, name string) (User, error)
 	DeleteCampaign(ctx context.Context, id pgtype.UUID) error
 	DeleteConnection(ctx context.Context, arg DeleteConnectionParams) error
@@ -39,6 +40,7 @@ type Querier interface {
 	GetPlayerCharacterByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]PlayerCharacter, error)
 	GetPlayerCharacterByID(ctx context.Context, id pgtype.UUID) (PlayerCharacter, error)
 	GetQuestByID(ctx context.Context, id pgtype.UUID) (Quest, error)
+	GetSessionLogByID(ctx context.Context, id pgtype.UUID) (SessionLog, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserByName(ctx context.Context, name string) (User, error)
 	KillNPC(ctx context.Context, id pgtype.UUID) (Npc, error)
@@ -59,6 +61,9 @@ type Querier interface {
 	ListObjectivesByQuest(ctx context.Context, questID pgtype.UUID) ([]QuestObjective, error)
 	ListQuestsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Quest, error)
 	ListQuestsByType(ctx context.Context, arg ListQuestsByTypeParams) ([]Quest, error)
+	ListRecentSessionLogs(ctx context.Context, arg ListRecentSessionLogsParams) ([]SessionLog, error)
+	ListSessionLogsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]SessionLog, error)
+	ListSessionLogsByLocation(ctx context.Context, arg ListSessionLogsByLocationParams) ([]SessionLog, error)
 	ListSubquestsByParentQuest(ctx context.Context, parentQuestID pgtype.UUID) ([]Quest, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	Ping(ctx context.Context) (int32, error)
