@@ -62,7 +62,7 @@ type Querier interface {
 	ListSubquestsByParentQuest(ctx context.Context, parentQuestID pgtype.UUID) ([]Quest, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	Ping(ctx context.Context) (int32, error)
-	SupersedeFact(ctx context.Context, arg SupersedeFactParams) (SupersedeFactRow, error)
+	SupersedeFact(ctx context.Context, arg SupersedeFactParams) (WorldFact, error)
 	TransferItem(ctx context.Context, arg TransferItemParams) (Item, error)
 	UpdateCampaign(ctx context.Context, arg UpdateCampaignParams) (Campaign, error)
 	UpdateCampaignStatus(ctx context.Context, arg UpdateCampaignStatusParams) (Campaign, error)

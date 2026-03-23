@@ -42,6 +42,7 @@ WITH previous_fact AS (
   SELECT world_facts.id, world_facts.campaign_id
   FROM world_facts
   WHERE world_facts.id = sqlc.arg(old_fact_id)
+    AND world_facts.superseded_by IS NULL
 ),
 new_fact AS (
   INSERT INTO world_facts (
@@ -56,7 +57,7 @@ new_fact AS (
     sqlc.arg(category),
     sqlc.arg(source)
   FROM previous_fact
-  RETURNING id, campaign_id, fact, category, source, superseded_by, created_at
+  RETURNING id
 ),
 updated_previous AS (
   UPDATE world_facts
@@ -65,12 +66,13 @@ updated_previous AS (
   RETURNING id
 )
 SELECT
-  new_fact.id,
-  new_fact.campaign_id,
-  new_fact.fact,
-  new_fact.category,
-  new_fact.source,
-  new_fact.superseded_by,
-  new_fact.created_at
-FROM new_fact
-JOIN updated_previous ON TRUE;
+  world_facts.id,
+  world_facts.campaign_id,
+  world_facts.fact,
+  world_facts.category,
+  world_facts.source,
+  world_facts.superseded_by,
+  world_facts.created_at
+FROM world_facts
+WHERE world_facts.id = (SELECT id FROM new_fact)
+  AND EXISTS (SELECT 1 FROM updated_previous);
