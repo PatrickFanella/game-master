@@ -108,8 +108,16 @@ func (m *mockQuerier) CreateLocation(_ context.Context, _ statedb.CreateLocation
 	return statedb.Location{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) CreateNPC(_ context.Context, _ statedb.CreateNPCParams) (statedb.Npc, error) {
+	return statedb.Npc{}, pgx.ErrNoRows
+}
+
 func (m *mockQuerier) GetLocationByID(_ context.Context, _ pgtype.UUID) (statedb.Location, error) {
 	return statedb.Location{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetNPCByID(_ context.Context, _ pgtype.UUID) (statedb.Npc, error) {
+	return statedb.Npc{}, pgx.ErrNoRows
 }
 
 func (m *mockQuerier) ListLocationsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
@@ -120,8 +128,40 @@ func (m *mockQuerier) ListLocationsByRegion(_ context.Context, _ statedb.ListLoc
 	return nil, nil
 }
 
+func (m *mockQuerier) ListNPCsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Npc, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListNPCsByLocation(_ context.Context, _ statedb.ListNPCsByLocationParams) ([]statedb.Npc, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListNPCsByFaction(_ context.Context, _ statedb.ListNPCsByFactionParams) ([]statedb.Npc, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListAliveNPCsByLocation(_ context.Context, _ statedb.ListAliveNPCsByLocationParams) ([]statedb.Npc, error) {
+	return nil, nil
+}
+
 func (m *mockQuerier) UpdateLocation(_ context.Context, _ statedb.UpdateLocationParams) (statedb.Location, error) {
 	return statedb.Location{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) UpdateNPC(_ context.Context, _ statedb.UpdateNPCParams) (statedb.Npc, error) {
+	return statedb.Npc{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) UpdateNPCDisposition(_ context.Context, _ statedb.UpdateNPCDispositionParams) (statedb.Npc, error) {
+	return statedb.Npc{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) UpdateNPCLocation(_ context.Context, _ statedb.UpdateNPCLocationParams) (statedb.Npc, error) {
+	return statedb.Npc{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) KillNPC(_ context.Context, _ pgtype.UUID) (statedb.Npc, error) {
+	return statedb.Npc{}, pgx.ErrNoRows
 }
 
 func (m *mockQuerier) CreateConnection(_ context.Context, _ statedb.CreateConnectionParams) (statedb.LocationConnection, error) {
