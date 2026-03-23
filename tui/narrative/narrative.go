@@ -73,7 +73,7 @@ func (m *Model) AddEntry(e Entry) {
 func (m Model) Init() tea.Cmd { return nil }
 
 // Update implements tea.Model.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
 	case tea.KeyMsg, tea.MouseMsg:
 		var cmd tea.Cmd

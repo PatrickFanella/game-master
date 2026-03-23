@@ -8,7 +8,7 @@ import (
 )
 
 // Compile-time check: Model must implement tea.Model.
-var _ tea.Model = Model{}
+var _ tea.Model = (*Model)(nil)
 
 func TestAddEntryAutoScrollsToBottom(t *testing.T) {
 	m := New()
@@ -27,7 +27,8 @@ func TestAddEntryAutoScrollsToBottom(t *testing.T) {
 }
 
 func TestManualScrollUpDisablesAutoScroll(t *testing.T) {
-	m := New()
+	model := New()
+	m := &model
 	m.SetSize(50, 8)
 
 	for i := 0; i < 10; i++ {
@@ -35,7 +36,7 @@ func TestManualScrollUpDisablesAutoScroll(t *testing.T) {
 	}
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
-	m = updated.(Model)
+	m = updated.(*Model)
 
 	if m.viewport.AtBottom() {
 		t.Fatal("expected viewport to move away from bottom after key up")
@@ -46,7 +47,8 @@ func TestManualScrollUpDisablesAutoScroll(t *testing.T) {
 }
 
 func TestManualScrollBackToBottomEnablesAutoScroll(t *testing.T) {
-	m := New()
+	model := New()
+	m := &model
 	m.SetSize(50, 8)
 
 	for i := 0; i < 10; i++ {
@@ -54,13 +56,13 @@ func TestManualScrollBackToBottomEnablesAutoScroll(t *testing.T) {
 	}
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
-	m = updated.(Model)
+	m = updated.(*Model)
 	if m.autoScroll {
 		t.Fatal("expected auto-scroll disabled after scrolling up")
 	}
 
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyPgDown})
-	m = updated.(Model)
+	m = updated.(*Model)
 
 	if !m.viewport.AtBottom() {
 		t.Fatal("expected viewport at bottom after page down")
@@ -71,7 +73,8 @@ func TestManualScrollBackToBottomEnablesAutoScroll(t *testing.T) {
 }
 
 func TestDoesNotAutoScrollWhenUserScrolledUp(t *testing.T) {
-	m := New()
+	model := New()
+	m := &model
 	m.SetSize(50, 8)
 
 	for i := 0; i < 10; i++ {
@@ -79,7 +82,7 @@ func TestDoesNotAutoScrollWhenUserScrolledUp(t *testing.T) {
 	}
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
-	m = updated.(Model)
+	m = updated.(*Model)
 	offsetBefore := m.viewport.YOffset
 
 	m.AddEntry(Entry{Kind: KindSystem, Text: "new entry"})
@@ -93,7 +96,8 @@ func TestDoesNotAutoScrollWhenUserScrolledUp(t *testing.T) {
 }
 
 func TestPageAndArrowKeysScroll(t *testing.T) {
-	m := New()
+	model := New()
+	m := &model
 	m.SetSize(50, 8)
 
 	for i := 0; i < 12; i++ {
@@ -102,21 +106,22 @@ func TestPageAndArrowKeysScroll(t *testing.T) {
 
 	start := m.viewport.YOffset
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyPgUp})
-	m = updated.(Model)
+	m = updated.(*Model)
 	if m.viewport.YOffset >= start {
 		t.Fatal("expected page up to reduce y-offset")
 	}
 
 	afterPgUp := m.viewport.YOffset
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	m = updated.(Model)
+	m = updated.(*Model)
 	if m.viewport.YOffset <= afterPgUp {
 		t.Fatal("expected down arrow to increase y-offset")
 	}
 }
 
 func TestMouseWheelScroll(t *testing.T) {
-	m := New()
+	model := New()
+	m := &model
 	m.SetSize(50, 8)
 
 	for i := 0; i < 12; i++ {
@@ -128,7 +133,7 @@ func TestMouseWheelScroll(t *testing.T) {
 		Action: tea.MouseActionPress,
 		Button: tea.MouseButtonWheelUp,
 	})
-	m = updated.(Model)
+	m = updated.(*Model)
 
 	if m.viewport.YOffset >= start {
 		t.Fatal("expected mouse wheel up to scroll viewport up")
