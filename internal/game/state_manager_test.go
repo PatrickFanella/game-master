@@ -104,6 +104,34 @@ func (m *mockQuerier) DeleteCampaign(_ context.Context, _ pgtype.UUID) error {
 	return nil
 }
 
+func (m *mockQuerier) CreateFaction(_ context.Context, _ statedb.CreateFactionParams) (statedb.Faction, error) {
+	return statedb.Faction{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetFactionByID(_ context.Context, _ pgtype.UUID) (statedb.Faction, error) {
+	return statedb.Faction{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) ListFactionsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Faction, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) UpdateFaction(_ context.Context, _ statedb.UpdateFactionParams) (statedb.Faction, error) {
+	return statedb.Faction{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) CreateFactionRelationship(_ context.Context, _ statedb.CreateFactionRelationshipParams) (statedb.FactionRelationship, error) {
+	return statedb.FactionRelationship{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetFactionRelationships(_ context.Context, _ pgtype.UUID) ([]statedb.FactionRelationship, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) UpdateFactionRelationship(_ context.Context, _ statedb.UpdateFactionRelationshipParams) (statedb.FactionRelationship, error) {
+	return statedb.FactionRelationship{}, pgx.ErrNoRows
+}
+
 func (m *mockQuerier) CreateLocation(_ context.Context, _ statedb.CreateLocationParams) (statedb.Location, error) {
 	return statedb.Location{}, pgx.ErrNoRows
 }
