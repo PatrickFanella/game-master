@@ -40,6 +40,7 @@ FROM (
 
   SELECT
     lc.id,
+    -- Normalize row shape so returned edges are always from the requested location to the connected location.
     lc.to_location_id AS from_location_id,
     lc.from_location_id AS to_location_id,
     lc.description,
@@ -55,7 +56,7 @@ FROM (
     AND lc.to_location_id = sqlc.arg(location_id)
     AND lc.bidirectional = TRUE
 ) AS connections
-ORDER BY connected_location_id, connected_location_name, id;
+ORDER BY connected_location_id, connected_location_name;
 
 -- name: DeleteConnection :exec
 DELETE FROM location_connections
