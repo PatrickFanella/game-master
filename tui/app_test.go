@@ -17,6 +17,11 @@ var testCfg = config.Config{
 	LLM: config.LLMConfig{Provider: "ollama"},
 }
 
+func keyForView(view ViewState) rune {
+	// ViewState is zero-based; user-facing key bindings are 1-based.
+	return rune('1' + view)
+}
+
 func TestViewStateConstants(t *testing.T) {
 	if ViewNarrative != 0 {
 		t.Fatalf("ViewNarrative should be 0, got %d", ViewNarrative)
@@ -204,22 +209,23 @@ func TestStatusBarShowsViewsHintsAndActiveView(t *testing.T) {
 	if !strings.Contains(statusBar, "[Narrative]") {
 		t.Fatal("expected status bar to highlight the active narrative view")
 	}
-	if !strings.Contains(statusBar, "1-4: switch view | tab: cycle | q: quit") {
+	if !strings.Contains(statusBar, statusBarHints) {
 		t.Fatal("expected status bar to include view switching key hints")
 	}
 }
 
 func TestStatusBarUpdatesImmediatelyOnViewSwitch(t *testing.T) {
 	app := NewApp(testCfg)
-	m, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3")})
+	targetInventoryKey := keyForView(ViewInventory)
+	m, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{targetInventoryKey}})
 	updated := m.(App)
 	_, statusBar := updated.chrome()
 
 	if !strings.Contains(statusBar, "[Inventory]") {
-		t.Fatal("expected status bar to highlight inventory after pressing 3")
+		t.Fatalf("expected status bar to highlight inventory after pressing %q", targetInventoryKey)
 	}
 	if strings.Contains(statusBar, "[Narrative]") {
-		t.Fatal("expected narrative to no longer be active after pressing 3")
+		t.Fatalf("expected narrative to no longer be active after pressing %q", targetInventoryKey)
 	}
 
 	m2, _ := updated.Update(tea.KeyMsg{Type: tea.KeyTab})
