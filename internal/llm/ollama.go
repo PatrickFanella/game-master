@@ -99,10 +99,10 @@ func (o *OllamaClient) Stream(ctx context.Context, messages []Message, tools []T
 		defer func() { _ = resp.Body.Close() }()
 
 		scanner := bufio.NewScanner(resp.Body)
+		scanner.Buffer(make([]byte, 0, 64*1024), 10*1024*1024)
 		for scanner.Scan() {
 			var chunkResp ollamaChatResponse
 			if err := json.Unmarshal(scanner.Bytes(), &chunkResp); err != nil {
-				ch <- StreamChunk{Done: true}
 				return
 			}
 
@@ -123,8 +123,6 @@ func (o *OllamaClient) Stream(ctx context.Context, messages []Message, tools []T
 				return
 			}
 		}
-
-		ch <- StreamChunk{Done: true}
 	}()
 
 	return ch, nil
@@ -177,8 +175,15 @@ func (o *OllamaClient) chatURL() (string, error) {
 }
 
 func formatConnectionError(endpoint string, err error) error {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return fmt.Errorf("ollama request to %s was canceled or timed out: %w", endpoint, err)
+	}
+
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {
+		if urlErr.Timeout() {
+			return fmt.Errorf("ollama request to %s timed out: %w", endpoint, urlErr)
+		}
 		return fmt.Errorf("failed to connect to ollama at %s: %w", endpoint, urlErr.Err)
 	}
 	return fmt.Errorf("failed to call ollama at %s: %w", endpoint, err)
@@ -227,7 +232,7 @@ type ollamaChatResponse struct {
 
 func toOllamaMessages(messages []Message) ([]ollamaMessage, error) {
 	if len(messages) == 0 {
-		return nil, nil
+		return make([]ollamaMessage, 0), nil
 	}
 	out := make([]ollamaMessage, 0, len(messages))
 	for _, msg := range messages {

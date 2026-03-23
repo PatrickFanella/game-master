@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -109,5 +110,88 @@ func TestOllamaClientCompleteConnectionError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "failed to connect to ollama at http://127.0.0.1:1/api/chat") {
 		t.Fatalf("error = %q, want descriptive ollama connection message", err)
+	}
+}
+
+func TestOllamaClientCompleteEncodesEmptyMessagesArray(t *testing.T) {
+	var gotReq ollamaChatRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&gotReq); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		_, _ = w.Write([]byte(`{"message":{"content":"ok"},"done":true}`))
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "llama-test")
+	if _, err := client.Complete(context.Background(), nil, nil); err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+
+	if gotReq.Messages == nil {
+		t.Fatal("messages should encode as empty array, got null")
+	}
+	if len(gotReq.Messages) != 0 {
+		t.Fatalf("messages length = %d, want 0", len(gotReq.Messages))
+	}
+}
+
+func TestOllamaClientStreamSendsDoneOnExplicitDoneOnly(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{\"message\":{\"content\":\"hello \"},\"done\":false}\n"))
+		_, _ = w.Write([]byte("{\"message\":{\"content\":\"world\"},\"done\":true}\n"))
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "llama-test")
+	ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	var chunks []StreamChunk
+	for c := range ch {
+		chunks = append(chunks, c)
+	}
+
+	if len(chunks) != 2 {
+		t.Fatalf("chunks len = %d, want 2", len(chunks))
+	}
+	if chunks[0].Done {
+		t.Fatal("first chunk Done should be false")
+	}
+	if !chunks[1].Done {
+		t.Fatal("final chunk Done should be true")
+	}
+	if !reflect.DeepEqual([]string{chunks[0].ContentDelta, chunks[1].ContentDelta}, []string{"hello ", "world"}) {
+		t.Fatalf("content deltas = %q, %q; want %q, %q", chunks[0].ContentDelta, chunks[1].ContentDelta, "hello ", "world")
+	}
+}
+
+func TestOllamaClientStreamMalformedChunkClosesWithoutDone(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{\"message\":{\"content\":\"start\"},\"done\":false}\n"))
+		_, _ = w.Write([]byte("{\"message\":invalid json}\n"))
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "llama-test")
+	ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	var chunks []StreamChunk
+	for c := range ch {
+		chunks = append(chunks, c)
+	}
+
+	if len(chunks) != 1 {
+		t.Fatalf("chunks len = %d, want 1", len(chunks))
+	}
+	if chunks[0].Done {
+		t.Fatal("unexpected Done=true on malformed stream termination")
 	}
 }
