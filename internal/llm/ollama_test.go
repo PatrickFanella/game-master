@@ -140,26 +140,6 @@ func TestToOllamaToolsSerializesOpenAICompatibleFormat(t *testing.T) {
 		t.Fatalf("len(toOllamaTools) = %d, want 2", len(got))
 	}
 
-	for i := range tools {
-		idx := i
-		expected := tools[idx]
-		actual := got[idx]
-		t.Run(expected.Name, func(t *testing.T) {
-			if actual.Type != "function" {
-				t.Fatalf("tool[%d].Type = %q, want function", idx, actual.Type)
-			}
-			if actual.Function.Name != expected.Name {
-				t.Fatalf("tool[%d].Function.Name = %q, want %q", idx, actual.Function.Name, expected.Name)
-			}
-			if actual.Function.Description != expected.Description {
-				t.Fatalf("tool[%d].Function.Description = %q, want %q", idx, actual.Function.Description, expected.Description)
-			}
-			if !reflect.DeepEqual(actual.Function.Parameters, expected.Parameters) {
-				t.Fatalf("tool[%d].Function.Parameters = %#v, want %#v", idx, actual.Function.Parameters, expected.Parameters)
-			}
-		})
-	}
-
 	body, err := json.Marshal(struct {
 		Tools []ollamaTool `json:"tools"`
 	}{Tools: got})
@@ -182,6 +162,14 @@ func TestToOllamaToolsSerializesOpenAICompatibleFormat(t *testing.T) {
 		expected := tools[idx]
 		decodedTool := decoded.Tools[idx]
 		t.Run(expected.Name+"_json", func(t *testing.T) {
+			toolType, ok := decodedTool["type"].(string)
+			if !ok {
+				t.Fatalf("serialized tool[%d].type has unexpected type %T", idx, decodedTool["type"])
+			}
+			if toolType != "function" {
+				t.Fatalf("serialized tool[%d].type = %q, want %q", idx, toolType, "function")
+			}
+
 			functionAny, ok := decodedTool["function"]
 			if !ok {
 				t.Fatalf("serialized tool[%d] missing function field", idx)
@@ -189,6 +177,22 @@ func TestToOllamaToolsSerializesOpenAICompatibleFormat(t *testing.T) {
 			functionObj, ok := functionAny.(map[string]any)
 			if !ok {
 				t.Fatalf("serialized tool[%d].function has unexpected type %T", idx, functionAny)
+			}
+
+			name, ok := functionObj["name"].(string)
+			if !ok {
+				t.Fatalf("serialized tool[%d].function.name has unexpected type %T", idx, functionObj["name"])
+			}
+			if name != expected.Name {
+				t.Fatalf("serialized tool[%d].function.name = %q, want %q", idx, name, expected.Name)
+			}
+
+			description, ok := functionObj["description"].(string)
+			if !ok {
+				t.Fatalf("serialized tool[%d].function.description has unexpected type %T", idx, functionObj["description"])
+			}
+			if description != expected.Description {
+				t.Fatalf("serialized tool[%d].function.description = %q, want %q", idx, description, expected.Description)
 			}
 
 			parametersAny, ok := functionObj["parameters"]
