@@ -70,8 +70,8 @@ SET
   faction_id = sqlc.narg(faction_id),
   alive = sqlc.arg(alive),
   hp = sqlc.narg(hp),
-  stats = COALESCE(sqlc.narg(stats)::jsonb, '{}'::jsonb),
-  properties = COALESCE(sqlc.narg(properties)::jsonb, '{}'::jsonb),
+  stats = COALESCE(sqlc.narg(stats)::jsonb, stats),
+  properties = COALESCE(sqlc.narg(properties)::jsonb, properties),
   updated_at = now()
 WHERE id = sqlc.arg(id)
 RETURNING id, campaign_id, name, description, personality, disposition, location_id, faction_id, alive, hp, stats, properties, created_at, updated_at;

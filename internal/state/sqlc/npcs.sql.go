@@ -345,8 +345,8 @@ SET
   faction_id = $6,
   alive = $7,
   hp = $8,
-  stats = COALESCE($9::jsonb, '{}'::jsonb),
-  properties = COALESCE($10::jsonb, '{}'::jsonb),
+  stats = COALESCE($9::jsonb, stats),
+  properties = COALESCE($10::jsonb, properties),
   updated_at = now()
 WHERE id = $11
 RETURNING id, campaign_id, name, description, personality, disposition, location_id, faction_id, alive, hp, stats, properties, created_at, updated_at
