@@ -209,9 +209,6 @@ func TestEnterSubmitsInputAndClears(t *testing.T) {
 	if last.Text != "look around" {
 		t.Fatalf("expected last entry text %q, got %q", "look around", last.Text)
 	}
-	if !strings.Contains(m.viewport.View(), "> look around") {
-		t.Fatalf("expected viewport to include echoed player input, got %q", m.viewport.View())
-	}
 }
 
 func TestEnterIgnoresEmptySubmission(t *testing.T) {

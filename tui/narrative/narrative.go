@@ -92,7 +92,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.AddEntry(Entry{Kind: KindPlayer, Text: text})
 			m.input.Reset()
 			return m, nil
-		case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown, tea.KeyCtrlU, tea.KeyCtrlD:
+		case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown:
 			var cmd tea.Cmd
 			m.viewport, cmd = m.viewport.Update(msg)
 			m.autoScroll = m.viewport.AtBottom()
