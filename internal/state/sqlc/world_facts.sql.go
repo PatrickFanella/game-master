@@ -213,8 +213,16 @@ updated_previous AS (
   WHERE world_facts.id = (SELECT id FROM previous_fact)
   RETURNING id
 )
-SELECT id, campaign_id, fact, category, source, superseded_by, created_at
+SELECT
+  new_fact.id,
+  new_fact.campaign_id,
+  new_fact.fact,
+  new_fact.category,
+  new_fact.source,
+  new_fact.superseded_by,
+  new_fact.created_at
 FROM new_fact
+JOIN updated_previous ON TRUE
 `
 
 type SupersedeFactParams struct {
