@@ -45,6 +45,7 @@ func run(args []string) int {
 	p := tea.NewProgram(
 		tui.NewApp(cfg),
 		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
 		tea.WithContext(ctx),
 	)
 

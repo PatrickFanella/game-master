@@ -6,6 +6,7 @@ package narrative
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -21,6 +22,11 @@ const (
 	KindPlayer
 )
 
+const (
+	narrativeViewportWidthOffset  = 4 // border + horizontal padding
+	narrativeViewportHeightOffset = 4 // border + title line + spacer line
+)
+
 // Entry is a single line (or paragraph) in the narrative log.
 type Entry struct {
 	Kind    EntryKind
@@ -32,59 +38,96 @@ type Entry struct {
 type Model struct {
 	width, height int
 	log           []Entry
+	viewport      viewport.Model
+	autoScroll    bool
 }
 
 // New returns a freshly initialised narrative Model.
 func New() Model {
-	return Model{}
+	m := Model{autoScroll: true}
+	m.viewport = viewport.New(40, 1)
+	return m
 }
 
 // SetSize updates the viewport dimensions so the view can word-wrap correctly.
 func (m *Model) SetSize(width, height int) {
 	m.width = width
 	m.height = height
+	m.viewport.Width, m.viewport.Height = m.viewportSize()
+	m.refreshViewportContent()
+	if m.autoScroll {
+		m.viewport.GotoBottom()
+	}
 }
 
 // AddEntry appends a new entry to the dialogue log.
 func (m *Model) AddEntry(e Entry) {
 	m.log = append(m.log, e)
+	m.refreshViewportContent()
+	if m.autoScroll {
+		m.viewport.GotoBottom()
+	}
 }
 
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd { return nil }
 
 // Update implements tea.Model.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg.(type) {
+	case tea.KeyMsg, tea.MouseMsg:
+		var cmd tea.Cmd
+		m.viewport, cmd = m.viewport.Update(msg)
+		m.autoScroll = m.viewport.AtBottom()
+		return m, cmd
+	default:
+		return m, nil
+	}
+}
 
 // View implements tea.Model and renders the narrative log.
 func (m Model) View() string {
-	innerWidth := m.width - 4 // subtract border + padding
-	if m.width == 0 {
-		// Unknown width: use a reasonable default.
-		innerWidth = 40
-	} else if innerWidth < 1 {
-		// Known but very small width: clamp to a minimum of 1.
-		innerWidth = 1
+	content := m.viewport.View()
+	if len(m.log) == 0 {
+		content = styles.SystemMessage.Render("The adventure begins…")
 	}
+	title := styles.Header.Render("📖 Narrative")
+
+	box := styles.Container.
+		Width(m.width).
+		Height(m.height).
+		Render(styles.JoinVertical(title, "", content))
+
+	return box
+}
+
+func (m *Model) refreshViewportContent() {
+	innerWidth, _ := m.viewportSize()
 
 	var sb strings.Builder
 	for _, e := range m.log {
 		sb.WriteString(m.renderEntry(e, innerWidth))
 		sb.WriteString("\n")
 	}
+	m.viewport.SetContent(sb.String())
+}
 
-	content := sb.String()
-	if content == "" {
-		content = styles.SystemMessage.Render("The adventure begins…")
+func (m Model) viewportSize() (width, height int) {
+	width = m.width - narrativeViewportWidthOffset
+	if m.width == 0 {
+		width = 40
+	} else if width < 1 {
+		width = 1
 	}
 
-	title := styles.Header.Render("📖 Narrative")
+	height = m.height - narrativeViewportHeightOffset
+	if m.height == 0 {
+		height = 1
+	} else if height < 1 {
+		height = 1
+	}
 
-	box := styles.Container.
-		Width(m.width).
-		Render(styles.JoinVertical(title, "", content))
-
-	return box
+	return width, height
 }
 
 func (m Model) renderEntry(e Entry, maxWidth int) string {
