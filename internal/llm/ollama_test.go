@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -97,6 +98,110 @@ func TestOllamaClientCompleteRequestResponse(t *testing.T) {
 	}
 	if resp.ToolCalls[0].Arguments["city"] != "Paris" {
 		t.Fatalf("tool call args city = %#v, want Paris", resp.ToolCalls[0].Arguments["city"])
+	}
+}
+
+func TestToOllamaToolsSerializesOpenAICompatibleFormat(t *testing.T) {
+	tools := []Tool{
+		{
+			Name:        "lookup_weather",
+			Description: "Gets weather by city",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"city": map[string]any{
+						"type":        "string",
+						"description": "City name",
+					},
+					"units": map[string]any{
+						"type": "string",
+						"enum": []string{"metric", "imperial"},
+					},
+				},
+				"required": []string{"city"},
+			},
+		},
+		{
+			Name:        "set_reminder",
+			Description: "Creates a reminder",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"message": map[string]any{"type": "string"},
+					"at":      map[string]any{"type": "string", "format": "date-time"},
+				},
+				"required": []string{"message", "at"},
+			},
+		},
+	}
+
+	got := toOllamaTools(tools)
+	if len(got) != 2 {
+		t.Fatalf("len(toOllamaTools) = %d, want 2", len(got))
+	}
+
+	for i := range tools {
+		if got[i].Type != "function" {
+			t.Fatalf("tool[%d].Type = %q, want function", i, got[i].Type)
+		}
+		if got[i].Function.Name != tools[i].Name {
+			t.Fatalf("tool[%d].Function.Name = %q, want %q", i, got[i].Function.Name, tools[i].Name)
+		}
+		if got[i].Function.Description != tools[i].Description {
+			t.Fatalf("tool[%d].Function.Description = %q, want %q", i, got[i].Function.Description, tools[i].Description)
+		}
+		if !reflect.DeepEqual(got[i].Function.Parameters, tools[i].Parameters) {
+			t.Fatalf("tool[%d].Function.Parameters = %#v, want %#v", i, got[i].Function.Parameters, tools[i].Parameters)
+		}
+	}
+
+	body, err := json.Marshal(struct {
+		Tools []ollamaTool `json:"tools"`
+	}{Tools: got})
+	if err != nil {
+		t.Fatalf("json.Marshal(tools): %v", err)
+	}
+
+	var decoded struct {
+		Tools []map[string]any `json:"tools"`
+	}
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		t.Fatalf("json.Unmarshal(serialized tools): %v", err)
+	}
+	if len(decoded.Tools) != 2 {
+		t.Fatalf("serialized tools length = %d, want 2", len(decoded.Tools))
+	}
+
+	for i := range tools {
+		functionAny, ok := decoded.Tools[i]["function"]
+		if !ok {
+			t.Fatalf("serialized tool[%d] missing function field", i)
+		}
+		functionObj, ok := functionAny.(map[string]any)
+		if !ok {
+			t.Fatalf("serialized tool[%d].function has unexpected type %T", i, functionAny)
+		}
+
+		parametersAny, ok := functionObj["parameters"]
+		if !ok {
+			t.Fatalf("serialized tool[%d].function missing parameters field", i)
+		}
+		parametersObj, ok := parametersAny.(map[string]any)
+		if !ok {
+			t.Fatalf("serialized tool[%d].function.parameters has unexpected type %T", i, parametersAny)
+		}
+
+		expectedParametersBytes, err := json.Marshal(tools[i].Parameters)
+		if err != nil {
+			t.Fatalf("json.Marshal(expected parameters for tool[%d]): %v", i, err)
+		}
+		var expectedParameters map[string]any
+		if err := json.Unmarshal(expectedParametersBytes, &expectedParameters); err != nil {
+			t.Fatalf("json.Unmarshal(expected parameters for tool[%d]): %v", i, err)
+		}
+		if !reflect.DeepEqual(parametersObj, expectedParameters) {
+			t.Fatalf("serialized tool[%d].function.parameters = %#v, want %#v", i, parametersObj, expectedParameters)
+		}
 	}
 }
 
