@@ -114,10 +114,14 @@ func (o *OllamaClient) Stream(ctx context.Context, messages []Message, tools []T
 				}
 			}
 
-			ch <- StreamChunk{
+			select {
+			case ch <- StreamChunk{
 				ContentDelta:  chunkResp.Message.Content,
 				ToolCallDelta: toolDelta,
 				Done:          chunkResp.Done,
+			}:
+			case <-ctx.Done():
+				return
 			}
 			if chunkResp.Done {
 				return
