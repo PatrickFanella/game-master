@@ -319,6 +319,102 @@ func TestOllamaClientStreamMalformedChunkClosesWithoutDone(t *testing.T) {
 	}
 }
 
+func TestOllamaClientStreamSetsStreamTrue(t *testing.T) {
+	var gotReq ollamaChatRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&gotReq); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{\"message\":{\"content\":\"ok\"},\"done\":true}\n"))
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "llama-test")
+	ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+	for range ch {
+	}
+
+	if !gotReq.Stream {
+		t.Fatal("stream must be true for Stream()")
+	}
+}
+
+func TestOllamaClientStreamToolCallDelta(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{\"message\":{\"content\":\"\",\"tool_calls\":[{\"function\":{\"name\":\"roll_dice\",\"arguments\":\"{\\\"sides\\\":20}\"}}]},\"done\":false}\n"))
+		_, _ = w.Write([]byte("{\"message\":{\"content\":\"\"},\"done\":true}\n"))
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "llama-test")
+	ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "roll for initiative"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	var chunks []StreamChunk
+	for c := range ch {
+		chunks = append(chunks, c)
+	}
+
+	if len(chunks) != 2 {
+		t.Fatalf("chunks len = %d, want 2", len(chunks))
+	}
+	if chunks[0].ToolCallDelta == nil {
+		t.Fatal("first chunk ToolCallDelta should not be nil")
+	}
+	if chunks[0].ToolCallDelta.Name != "roll_dice" {
+		t.Fatalf("ToolCallDelta.Name = %q, want roll_dice", chunks[0].ToolCallDelta.Name)
+	}
+	if chunks[0].ToolCallDelta.Arguments["sides"] != float64(20) {
+		t.Fatalf("ToolCallDelta.Arguments[sides] = %v, want 20", chunks[0].ToolCallDelta.Arguments["sides"])
+	}
+	if chunks[1].ToolCallDelta != nil {
+		t.Fatal("second chunk ToolCallDelta should be nil")
+	}
+	if !chunks[1].Done {
+		t.Fatal("second chunk Done should be true")
+	}
+}
+
+func TestOllamaClientStreamContextCancellation(t *testing.T) {
+	started := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			t.Error("ResponseWriter does not support Flusher")
+			return
+		}
+		_, _ = w.Write([]byte("{\"message\":{\"content\":\"first\"},\"done\":false}\n"))
+		flusher.Flush()
+		close(started)
+		// Block until request context is done, simulating a long stream.
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	client := NewOllamaClient(server.URL, "llama-test")
+	ch, err := client.Stream(ctx, []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	// Wait for the server to flush the first chunk, then cancel the context.
+	<-started
+	cancel()
+
+	// Drain the channel; it must close without blocking forever.
+	for range ch {
+	}
+}
+
 // loadFixture reads a JSON fixture file from testdata/.
 func loadFixture(t *testing.T, name string) []byte {
 	t.Helper()
