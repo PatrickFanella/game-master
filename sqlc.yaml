@@ -1,7 +1,9 @@
 version: '2'
 sql:
   - engine: postgresql
-    schema: ./migrations
+    schema:
+      - ./migrations
+      - ./schema
     queries: ./queries
     gen:
       go:
@@ -9,3 +11,8 @@ sql:
         out: ./internal/state/sqlc
         sql_package: pgx/v5
         emit_interface: true
+        overrides:
+          - db_type: "vector"
+            go_type:
+              import: "github.com/pgvector/pgvector-go"
+              type: "Vector"

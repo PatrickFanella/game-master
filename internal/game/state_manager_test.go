@@ -368,6 +368,26 @@ func (m *mockQuerier) SupersedeFact(_ context.Context, _ statedb.SupersedeFactPa
 	return statedb.WorldFact{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) CreateMemory(_ context.Context, _ statedb.CreateMemoryParams) (statedb.Memory, error) {
+	return statedb.Memory{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetMemoryByID(_ context.Context, _ pgtype.UUID) (statedb.Memory, error) {
+	return statedb.Memory{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) ListMemoriesByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Memory, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) SearchMemoriesBySimilarity(_ context.Context, _ statedb.SearchMemoriesBySimilarityParams) ([]statedb.SearchMemoriesBySimilarityRow, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) SearchMemoriesWithFilters(_ context.Context, _ statedb.SearchMemoriesWithFiltersParams) ([]statedb.SearchMemoriesWithFiltersRow, error) {
+	return nil, nil
+}
+
 func TestGetOrCreateDefaultUser_Creates(t *testing.T) {
 	mq := newMockQuerier()
 	sm := newStateManagerWithQuerier(mq)

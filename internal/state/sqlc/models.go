@@ -6,6 +6,7 @@ package statedb
 
 import (
 	"github.com/jackc/pgx/v5/pgtype"
+	pgvector_go "github.com/pgvector/pgvector-go"
 )
 
 type Campaign struct {
@@ -92,6 +93,19 @@ type LocationConnection struct {
 	Bidirectional  bool
 	TravelTime     pgtype.Text
 	CampaignID     pgtype.UUID
+}
+
+type Memory struct {
+	ID           pgtype.UUID
+	CampaignID   pgtype.UUID
+	Content      string
+	Embedding    pgvector_go.Vector
+	MemoryType   string
+	LocationID   pgtype.UUID
+	NpcsInvolved []pgtype.UUID
+	InGameTime   pgtype.Text
+	Metadata     []byte
+	CreatedAt    pgtype.Timestamptz
 }
 
 type Npc struct {
