@@ -67,12 +67,18 @@ func (o *OllamaClient) Complete(ctx context.Context, messages []Message, tools [
 
 	var chatResp ollamaChatResponse
 	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
-		return nil, fmt.Errorf("failed to decode ollama chat response: %w", err)
+		return nil, &ErrMalformedResponse{
+			URL: o.baseURL + ollamaChatPath,
+			Err: fmt.Errorf("failed to decode ollama chat response: %w", err),
+		}
 	}
 
 	toolCalls, err := fromOllamaToolCalls(chatResp.Message.ToolCalls)
 	if err != nil {
-		return nil, err
+		return nil, &ErrMalformedResponse{
+			URL: o.baseURL + ollamaChatPath,
+			Err: err,
+		}
 	}
 
 	return &Response{
@@ -166,7 +172,7 @@ func (o *OllamaClient) callChat(ctx context.Context, messages []Message, tools [
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		defer func() { _ = resp.Body.Close() }()
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("ollama chat request failed with status %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		return nil, classifyHTTPError(chatURL, o.model, resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 	return resp, nil
 }
@@ -180,17 +186,64 @@ func (o *OllamaClient) chatURL() (string, error) {
 
 func formatConnectionError(endpoint string, err error) error {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		return fmt.Errorf("ollama request to %s was canceled or timed out: %w", endpoint, err)
+		return &ErrTimeout{URL: endpoint, Err: err}
 	}
 
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {
 		if urlErr.Timeout() {
-			return fmt.Errorf("ollama request to %s timed out: %w", endpoint, urlErr)
+			return &ErrTimeout{URL: endpoint, Err: urlErr}
 		}
-		return fmt.Errorf("failed to connect to ollama at %s: %w", endpoint, urlErr.Err)
+		return &ErrConnection{URL: endpoint, Err: urlErr.Err}
 	}
-	return fmt.Errorf("failed to call ollama at %s: %w", endpoint, err)
+	return &ErrConnection{URL: endpoint, Err: err}
+}
+
+func classifyHTTPError(endpoint, model string, statusCode int, body string) error {
+	baseErr := fmt.Errorf("ollama chat request failed with status %d: %s", statusCode, body)
+
+	switch statusCode {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return &ErrAuth{
+			URL:        endpoint,
+			StatusCode: statusCode,
+			Err:        baseErr,
+		}
+	case http.StatusTooManyRequests:
+		return &ErrRateLimit{
+			URL:        endpoint,
+			StatusCode: statusCode,
+			Err:        baseErr,
+		}
+	case http.StatusNotFound:
+		if isModelNotFoundMessage(body) {
+			return &ErrModelNotFound{
+				URL:        endpoint,
+				Model:      model,
+				StatusCode: statusCode,
+				Err:        baseErr,
+			}
+		}
+		return &ErrConnection{
+			URL: endpoint,
+			Err: baseErr,
+		}
+	default:
+		return &ErrConnection{
+			URL: endpoint,
+			Err: baseErr,
+		}
+	}
+}
+
+func isModelNotFoundMessage(body string) bool {
+	text := strings.ToLower(body)
+	if !strings.Contains(text, "model") {
+		return false
+	}
+	return strings.Contains(text, "not found") ||
+		strings.Contains(text, "does not exist") ||
+		strings.Contains(text, "unknown model")
 }
 
 type ollamaChatRequest struct {

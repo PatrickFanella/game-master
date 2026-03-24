@@ -3,6 +3,8 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -228,8 +230,185 @@ func TestOllamaClientCompleteConnectionError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected connection error")
 	}
-	if !strings.Contains(err.Error(), "failed to connect to ollama at http://127.0.0.1:1/api/chat") {
-		t.Fatalf("error = %q, want descriptive ollama connection message", err)
+	var connErr *ErrConnection
+	if !errors.As(err, &connErr) {
+		t.Fatalf("error type = %T, want *ErrConnection (error=%v)", err, err)
+	}
+	if connErr.URL != "http://127.0.0.1:1/api/chat" {
+		t.Fatalf("connection error URL = %q, want %q", connErr.URL, "http://127.0.0.1:1/api/chat")
+	}
+	if !strings.Contains(connErr.Error(), "http://127.0.0.1:1/api/chat") {
+		t.Fatalf("error = %q, want URL context", connErr.Error())
+	}
+}
+
+func TestOllamaClientCompleteErrorClassificationHTTPStatus(t *testing.T) {
+	tests := []struct {
+		name         string
+		status       int
+		body         string
+		wantErr      any
+		wantContains string
+	}{
+		{
+			name:         "auth unauthorized",
+			status:       http.StatusUnauthorized,
+			body:         "invalid auth token",
+			wantErr:      &ErrAuth{},
+			wantContains: "status 401",
+		},
+		{
+			name:         "auth forbidden",
+			status:       http.StatusForbidden,
+			body:         "forbidden",
+			wantErr:      &ErrAuth{},
+			wantContains: "status 403",
+		},
+		{
+			name:         "rate limit",
+			status:       http.StatusTooManyRequests,
+			body:         "too many requests",
+			wantErr:      &ErrRateLimit{},
+			wantContains: "status 429",
+		},
+		{
+			name:         "model not found",
+			status:       http.StatusNotFound,
+			body:         "model 'llama-test' not found",
+			wantErr:      &ErrModelNotFound{},
+			wantContains: "llama-test",
+		},
+		{
+			name:         "generic non-2xx",
+			status:       http.StatusInternalServerError,
+			body:         "internal error",
+			wantErr:      &ErrConnection{},
+			wantContains: "status 500",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer server.Close()
+
+			client := NewOllamaClient(server.URL, "llama-test")
+			_, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+			if err == nil {
+				t.Fatalf("expected error for status %d", tt.status)
+			}
+
+			switch tt.wantErr.(type) {
+			case *ErrAuth:
+				var e *ErrAuth
+				if !errors.As(err, &e) {
+					t.Fatalf("error type = %T, want *ErrAuth (error=%v)", err, err)
+				}
+				if e.StatusCode != tt.status {
+					t.Fatalf("status code = %d, want %d", e.StatusCode, tt.status)
+				}
+				if e.URL != server.URL+ollamaChatPath {
+					t.Fatalf("URL = %q, want %q", e.URL, server.URL+ollamaChatPath)
+				}
+			case *ErrRateLimit:
+				var e *ErrRateLimit
+				if !errors.As(err, &e) {
+					t.Fatalf("error type = %T, want *ErrRateLimit (error=%v)", err, err)
+				}
+				if e.StatusCode != tt.status {
+					t.Fatalf("status code = %d, want %d", e.StatusCode, tt.status)
+				}
+			case *ErrModelNotFound:
+				var e *ErrModelNotFound
+				if !errors.As(err, &e) {
+					t.Fatalf("error type = %T, want *ErrModelNotFound (error=%v)", err, err)
+				}
+				if e.Model != "llama-test" {
+					t.Fatalf("model = %q, want llama-test", e.Model)
+				}
+				if e.StatusCode != tt.status {
+					t.Fatalf("status code = %d, want %d", e.StatusCode, tt.status)
+				}
+			case *ErrConnection:
+				var e *ErrConnection
+				if !errors.As(err, &e) {
+					t.Fatalf("error type = %T, want *ErrConnection (error=%v)", err, err)
+				}
+				if e.URL != server.URL+ollamaChatPath {
+					t.Fatalf("URL = %q, want %q", e.URL, server.URL+ollamaChatPath)
+				}
+			default:
+				t.Fatalf("unsupported expected type %T", tt.wantErr)
+			}
+
+			if !strings.Contains(err.Error(), tt.wantContains) {
+				t.Fatalf("error = %q, want to contain %q", err.Error(), tt.wantContains)
+			}
+		})
+	}
+}
+
+func TestOllamaClientCompleteMalformedResponseErrorType(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("{invalid json"))
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "llama-test")
+	_, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err == nil {
+		t.Fatal("expected malformed response error")
+	}
+
+	var malformedErr *ErrMalformedResponse
+	if !errors.As(err, &malformedErr) {
+		t.Fatalf("error type = %T, want *ErrMalformedResponse (error=%v)", err, err)
+	}
+	if malformedErr.URL != server.URL+ollamaChatPath {
+		t.Fatalf("URL = %q, want %q", malformedErr.URL, server.URL+ollamaChatPath)
+	}
+}
+
+func TestFormatConnectionErrorTimeoutClassification(t *testing.T) {
+	timeoutErr := formatConnectionError("http://localhost:11434/api/chat", context.DeadlineExceeded)
+
+	var typedTimeout *ErrTimeout
+	if !errors.As(timeoutErr, &typedTimeout) {
+		t.Fatalf("error type = %T, want *ErrTimeout (error=%v)", timeoutErr, timeoutErr)
+	}
+	if typedTimeout.URL != "http://localhost:11434/api/chat" {
+		t.Fatalf("URL = %q, want %q", typedTimeout.URL, "http://localhost:11434/api/chat")
+	}
+	if !errors.Is(timeoutErr, context.DeadlineExceeded) {
+		t.Fatalf("error should unwrap context deadline exceeded, got %v", timeoutErr)
+	}
+}
+
+func TestTypedLLMErrorsUnwrap(t *testing.T) {
+	root := fmt.Errorf("root cause")
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{name: "connection", err: &ErrConnection{URL: "u", Err: root}},
+		{name: "timeout", err: &ErrTimeout{URL: "u", Err: root}},
+		{name: "rate_limit", err: &ErrRateLimit{URL: "u", StatusCode: 429, Err: root}},
+		{name: "auth", err: &ErrAuth{URL: "u", StatusCode: 401, Err: root}},
+		{name: "malformed_response", err: &ErrMalformedResponse{URL: "u", Err: root}},
+		{name: "model_not_found", err: &ErrModelNotFound{URL: "u", Model: "m", StatusCode: 404, Err: root}},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if !errors.Is(tt.err, root) {
+				t.Fatalf("expected errors.Is(%T, root) to be true", tt.err)
+			}
+		})
 	}
 }
 
