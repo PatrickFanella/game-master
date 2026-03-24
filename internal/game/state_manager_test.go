@@ -172,6 +172,10 @@ func (m *mockQuerier) CreateQuest(_ context.Context, _ statedb.CreateQuestParams
 	return statedb.Quest{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) CreateSessionLog(_ context.Context, _ statedb.CreateSessionLogParams) (statedb.SessionLog, error) {
+	return statedb.SessionLog{}, pgx.ErrNoRows
+}
+
 func (m *mockQuerier) GetItemByID(_ context.Context, _ pgtype.UUID) (statedb.Item, error) {
 	return statedb.Item{}, pgx.ErrNoRows
 }
@@ -221,6 +225,18 @@ func (m *mockQuerier) ListActiveQuests(_ context.Context, _ pgtype.UUID) ([]stat
 }
 
 func (m *mockQuerier) ListQuestsByType(_ context.Context, _ statedb.ListQuestsByTypeParams) ([]statedb.Quest, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListRecentSessionLogs(_ context.Context, _ statedb.ListRecentSessionLogsParams) ([]statedb.SessionLog, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListSessionLogsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.SessionLog, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListSessionLogsByLocation(_ context.Context, _ statedb.ListSessionLogsByLocationParams) ([]statedb.SessionLog, error) {
 	return nil, nil
 }
 
@@ -294,6 +310,10 @@ func (m *mockQuerier) GetPlayerCharacterByID(_ context.Context, _ pgtype.UUID) (
 
 func (m *mockQuerier) GetQuestByID(_ context.Context, _ pgtype.UUID) (statedb.Quest, error) {
 	return statedb.Quest{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetSessionLogByID(_ context.Context, _ pgtype.UUID) (statedb.SessionLog, error) {
+	return statedb.SessionLog{}, pgx.ErrNoRows
 }
 
 func (m *mockQuerier) GetPlayerCharacterByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.PlayerCharacter, error) {
