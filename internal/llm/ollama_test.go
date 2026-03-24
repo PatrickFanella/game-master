@@ -406,7 +406,7 @@ func TestOllamaClientStreamContextCancellation(t *testing.T) {
 		t.Fatalf("Stream() error = %v", err)
 	}
 
-	// Read the first chunk, then cancel the context.
+	// Wait for the server to flush the first chunk, then cancel the context.
 	<-started
 	cancel()
 
