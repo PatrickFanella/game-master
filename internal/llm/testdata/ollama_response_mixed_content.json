@@ -1,0 +1,23 @@
+{
+  "message": {
+    "content": "You approach the merchant's stall. Let me check the inventory for you.",
+    "tool_calls": [
+      {
+        "function": {
+          "name": "get_inventory",
+          "arguments": "{\"merchant_id\":\"m-17\",\"category\":\"weapons\"}"
+        }
+      },
+      {
+        "function": {
+          "name": "check_gold",
+          "arguments": "{\"player_id\":\"p-1\"}"
+        }
+      }
+    ]
+  },
+  "done": true,
+  "done_reason": "stop",
+  "prompt_eval_count": 20,
+  "eval_count": 15
+}

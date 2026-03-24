@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -314,5 +316,203 @@ func TestOllamaClientStreamMalformedChunkClosesWithoutDone(t *testing.T) {
 	}
 	if chunks[0].Done {
 		t.Fatal("unexpected Done=true on malformed stream termination")
+	}
+}
+
+// loadFixture reads a JSON fixture file from testdata/.
+func loadFixture(t *testing.T, name string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", name))
+	if err != nil {
+		t.Fatalf("failed to read fixture %q: %v", name, err)
+	}
+	return data
+}
+
+func TestOllamaClientCompletePureTextResponse(t *testing.T) {
+	fixture := loadFixture(t, "ollama_response_pure_text.json")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(fixture)
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "test-model")
+	resp, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "tell me a story"}}, nil)
+	if err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+
+	if resp.Content != "The dragon breathes fire across the cavern, illuminating the ancient runes on the walls." {
+		t.Fatalf("content = %q, want narrative text", resp.Content)
+	}
+	if len(resp.ToolCalls) != 0 {
+		t.Fatalf("tool calls length = %d, want 0", len(resp.ToolCalls))
+	}
+	if resp.FinishReason != "stop" {
+		t.Fatalf("finish reason = %q, want stop", resp.FinishReason)
+	}
+	if resp.Usage.PromptTokens != 12 || resp.Usage.CompletionTokens != 18 || resp.Usage.TotalTokens != 30 {
+		t.Fatalf("usage = %+v, want prompt=12 completion=18 total=30", resp.Usage)
+	}
+}
+
+func TestOllamaCompleteSingleToolCall(t *testing.T) {
+	fixture := loadFixture(t, "ollama_response_single_tool_call.json")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(fixture)
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "test-model")
+	resp, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "roll for initiative"}}, nil)
+	if err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+
+	if resp.Content != "" {
+		t.Fatalf("content = %q, want empty", resp.Content)
+	}
+	if len(resp.ToolCalls) != 1 {
+		t.Fatalf("tool calls length = %d, want 1", len(resp.ToolCalls))
+	}
+
+	tc := resp.ToolCalls[0]
+	if tc.Name != "roll_dice" {
+		t.Fatalf("tool call name = %q, want roll_dice", tc.Name)
+	}
+	// JSON numbers decode as float64 in map[string]any.
+	if tc.Arguments["sides"] != float64(20) {
+		t.Fatalf("tool call args sides = %v, want 20", tc.Arguments["sides"])
+	}
+	if tc.Arguments["count"] != float64(1) {
+		t.Fatalf("tool call args count = %v, want 1", tc.Arguments["count"])
+	}
+}
+
+func TestOllamaCompleteMultipleToolCalls(t *testing.T) {
+	fixture := loadFixture(t, "ollama_response_multiple_tool_calls.json")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(fixture)
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "test-model")
+	resp, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "prepare for battle"}}, nil)
+	if err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+
+	if len(resp.ToolCalls) != 3 {
+		t.Fatalf("tool calls length = %d, want 3", len(resp.ToolCalls))
+	}
+
+	expected := []struct {
+		name string
+		args map[string]any
+	}{
+		{
+			name: "roll_dice",
+			args: map[string]any{"sides": float64(20), "count": float64(1)},
+		},
+		{
+			name: "lookup_npc",
+			args: map[string]any{"name": "Gandalf", "location": "Minas Tirith"},
+		},
+		{
+			name: "update_quest",
+			args: map[string]any{"quest_id": "q-42", "status": "in_progress"},
+		},
+	}
+
+	for i, exp := range expected {
+		tc := resp.ToolCalls[i]
+		if tc.Name != exp.name {
+			t.Fatalf("tool call[%d] name = %q, want %q", i, tc.Name, exp.name)
+		}
+		if !reflect.DeepEqual(tc.Arguments, exp.args) {
+			t.Fatalf("tool call[%d] args = %v, want %v", i, tc.Arguments, exp.args)
+		}
+	}
+}
+
+func TestOllamaCompleteMixedContent(t *testing.T) {
+	fixture := loadFixture(t, "ollama_response_mixed_content.json")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(fixture)
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "test-model")
+	resp, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "I want to buy a sword"}}, nil)
+	if err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+
+	if resp.Content != "You approach the merchant's stall. Let me check the inventory for you." {
+		t.Fatalf("content = %q, want narrative text", resp.Content)
+	}
+	if len(resp.ToolCalls) != 2 {
+		t.Fatalf("tool calls length = %d, want 2", len(resp.ToolCalls))
+	}
+
+	if resp.ToolCalls[0].Name != "get_inventory" {
+		t.Fatalf("tool call[0] name = %q, want get_inventory", resp.ToolCalls[0].Name)
+	}
+	if resp.ToolCalls[0].Arguments["merchant_id"] != "m-17" {
+		t.Fatalf("tool call[0] merchant_id = %v, want m-17", resp.ToolCalls[0].Arguments["merchant_id"])
+	}
+	if resp.ToolCalls[0].Arguments["category"] != "weapons" {
+		t.Fatalf("tool call[0] category = %v, want weapons", resp.ToolCalls[0].Arguments["category"])
+	}
+
+	if resp.ToolCalls[1].Name != "check_gold" {
+		t.Fatalf("tool call[1] name = %q, want check_gold", resp.ToolCalls[1].Name)
+	}
+	if resp.ToolCalls[1].Arguments["player_id"] != "p-1" {
+		t.Fatalf("tool call[1] player_id = %v, want p-1", resp.ToolCalls[1].Arguments["player_id"])
+	}
+}
+
+func TestFromOllamaToolCallsEmptyArguments(t *testing.T) {
+	calls := []ollamaToolCall{
+		{Function: ollamaToolFunction{Name: "ping", Arguments: ""}},
+	}
+
+	result, err := fromOllamaToolCalls(calls)
+	if err != nil {
+		t.Fatalf("fromOllamaToolCalls() error = %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("result length = %d, want 1", len(result))
+	}
+	if result[0].Name != "ping" {
+		t.Fatalf("name = %q, want ping", result[0].Name)
+	}
+	if len(result[0].Arguments) != 0 {
+		t.Fatalf("arguments = %v, want empty map", result[0].Arguments)
+	}
+}
+
+func TestFromOllamaToolCallsInvalidJSON(t *testing.T) {
+	calls := []ollamaToolCall{
+		{Function: ollamaToolFunction{Name: "bad", Arguments: "{invalid json}"}},
+	}
+
+	_, err := fromOllamaToolCalls(calls)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON arguments")
+	}
+	if !strings.Contains(err.Error(), "bad") {
+		t.Fatalf("error = %q, want mention of function name", err.Error())
+	}
+}
+
+func TestFromOllamaToolCallsNilSlice(t *testing.T) {
+	result, err := fromOllamaToolCalls(nil)
+	if err != nil {
+		t.Fatalf("fromOllamaToolCalls(nil) error = %v", err)
+	}
+	if result != nil {
+		t.Fatalf("result = %v, want nil", result)
 	}
 }

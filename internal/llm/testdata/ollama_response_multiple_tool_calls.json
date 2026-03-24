@@ -1,0 +1,29 @@
+{
+  "message": {
+    "content": "",
+    "tool_calls": [
+      {
+        "function": {
+          "name": "roll_dice",
+          "arguments": "{\"sides\":20,\"count\":1}"
+        }
+      },
+      {
+        "function": {
+          "name": "lookup_npc",
+          "arguments": "{\"name\":\"Gandalf\",\"location\":\"Minas Tirith\"}"
+        }
+      },
+      {
+        "function": {
+          "name": "update_quest",
+          "arguments": "{\"quest_id\":\"q-42\",\"status\":\"in_progress\"}"
+        }
+      }
+    ]
+  },
+  "done": true,
+  "done_reason": "stop",
+  "prompt_eval_count": 25,
+  "eval_count": 30
+}
