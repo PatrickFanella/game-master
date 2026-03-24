@@ -329,7 +329,7 @@ func loadFixture(t *testing.T, name string) []byte {
 	return data
 }
 
-func TestOllamaCompletePureTextResponse(t *testing.T) {
+func TestOllamaClientCompletePureTextResponse(t *testing.T) {
 	fixture := loadFixture(t, "ollama_response_pure_text.json")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(fixture)
