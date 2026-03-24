@@ -1,0 +1,9 @@
+{
+  "message": {
+    "content": "The dragon breathes fire across the cavern, illuminating the ancient runes on the walls."
+  },
+  "done": true,
+  "done_reason": "stop",
+  "prompt_eval_count": 12,
+  "eval_count": 18
+}
