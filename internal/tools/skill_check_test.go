@@ -1,0 +1,208 @@
+package tools
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/google/uuid"
+)
+
+type stubModifierResolver struct {
+	modifier int
+	err      error
+}
+
+func (s stubModifierResolver) GetStatModifier(_ context.Context, _ uuid.UUID, _ string) (int, error) {
+	if s.err != nil {
+		return 0, s.err
+	}
+	return s.modifier, nil
+}
+
+type stubRoller struct {
+	rolls []int
+	idx   int
+}
+
+func (s *stubRoller) Intn(_ int) int {
+	v := s.rolls[s.idx]
+	s.idx++
+	return v
+}
+
+func TestRegisterSkillCheck(t *testing.T) {
+	reg := NewRegistry()
+	if err := RegisterSkillCheck(reg, stubModifierResolver{modifier: 2}, &stubRoller{rolls: []int{9}}); err != nil {
+		t.Fatalf("register skill_check: %v", err)
+	}
+
+	tools := reg.Tools()
+	if len(tools) != 1 {
+		t.Fatalf("registered tool count = %d, want 1", len(tools))
+	}
+	if tools[0].Name != skillCheckToolName {
+		t.Fatalf("tool name = %q, want %q", tools[0].Name, skillCheckToolName)
+	}
+
+	required, ok := tools[0].Parameters["required"].([]string)
+	if !ok {
+		t.Fatalf("required schema has unexpected type %T", tools[0].Parameters["required"])
+	}
+	if len(required) != 3 || required[0] != "character_id" || required[1] != "skill" || required[2] != "difficulty" {
+		t.Fatalf("required schema = %#v, want [character_id skill difficulty]", required)
+	}
+}
+
+func TestSkillCheckNormal(t *testing.T) {
+	h := NewSkillCheckHandler(stubModifierResolver{modifier: 4}, &stubRoller{rolls: []int{11}})
+	id := uuid.New()
+
+	got, err := h.Handle(context.Background(), map[string]any{
+		"character_id": id.String(),
+		"skill":        "athletics",
+		"difficulty":   15,
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+
+	if got["roll"] != 12 {
+		t.Fatalf("roll = %v, want 12", got["roll"])
+	}
+	if got["modifier"] != 4 {
+		t.Fatalf("modifier = %v, want 4", got["modifier"])
+	}
+	if got["total"] != 16 {
+		t.Fatalf("total = %v, want 16", got["total"])
+	}
+	if got["dc"] != 15 {
+		t.Fatalf("dc = %v, want 15", got["dc"])
+	}
+	if got["success"] != true {
+		t.Fatalf("success = %v, want true", got["success"])
+	}
+	if got["margin"] != 1 {
+		t.Fatalf("margin = %v, want 1", got["margin"])
+	}
+}
+
+func TestSkillCheckAdvantage(t *testing.T) {
+	h := NewSkillCheckHandler(stubModifierResolver{modifier: 2}, &stubRoller{rolls: []int{2, 14}})
+	id := uuid.New()
+
+	got, err := h.Handle(context.Background(), map[string]any{
+		"character_id": id.String(),
+		"skill":        "dexterity",
+		"difficulty":   16,
+		"advantage":    true,
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+
+	if got["roll"] != 15 {
+		t.Fatalf("roll = %v, want 15", got["roll"])
+	}
+	if got["total"] != 17 {
+		t.Fatalf("total = %v, want 17", got["total"])
+	}
+	if got["success"] != true {
+		t.Fatalf("success = %v, want true", got["success"])
+	}
+}
+
+func TestSkillCheckDisadvantage(t *testing.T) {
+	h := NewSkillCheckHandler(stubModifierResolver{modifier: 5}, &stubRoller{rolls: []int{16, 3}})
+	id := uuid.New()
+
+	got, err := h.Handle(context.Background(), map[string]any{
+		"character_id": id.String(),
+		"skill":        "stealth",
+		"difficulty":   11,
+		"disadvantage": true,
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+
+	if got["roll"] != 4 {
+		t.Fatalf("roll = %v, want 4", got["roll"])
+	}
+	if got["total"] != 9 {
+		t.Fatalf("total = %v, want 9", got["total"])
+	}
+	if got["success"] != false {
+		t.Fatalf("success = %v, want false", got["success"])
+	}
+}
+
+func TestSkillCheckCriticals(t *testing.T) {
+	id := uuid.New()
+
+	t.Run("critical success on natural 20", func(t *testing.T) {
+		h := NewSkillCheckHandler(stubModifierResolver{modifier: -5}, &stubRoller{rolls: []int{19}})
+		got, err := h.Handle(context.Background(), map[string]any{
+			"character_id": id.String(),
+			"skill":        "arcana",
+			"difficulty":   30,
+		})
+		if err != nil {
+			t.Fatalf("Handle: %v", err)
+		}
+		if got["critical_success"] != true {
+			t.Fatalf("critical_success = %v, want true", got["critical_success"])
+		}
+		if got["success"] != true {
+			t.Fatalf("success = %v, want true", got["success"])
+		}
+	})
+
+	t.Run("critical failure on natural 1", func(t *testing.T) {
+		h := NewSkillCheckHandler(stubModifierResolver{modifier: 20}, &stubRoller{rolls: []int{0}})
+		got, err := h.Handle(context.Background(), map[string]any{
+			"character_id": id.String(),
+			"skill":        "wisdom",
+			"difficulty":   5,
+		})
+		if err != nil {
+			t.Fatalf("Handle: %v", err)
+		}
+		if got["critical_failure"] != true {
+			t.Fatalf("critical_failure = %v, want true", got["critical_failure"])
+		}
+		if got["success"] != false {
+			t.Fatalf("success = %v, want false", got["success"])
+		}
+	})
+}
+
+func TestSkillCheckArgumentValidation(t *testing.T) {
+	h := NewSkillCheckHandler(stubModifierResolver{modifier: 0}, &stubRoller{rolls: []int{10, 10}})
+	id := uuid.New()
+
+	_, err := h.Handle(context.Background(), map[string]any{
+		"character_id": id.String(),
+		"skill":        "athletics",
+		"difficulty":   10,
+		"advantage":    true,
+		"disadvantage": true,
+	})
+	if err == nil {
+		t.Fatal("expected error when both advantage and disadvantage are true")
+	}
+}
+
+func TestSkillCheckResolverError(t *testing.T) {
+	h := NewSkillCheckHandler(stubModifierResolver{err: errors.New("boom")}, &stubRoller{rolls: []int{10}})
+	id := uuid.New()
+
+	_, err := h.Handle(context.Background(), map[string]any{
+		"character_id": id.String(),
+		"skill":        "athletics",
+		"difficulty":   10,
+	})
+	if err == nil {
+		t.Fatal("expected resolver error")
+	}
+}
