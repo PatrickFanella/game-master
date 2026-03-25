@@ -1,6 +1,8 @@
 package combat
 
 import (
+	cryptorand "crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -19,6 +21,8 @@ type defaultInitiativeRoller struct {
 	rng *rand.Rand
 }
 
+const initiativeTieBreakRange = 1 << 30
+
 func (r *defaultInitiativeRoller) RollD20() int {
 	return r.rng.Intn(20) + 1
 }
@@ -28,8 +32,14 @@ func (r *defaultInitiativeRoller) Intn(n int) int {
 }
 
 func newDefaultInitiativeRoller() initiativeRoller {
+	seed := time.Now().UnixNano()
+	var cryptSeed int64
+	if err := binary.Read(cryptorand.Reader, binary.LittleEndian, &cryptSeed); err == nil {
+		seed = cryptSeed
+	}
+
 	return &defaultInitiativeRoller{
-		rng: rand.New(rand.NewSource(time.Now().UnixNano())),
+		rng: rand.New(rand.NewSource(seed)),
 	}
 }
 
@@ -56,6 +66,9 @@ func dexterityStat(combatant Combatant) int {
 
 func dexterityModifier(combatant Combatant) int {
 	dex := dexterityStat(combatant)
+	// Standard d20-style ability modifier:
+	//   dex >= 10: (dex-10)/2
+	//   dex < 10:  -((11-dex)/2)
 	if dex >= 10 {
 		return (dex - 10) / 2
 	}
@@ -149,7 +162,9 @@ func hasSurprisedCombatant(combatants []Combatant) bool {
 func sortCombatantsByInitiative(combatants []Combatant, roller initiativeRoller) {
 	randomTieBreak := make(map[uuid.UUID]int, len(combatants))
 	for i := range combatants {
-		randomTieBreak[combatants[i].EntityID] = roller.Intn(1 << 30)
+		// Use a large range to reduce accidental collisions while staying
+		// comfortably within platform int bounds.
+		randomTieBreak[combatants[i].EntityID] = roller.Intn(initiativeTieBreakRange)
 	}
 
 	sort.SliceStable(combatants, func(i, j int) bool {
