@@ -8,70 +8,61 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-	pgvector "github.com/pgvector/pgvector-go"
-
-	"github.com/PatrickFanella/game-master/internal/domain"
-	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
 
 type stubLanguageStore struct {
-	lastArgs  statedb.CreateLanguageParams
-	created   statedb.Language
-	factions  map[[16]byte]statedb.Faction
-	cultures  map[[16]byte]statedb.Culture
-	getFacErr error
-	getCulErr error
-	err       error
+	lastParams          CreateLanguageParams
+	createdID           uuid.UUID
+	factionCampaigns    map[uuid.UUID]uuid.UUID // factionID -> campaignID
+	cultureCampaigns    map[uuid.UUID]uuid.UUID // cultureID -> campaignID
+	getFacErr           error
+	getCulErr           error
+	err                 error
 }
 
-func (s *stubLanguageStore) CreateLanguage(_ context.Context, arg statedb.CreateLanguageParams) (statedb.Language, error) {
+func (s *stubLanguageStore) CreateLanguage(_ context.Context, params CreateLanguageParams) (uuid.UUID, error) {
 	if s.err != nil {
-		return statedb.Language{}, s.err
+		return uuid.Nil, s.err
 	}
-	s.lastArgs = arg
-	return s.created, nil
+	s.lastParams = params
+	return s.createdID, nil
 }
 
-func (s *stubLanguageStore) GetFactionByID(_ context.Context, id pgtype.UUID) (statedb.Faction, error) {
+func (s *stubLanguageStore) FactionBelongsToCampaign(_ context.Context, factionID, campaignID uuid.UUID) (bool, error) {
 	if s.getFacErr != nil {
-		return statedb.Faction{}, s.getFacErr
+		return false, s.getFacErr
 	}
-	if !id.Valid {
-		return statedb.Faction{}, errors.New("faction id is invalid")
-	}
-	faction, ok := s.factions[id.Bytes]
+	camp, ok := s.factionCampaigns[factionID]
 	if !ok {
-		return statedb.Faction{}, errors.New("faction not found")
+		return false, errors.New("faction not found")
 	}
-	return faction, nil
+	return camp == campaignID, nil
 }
 
-func (s *stubLanguageStore) GetCultureByID(_ context.Context, id pgtype.UUID) (statedb.Culture, error) {
+func (s *stubLanguageStore) CultureBelongsToCampaign(_ context.Context, cultureID, campaignID uuid.UUID) (bool, error) {
 	if s.getCulErr != nil {
-		return statedb.Culture{}, s.getCulErr
+		return false, s.getCulErr
 	}
-	if !id.Valid {
-		return statedb.Culture{}, errors.New("culture id is invalid")
-	}
-	culture, ok := s.cultures[id.Bytes]
+	camp, ok := s.cultureCampaigns[cultureID]
 	if !ok {
-		return statedb.Culture{}, errors.New("culture not found")
+		return false, errors.New("culture not found")
 	}
-	return culture, nil
+	return camp == campaignID, nil
 }
 
 type stubMemoryStore struct {
-	lastArgs statedb.CreateMemoryParams
-	err      error
+	lastParams CreateMemoryParams
+	called     bool
+	err        error
 }
 
-func (s *stubMemoryStore) CreateMemory(_ context.Context, arg statedb.CreateMemoryParams) (statedb.Memory, error) {
+func (s *stubMemoryStore) CreateMemory(_ context.Context, params CreateMemoryParams) error {
 	if s.err != nil {
-		return statedb.Memory{}, s.err
+		return s.err
 	}
-	s.lastArgs = arg
-	return statedb.Memory{}, nil
+	s.called = true
+	s.lastParams = params
+	return nil
 }
 
 type stubEmbedder struct {
@@ -90,7 +81,7 @@ func (s *stubEmbedder) Embed(_ context.Context, input string) ([]float32, error)
 
 func TestRegisterCreateLanguage(t *testing.T) {
 	reg := NewRegistry()
-	langStore := &stubLanguageStore{}
+	langStore := &stubLanguageStore{createdID: uuid.New()}
 	memStore := &stubMemoryStore{}
 	embedder := &stubEmbedder{vector: []float32{0.1, 0.2}}
 
@@ -131,6 +122,20 @@ func TestRegisterCreateLanguage(t *testing.T) {
 	}
 }
 
+func TestRegisterCreateLanguage_NilEmbedding(t *testing.T) {
+	reg := NewRegistry()
+	langStore := &stubLanguageStore{createdID: uuid.New()}
+
+	if err := RegisterCreateLanguage(reg, langStore, nil, nil); err != nil {
+		t.Fatalf("register with nil embedding: %v", err)
+	}
+
+	tools := reg.Tools()
+	if len(tools) != 1 {
+		t.Fatalf("registered tool count = %d, want 1", len(tools))
+	}
+}
+
 func TestCreateLanguageHandleSuccess(t *testing.T) {
 	campaignID := uuid.New()
 	languageID := uuid.New()
@@ -138,22 +143,12 @@ func TestCreateLanguageHandleSuccess(t *testing.T) {
 	cultureID := uuid.New()
 
 	langStore := &stubLanguageStore{
-		created: statedb.Language{
-			ID:                 uuidToPgtype(languageID),
-			CampaignID:         uuidToPgtype(campaignID),
-			Name:               "Eldertongue",
-			Description:        "Ancient ritual language",
-			Phonology:          []byte(`{"vowels":["a","e","i"]}`),
-			Naming:             []byte(`{"person_name_patterns":["CV-CV"],"place_name_patterns":["CVC"]}`),
-			Vocabulary:         []byte(`{"sun":"sol","moon":"luna"}`),
-			SpokenByFactionIds: []pgtype.UUID{uuidToPgtype(factionID)},
-			SpokenByCultureIds: []pgtype.UUID{uuidToPgtype(cultureID)},
+		createdID: languageID,
+		factionCampaigns: map[uuid.UUID]uuid.UUID{
+			factionID: campaignID,
 		},
-		factions: map[[16]byte]statedb.Faction{
-			factionID: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(campaignID)},
-		},
-		cultures: map[[16]byte]statedb.Culture{
-			cultureID: {ID: uuidToPgtype(cultureID), CampaignID: uuidToPgtype(campaignID)},
+		cultureCampaigns: map[uuid.UUID]uuid.UUID{
+			cultureID: campaignID,
 		},
 	}
 	memStore := &stubMemoryStore{}
@@ -182,23 +177,23 @@ func TestCreateLanguageHandleSuccess(t *testing.T) {
 		t.Fatalf("Handle: %v", err)
 	}
 
-	if langStore.lastArgs.Name != "Eldertongue" {
-		t.Fatalf("CreateLanguage name = %q, want Eldertongue", langStore.lastArgs.Name)
+	if langStore.lastParams.Name != "Eldertongue" {
+		t.Fatalf("CreateLanguage name = %q, want Eldertongue", langStore.lastParams.Name)
 	}
-	if langStore.lastArgs.Description.String != "Ancient ritual language" || !langStore.lastArgs.Description.Valid {
-		t.Fatalf("CreateLanguage description = %#v, want valid text", langStore.lastArgs.Description)
+	if langStore.lastParams.Description != "Ancient ritual language" {
+		t.Fatalf("CreateLanguage description = %q, want 'Ancient ritual language'", langStore.lastParams.Description)
 	}
-	if len(langStore.lastArgs.SpokenByFactionIds) != 1 || uuidFromPgtype(langStore.lastArgs.SpokenByFactionIds[0]) != factionID {
-		t.Fatalf("CreateLanguage spoken_by_faction_ids = %#v, want [%s]", langStore.lastArgs.SpokenByFactionIds, factionID)
+	if len(langStore.lastParams.SpokenByFactionIDs) != 1 || langStore.lastParams.SpokenByFactionIDs[0] != factionID {
+		t.Fatalf("CreateLanguage spoken_by_faction_ids = %v, want [%s]", langStore.lastParams.SpokenByFactionIDs, factionID)
 	}
-	if len(langStore.lastArgs.SpokenByCultureIds) != 1 || uuidFromPgtype(langStore.lastArgs.SpokenByCultureIds[0]) != cultureID {
-		t.Fatalf("CreateLanguage spoken_by_culture_ids = %#v, want [%s]", langStore.lastArgs.SpokenByCultureIds, cultureID)
+	if len(langStore.lastParams.SpokenByCultureIDs) != 1 || langStore.lastParams.SpokenByCultureIDs[0] != cultureID {
+		t.Fatalf("CreateLanguage spoken_by_culture_ids = %v, want [%s]", langStore.lastParams.SpokenByCultureIDs, cultureID)
 	}
 
-	if memStore.lastArgs.MemoryType != string(domain.MemoryTypeWorldFact) {
-		t.Fatalf("CreateMemory memory_type = %q, want %q", memStore.lastArgs.MemoryType, domain.MemoryTypeWorldFact)
+	if memStore.lastParams.MemoryType != "world_fact" {
+		t.Fatalf("CreateMemory memory_type = %q, want %q", memStore.lastParams.MemoryType, "world_fact")
 	}
-	if memStore.lastArgs.CampaignID != uuidToPgtype(campaignID) {
+	if memStore.lastParams.CampaignID != campaignID {
 		t.Fatalf("CreateMemory campaign_id mismatch")
 	}
 	if embedder.lastInput == "" {
@@ -212,6 +207,39 @@ func TestCreateLanguageHandleSuccess(t *testing.T) {
 	}
 	if got["description"] != "Ancient ritual language" {
 		t.Fatalf("result description = %v, want Ancient ritual language", got["description"])
+	}
+}
+
+func TestCreateLanguageHandleSuccess_NilEmbedding(t *testing.T) {
+	campaignID := uuid.New()
+	languageID := uuid.New()
+
+	langStore := &stubLanguageStore{createdID: languageID}
+
+	h := NewCreateLanguageHandler(langStore, nil, nil)
+	got, err := h.Handle(context.Background(), map[string]any{
+		"campaign_id": campaignID.String(),
+		"name":        "Elvish",
+		"description": "Forest language",
+		"phonological_rules": map[string]any{
+			"vowels": []any{"a", "e"},
+		},
+		"naming_conventions": map[string]any{
+			"patterns": []any{"VCV"},
+		},
+		"sample_vocabulary": map[string]any{
+			"tree": "tala",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+
+	if got["id"] != languageID.String() {
+		t.Fatalf("result id = %v, want %s", got["id"], languageID.String())
+	}
+	if got["name"] != "Elvish" {
+		t.Fatalf("result name = %v, want Elvish", got["name"])
 	}
 }
 
@@ -233,7 +261,11 @@ func TestCreateLanguageValidationAndErrors(t *testing.T) {
 	}
 
 	t.Run("missing required field", func(t *testing.T) {
-		h := NewCreateLanguageHandler(&stubLanguageStore{}, &stubMemoryStore{}, &stubEmbedder{vector: []float32{0.1}})
+		h := NewCreateLanguageHandler(
+			&stubLanguageStore{createdID: uuid.New()},
+			&stubMemoryStore{},
+			&stubEmbedder{vector: []float32{0.1}},
+		)
 		args := copyArgs(baseArgs)
 		delete(args, "description")
 
@@ -247,7 +279,11 @@ func TestCreateLanguageValidationAndErrors(t *testing.T) {
 	})
 
 	t.Run("invalid spoken_by_faction_ids type", func(t *testing.T) {
-		h := NewCreateLanguageHandler(&stubLanguageStore{}, &stubMemoryStore{}, &stubEmbedder{vector: []float32{0.1}})
+		h := NewCreateLanguageHandler(
+			&stubLanguageStore{createdID: uuid.New()},
+			&stubMemoryStore{},
+			&stubEmbedder{vector: []float32{0.1}},
+		)
 		args := copyArgs(baseArgs)
 		args["spoken_by_faction_ids"] = "not-an-array"
 
@@ -265,16 +301,12 @@ func TestCreateLanguageValidationAndErrors(t *testing.T) {
 		cultureID := uuid.New()
 		h := NewCreateLanguageHandler(
 			&stubLanguageStore{
-				created: statedb.Language{
-					ID:         uuidToPgtype(uuid.New()),
-					CampaignID: uuidToPgtype(campaignID),
-					Name:       "Lang",
+				createdID: uuid.New(),
+				factionCampaigns: map[uuid.UUID]uuid.UUID{
+					factionID: campaignID,
 				},
-				factions: map[[16]byte]statedb.Faction{
-					factionID: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(campaignID)},
-				},
-				cultures: map[[16]byte]statedb.Culture{
-					cultureID: {ID: uuidToPgtype(cultureID), CampaignID: uuidToPgtype(campaignID)},
+				cultureCampaigns: map[uuid.UUID]uuid.UUID{
+					cultureID: campaignID,
 				},
 			},
 			&stubMemoryStore{},
@@ -298,16 +330,12 @@ func TestCreateLanguageValidationAndErrors(t *testing.T) {
 		cultureID := uuid.New()
 		h := NewCreateLanguageHandler(
 			&stubLanguageStore{
-				created: statedb.Language{
-					ID:         uuidToPgtype(uuid.New()),
-					CampaignID: uuidToPgtype(campaignID),
-					Name:       "Lang",
+				createdID: uuid.New(),
+				factionCampaigns: map[uuid.UUID]uuid.UUID{
+					factionID: campaignID,
 				},
-				factions: map[[16]byte]statedb.Faction{
-					factionID: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(campaignID)},
-				},
-				cultures: map[[16]byte]statedb.Culture{
-					cultureID: {ID: uuidToPgtype(cultureID), CampaignID: uuidToPgtype(campaignID)},
+				cultureCampaigns: map[uuid.UUID]uuid.UUID{
+					cultureID: campaignID,
 				},
 			},
 			&stubMemoryStore{err: errors.New("insert failed")},
@@ -334,11 +362,12 @@ func TestCreateLanguageValidationAndErrors(t *testing.T) {
 
 		h := NewCreateLanguageHandler(
 			&stubLanguageStore{
-				factions: map[[16]byte]statedb.Faction{
-					factionID: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(otherCampaignID)},
+				createdID: uuid.New(),
+				factionCampaigns: map[uuid.UUID]uuid.UUID{
+					factionID: otherCampaignID,
 				},
-				cultures: map[[16]byte]statedb.Culture{
-					cultureID: {ID: uuidToPgtype(cultureID), CampaignID: uuidToPgtype(campaignID)},
+				cultureCampaigns: map[uuid.UUID]uuid.UUID{
+					cultureID: campaignID,
 				},
 			},
 			&stubMemoryStore{},
@@ -365,19 +394,12 @@ func TestCreateLanguageStoresMemoryMetadata(t *testing.T) {
 	cultureID := uuid.New()
 
 	langStore := &stubLanguageStore{
-		created: statedb.Language{
-			ID:                 uuidToPgtype(languageID),
-			CampaignID:         uuidToPgtype(campaignID),
-			Name:               "Lang",
-			Description:        "desc",
-			SpokenByFactionIds: []pgtype.UUID{uuidToPgtype(factionID)},
-			SpokenByCultureIds: []pgtype.UUID{uuidToPgtype(cultureID)},
+		createdID: languageID,
+		factionCampaigns: map[uuid.UUID]uuid.UUID{
+			factionID: campaignID,
 		},
-		factions: map[[16]byte]statedb.Faction{
-			factionID: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(campaignID)},
-		},
-		cultures: map[[16]byte]statedb.Culture{
-			cultureID: {ID: uuidToPgtype(cultureID), CampaignID: uuidToPgtype(campaignID)},
+		cultureCampaigns: map[uuid.UUID]uuid.UUID{
+			cultureID: campaignID,
 		},
 	}
 	memStore := &stubMemoryStore{}
@@ -404,7 +426,7 @@ func TestCreateLanguageStoresMemoryMetadata(t *testing.T) {
 	}
 
 	var metadata map[string]any
-	if err := json.Unmarshal(memStore.lastArgs.Metadata, &metadata); err != nil {
+	if err := json.Unmarshal(memStore.lastParams.Metadata, &metadata); err != nil {
 		t.Fatalf("unmarshal metadata: %v", err)
 	}
 	if metadata["language_id"] != languageID.String() {
@@ -423,4 +445,3 @@ func copyArgs(in map[string]any) map[string]any {
 var _ Embedder = (*stubEmbedder)(nil)
 var _ LanguageStore = (*stubLanguageStore)(nil)
 var _ MemoryStore = (*stubMemoryStore)(nil)
-var _ = pgvector.NewVector

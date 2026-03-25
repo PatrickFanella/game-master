@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/domain"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
@@ -54,14 +55,6 @@ func (sm *pgStateManager) CreateCampaign(ctx context.Context, params CreateCampa
 	return nil, fmt.Errorf("CreateCampaign: not yet implemented (requires campaign queries)")
 }
 
-func (sm *pgStateManager) LoadCampaign(ctx context.Context, id uuid.UUID) (*GameState, error) {
-	return sm.GatherState(ctx, id)
-}
-
-func (sm *pgStateManager) GetGameState(ctx context.Context, campaignID uuid.UUID) (*GameState, error) {
-	return sm.GatherState(ctx, campaignID)
-}
-
 func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID) (*GameState, error) {
 	state := &GameState{
 		CurrentLocationConnections: []domain.LocationConnection{},
@@ -72,7 +65,7 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 		WorldFacts:                 []domain.WorldFact{},
 	}
 
-	pgCampaignID := uuidToPgtype(campaignID)
+	pgCampaignID := dbutil.ToPgtype(campaignID)
 
 	campaign, err := sm.queries.GetCampaignByID(ctx, pgCampaignID)
 	if err != nil {
@@ -91,7 +84,7 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 		state.Player = player
 
 		if player.CurrentLocationID != nil {
-			location, err := sm.queries.GetLocationByID(ctx, uuidToPgtype(*player.CurrentLocationID))
+			location, err := sm.queries.GetLocationByID(ctx, dbutil.ToPgtype(*player.CurrentLocationID))
 			if err != nil {
 				return nil, fmt.Errorf("gather state location: %w", err)
 			}
@@ -99,7 +92,7 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 
 			connections, err := sm.queries.GetConnectionsFromLocation(ctx, statedb.GetConnectionsFromLocationParams{
 				CampaignID: pgCampaignID,
-				LocationID: uuidToPgtype(*player.CurrentLocationID),
+				LocationID: dbutil.ToPgtype(*player.CurrentLocationID),
 			})
 			if err != nil {
 				return nil, fmt.Errorf("gather state location connections: %w", err)
@@ -110,7 +103,7 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 
 			npcs, err := sm.queries.ListAliveNPCsByLocation(ctx, statedb.ListAliveNPCsByLocationParams{
 				CampaignID: pgCampaignID,
-				LocationID: uuidToPgtype(*player.CurrentLocationID),
+				LocationID: dbutil.ToPgtype(*player.CurrentLocationID),
 			})
 			if err != nil {
 				return nil, fmt.Errorf("gather state location npcs: %w", err)
@@ -122,7 +115,7 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 
 		items, err := sm.queries.ListItemsByPlayer(ctx, statedb.ListItemsByPlayerParams{
 			CampaignID:        pgCampaignID,
-			PlayerCharacterID: uuidToPgtype(player.ID),
+			PlayerCharacterID: dbutil.ToPgtype(player.ID),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("gather state inventory: %w", err)
@@ -150,7 +143,7 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 		}
 
 		for _, objective := range objectives {
-			questID := uuidFromPgtype(objective.QuestID)
+			questID := dbutil.FromPgtype(objective.QuestID)
 			state.ActiveQuestObjectives[questID] = append(
 				state.ActiveQuestObjectives[questID],
 				questObjectiveToDomain(objective),

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/PatrickFanella/game-master/internal/dbutil"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
 
@@ -692,15 +693,15 @@ func TestGatherState_AssemblesCompleteState(t *testing.T) {
 	factID := uuid.New()
 
 	mq.campaign = statedb.Campaign{
-		ID:        uuidToPgtype(campaignID),
+		ID:        dbutil.ToPgtype(campaignID),
 		Name:      "Campaign",
 		Status:    "active",
-		CreatedBy: uuidToPgtype(userID),
+		CreatedBy: dbutil.ToPgtype(userID),
 	}
 	mq.playerCharacters = []statedb.PlayerCharacter{{
-		ID:                uuidToPgtype(playerID),
-		CampaignID:        uuidToPgtype(campaignID),
-		UserID:            uuidToPgtype(userID),
+		ID:                dbutil.ToPgtype(playerID),
+		CampaignID:        dbutil.ToPgtype(campaignID),
+		UserID:            dbutil.ToPgtype(userID),
 		Name:              "Hero",
 		Stats:             []byte(`{"str":14}`),
 		Hp:                10,
@@ -708,55 +709,55 @@ func TestGatherState_AssemblesCompleteState(t *testing.T) {
 		Level:             2,
 		Status:            "healthy",
 		Abilities:         []byte(`["dash"]`),
-		CurrentLocationID: uuidToPgtype(locationID),
+		CurrentLocationID: dbutil.ToPgtype(locationID),
 	}}
 	mq.location = statedb.Location{
-		ID:          uuidToPgtype(locationID),
-		CampaignID:  uuidToPgtype(campaignID),
+		ID:          dbutil.ToPgtype(locationID),
+		CampaignID:  dbutil.ToPgtype(campaignID),
 		Name:        "Town Square",
 		Description: pgtype.Text{String: "Busy center", Valid: true},
 	}
 	mq.connections = []statedb.GetConnectionsFromLocationRow{{
-		ID:             uuidToPgtype(uuid.New()),
-		FromLocationID: uuidToPgtype(locationID),
-		ToLocationID:   uuidToPgtype(uuid.New()),
+		ID:             dbutil.ToPgtype(uuid.New()),
+		FromLocationID: dbutil.ToPgtype(locationID),
+		ToLocationID:   dbutil.ToPgtype(uuid.New()),
 		Description:    pgtype.Text{String: "Road north", Valid: true},
-		CampaignID:     uuidToPgtype(campaignID),
+		CampaignID:     dbutil.ToPgtype(campaignID),
 	}}
 	mq.npcs = []statedb.Npc{{
-		ID:          uuidToPgtype(npcID),
-		CampaignID:  uuidToPgtype(campaignID),
+		ID:          dbutil.ToPgtype(npcID),
+		CampaignID:  dbutil.ToPgtype(campaignID),
 		Name:        "Guard",
 		Description: pgtype.Text{String: "Watchful", Valid: true},
 		Disposition: 15,
-		LocationID:  uuidToPgtype(locationID),
+		LocationID:  dbutil.ToPgtype(locationID),
 		Alive:       true,
 	}}
 	mq.quests = []statedb.Quest{{
-		ID:          uuidToPgtype(questID),
-		CampaignID:  uuidToPgtype(campaignID),
+		ID:          dbutil.ToPgtype(questID),
+		CampaignID:  dbutil.ToPgtype(campaignID),
 		Title:       "Find Relic",
 		Description: pgtype.Text{String: "Seek the old relic", Valid: true},
 		QuestType:   "short_term",
 		Status:      "active",
 	}}
 	mq.objectivesByQuests = []statedb.QuestObjective{{
-		ID:          uuidToPgtype(objectiveID),
-		QuestID:     uuidToPgtype(questID),
+		ID:          dbutil.ToPgtype(objectiveID),
+		QuestID:     dbutil.ToPgtype(questID),
 		Description: "Search the ruins",
 		OrderIndex:  1,
 	}}
 	mq.items = []statedb.Item{{
-		ID:                uuidToPgtype(itemID),
-		CampaignID:        uuidToPgtype(campaignID),
-		PlayerCharacterID: uuidToPgtype(playerID),
+		ID:                dbutil.ToPgtype(itemID),
+		CampaignID:        dbutil.ToPgtype(campaignID),
+		PlayerCharacterID: dbutil.ToPgtype(playerID),
 		Name:              "Potion",
 		ItemType:          "consumable",
 		Quantity:          2,
 	}}
 	mq.worldFacts = []statedb.WorldFact{{
-		ID:         uuidToPgtype(factID),
-		CampaignID: uuidToPgtype(campaignID),
+		ID:         dbutil.ToPgtype(factID),
+		CampaignID: dbutil.ToPgtype(campaignID),
 		Fact:       "The moon is dimming",
 		Category:   "lore",
 		Source:     "oracle",
@@ -803,10 +804,10 @@ func TestGatherState_HandlesMissingDataGracefully(t *testing.T) {
 	campaignID := uuid.New()
 	userID := uuid.New()
 	mq.campaign = statedb.Campaign{
-		ID:        uuidToPgtype(campaignID),
+		ID:        dbutil.ToPgtype(campaignID),
 		Name:      "New Campaign",
 		Status:    "active",
-		CreatedBy: uuidToPgtype(userID),
+		CreatedBy: dbutil.ToPgtype(userID),
 	}
 
 	sm := newStateManagerWithQuerier(mq)
@@ -853,22 +854,22 @@ func TestGatherState_SelectsNewestPlayerCharacter(t *testing.T) {
 	newPlayerID := uuid.New()
 
 	mq.campaign = statedb.Campaign{
-		ID:        uuidToPgtype(campaignID),
+		ID:        dbutil.ToPgtype(campaignID),
 		Name:      "Campaign",
 		Status:    "active",
-		CreatedBy: uuidToPgtype(userID),
+		CreatedBy: dbutil.ToPgtype(userID),
 	}
 	mq.playerCharacters = []statedb.PlayerCharacter{
 		{
-			ID:         uuidToPgtype(oldPlayerID),
-			CampaignID: uuidToPgtype(campaignID),
-			UserID:     uuidToPgtype(userID),
+			ID:         dbutil.ToPgtype(oldPlayerID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+			UserID:     dbutil.ToPgtype(userID),
 			Name:       "Old Hero",
 		},
 		{
-			ID:         uuidToPgtype(newPlayerID),
-			CampaignID: uuidToPgtype(campaignID),
-			UserID:     uuidToPgtype(userID),
+			ID:         dbutil.ToPgtype(newPlayerID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+			UserID:     dbutil.ToPgtype(userID),
 			Name:       "New Hero",
 		},
 	}
@@ -903,17 +904,17 @@ func TestGatherState_MissingLocationReturnsError(t *testing.T) {
 	locationID := uuid.New()
 
 	mq.campaign = statedb.Campaign{
-		ID:        uuidToPgtype(campaignID),
+		ID:        dbutil.ToPgtype(campaignID),
 		Name:      "Campaign",
 		Status:    "active",
-		CreatedBy: uuidToPgtype(userID),
+		CreatedBy: dbutil.ToPgtype(userID),
 	}
 	mq.playerCharacters = []statedb.PlayerCharacter{{
-		ID:                uuidToPgtype(uuid.New()),
-		CampaignID:        uuidToPgtype(campaignID),
-		UserID:            uuidToPgtype(userID),
+		ID:                dbutil.ToPgtype(uuid.New()),
+		CampaignID:        dbutil.ToPgtype(campaignID),
+		UserID:            dbutil.ToPgtype(userID),
 		Name:              "Hero",
-		CurrentLocationID: uuidToPgtype(locationID),
+		CurrentLocationID: dbutil.ToPgtype(locationID),
 	}}
 
 	sm := newStateManagerWithQuerier(mq)

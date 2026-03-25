@@ -5,29 +5,45 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
-	pgvector "github.com/pgvector/pgvector-go"
 
-	"github.com/PatrickFanella/game-master/internal/domain"
 	"github.com/PatrickFanella/game-master/internal/llm"
-	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
 
 const createLanguageToolName = "create_language"
 
-// LanguageStore persists language records.
-type LanguageStore interface {
-	CreateLanguage(ctx context.Context, arg statedb.CreateLanguageParams) (statedb.Language, error)
-	GetFactionByID(ctx context.Context, id pgtype.UUID) (statedb.Faction, error)
-	GetCultureByID(ctx context.Context, id pgtype.UUID) (statedb.Culture, error)
+// CreateLanguageParams holds the parameters for creating a language.
+type CreateLanguageParams struct {
+	CampaignID         uuid.UUID
+	Name               string
+	Description        string
+	PhonologicalRules  json.RawMessage
+	NamingConventions  json.RawMessage
+	SampleVocabulary   json.RawMessage
+	SpokenByFactionIDs []uuid.UUID
+	SpokenByCultureIDs []uuid.UUID
 }
 
-// MemoryStore persists semantic memories.
+// LanguageStore persists language records using domain types.
+type LanguageStore interface {
+	CreateLanguage(ctx context.Context, params CreateLanguageParams) (uuid.UUID, error)
+	FactionBelongsToCampaign(ctx context.Context, factionID, campaignID uuid.UUID) (bool, error)
+	CultureBelongsToCampaign(ctx context.Context, cultureID, campaignID uuid.UUID) (bool, error)
+}
+
+// CreateMemoryParams holds the parameters for creating a semantic memory.
+type CreateMemoryParams struct {
+	CampaignID uuid.UUID
+	Content    string
+	Embedding  []float32
+	MemoryType string
+	Metadata   json.RawMessage
+}
+
+// MemoryStore persists semantic memories using domain types.
 type MemoryStore interface {
-	CreateMemory(ctx context.Context, arg statedb.CreateMemoryParams) (statedb.Memory, error)
+	CreateMemory(ctx context.Context, params CreateMemoryParams) error
 }
 
 // Embedder generates vector embeddings for memory content.
@@ -89,15 +105,11 @@ func CreateLanguageTool() llm.Tool {
 }
 
 // RegisterCreateLanguage registers the create_language tool and handler.
+// The memoryStore and embedder parameters are optional; when nil, embedding
+// is skipped (suitable for Phase 2 before embedding infrastructure exists).
 func RegisterCreateLanguage(reg *Registry, languageStore LanguageStore, memoryStore MemoryStore, embedder Embedder) error {
 	if languageStore == nil {
 		return errors.New("create_language language store is required")
-	}
-	if memoryStore == nil {
-		return errors.New("create_language memory store is required")
-	}
-	if embedder == nil {
-		return errors.New("create_language embedder is required")
 	}
 	return reg.Register(CreateLanguageTool(), NewCreateLanguageHandler(languageStore, memoryStore, embedder).Handle)
 }
@@ -125,12 +137,6 @@ func (h *CreateLanguageHandler) Handle(ctx context.Context, args map[string]any)
 	}
 	if h.languageStore == nil {
 		return nil, errors.New("create_language language store is required")
-	}
-	if h.memoryStore == nil {
-		return nil, errors.New("create_language memory store is required")
-	}
-	if h.embedder == nil {
-		return nil, errors.New("create_language embedder is required")
 	}
 
 	campaignID, err := parseUUIDArg(args, "campaign_id")
@@ -166,7 +172,7 @@ func (h *CreateLanguageHandler) Handle(ctx context.Context, args map[string]any)
 		return nil, err
 	}
 
-	if err := h.validateSpeakerIDs(ctx, uuidToPgtype(campaignID), spokenByFactionIDs, spokenByCultureIDs); err != nil {
+	if err := h.validateSpeakerIDs(ctx, campaignID, spokenByFactionIDs, spokenByCultureIDs); err != nil {
 		return nil, err
 	}
 
@@ -183,115 +189,86 @@ func (h *CreateLanguageHandler) Handle(ctx context.Context, args map[string]any)
 		return nil, fmt.Errorf("marshal sample_vocabulary: %w", err)
 	}
 
-	dbCampaignID := uuidToPgtype(campaignID)
-	language, err := h.languageStore.CreateLanguage(ctx, statedb.CreateLanguageParams{
-		CampaignID:         dbCampaignID,
+	languageID, err := h.languageStore.CreateLanguage(ctx, CreateLanguageParams{
+		CampaignID:         campaignID,
 		Name:               name,
-		Description:        pgtype.Text{String: description, Valid: true},
-		Phonology:          phonologyJSON,
-		Naming:             namingJSON,
-		Vocabulary:         vocabularyJSON,
-		SpokenByFactionIds: spokenByFactionIDs,
-		SpokenByCultureIds: spokenByCultureIDs,
+		Description:        description,
+		PhonologicalRules:  phonologyJSON,
+		NamingConventions:  namingJSON,
+		SampleVocabulary:   vocabularyJSON,
+		SpokenByFactionIDs: spokenByFactionIDs,
+		SpokenByCultureIDs: spokenByCultureIDs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create language: %w", err)
 	}
 
-	memoryContent, err := buildLanguageMemoryContent(name, description, phonologicalRules, namingConventions, sampleVocabulary)
-	if err != nil {
-		return nil, fmt.Errorf("build language memory content: %w", err)
-	}
-	embedding, err := h.embedder.Embed(ctx, memoryContent)
-	if err != nil {
-		return nil, fmt.Errorf("embed language memory: %w", err)
-	}
-	metadata, err := json.Marshal(map[string]any{
-		"language_id":           uuidFromPgtype(language.ID).String(),
-		"spoken_by_faction_ids": pgUUIDsToStrings(spokenByFactionIDs),
-		"spoken_by_culture_ids": pgUUIDsToStrings(spokenByCultureIDs),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("marshal language memory metadata: %w", err)
-	}
-
-	if _, err := h.memoryStore.CreateMemory(ctx, statedb.CreateMemoryParams{
-		CampaignID: dbCampaignID,
-		Content:    memoryContent,
-		Embedding:  pgvector.NewVector(embedding),
-		MemoryType: string(domain.MemoryTypeWorldFact),
-		Metadata:   metadata,
-	}); err != nil {
-		return nil, fmt.Errorf("create language memory: %w", err)
+	if h.embedder != nil && h.memoryStore != nil {
+		if err := h.embedLanguageMemory(ctx, campaignID, languageID, name, description, phonologicalRules, namingConventions, sampleVocabulary, spokenByFactionIDs, spokenByCultureIDs); err != nil {
+			return nil, err
+		}
 	}
 
 	return map[string]any{
-		"id":                    uuidFromPgtype(language.ID).String(),
-		"campaign_id":           uuidFromPgtype(language.CampaignID).String(),
-		"name":                  language.Name,
-		"description":           language.Description,
+		"id":                    languageID.String(),
+		"campaign_id":           campaignID.String(),
+		"name":                  name,
+		"description":           description,
 		"phonological_rules":    phonologicalRules,
 		"naming_conventions":    namingConventions,
 		"sample_vocabulary":     sampleVocabulary,
-		"spoken_by_faction_ids": pgUUIDsToStrings(language.SpokenByFactionIds),
-		"spoken_by_culture_ids": pgUUIDsToStrings(language.SpokenByCultureIds),
+		"spoken_by_faction_ids": uuidsToStrings(spokenByFactionIDs),
+		"spoken_by_culture_ids": uuidsToStrings(spokenByCultureIDs),
 	}, nil
 }
 
-func parseJSONObjectArg(args map[string]any, key string) (map[string]any, error) {
-	raw, ok := args[key]
-	if !ok {
-		return nil, fmt.Errorf("%s is required", key)
+func (h *CreateLanguageHandler) embedLanguageMemory(ctx context.Context, campaignID, languageID uuid.UUID, name, description string, phonologicalRules, namingConventions, sampleVocabulary map[string]any, spokenByFactionIDs, spokenByCultureIDs []uuid.UUID) error {
+	memoryContent, err := buildLanguageMemoryContent(name, description, phonologicalRules, namingConventions, sampleVocabulary)
+	if err != nil {
+		return fmt.Errorf("build language memory content: %w", err)
 	}
-	obj, ok := raw.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("%s must be an object", key)
+	embedding, err := h.embedder.Embed(ctx, memoryContent)
+	if err != nil {
+		return fmt.Errorf("embed language memory: %w", err)
 	}
-	return obj, nil
+	metadata, err := json.Marshal(map[string]any{
+		"language_id":           languageID.String(),
+		"spoken_by_faction_ids": uuidsToStrings(spokenByFactionIDs),
+		"spoken_by_culture_ids": uuidsToStrings(spokenByCultureIDs),
+	})
+	if err != nil {
+		return fmt.Errorf("marshal language memory metadata: %w", err)
+	}
+
+	if err := h.memoryStore.CreateMemory(ctx, CreateMemoryParams{
+		CampaignID: campaignID,
+		Content:    memoryContent,
+		Embedding:  embedding,
+		MemoryType: "world_fact",
+		Metadata:   metadata,
+	}); err != nil {
+		return fmt.Errorf("create language memory: %w", err)
+	}
+	return nil
 }
 
-func parseUUIDArrayArg(args map[string]any, key string) ([]pgtype.UUID, error) {
-	raw, ok := args[key]
-	if !ok {
-		return nil, nil
-	}
-	items, ok := raw.([]any)
-	if !ok {
-		return nil, fmt.Errorf("%s must be an array", key)
-	}
-
-	out := make([]pgtype.UUID, 0, len(items))
-	for i, item := range items {
-		s, ok := item.(string)
-		if !ok || strings.TrimSpace(s) == "" {
-			return nil, fmt.Errorf("%s[%d] must be a non-empty string UUID", key, i)
-		}
-		id, err := uuid.Parse(s)
-		if err != nil {
-			return nil, fmt.Errorf("%s[%d] must be a valid UUID", key, i)
-		}
-		out = append(out, uuidToPgtype(id))
-	}
-	return out, nil
-}
-
-func (h *CreateLanguageHandler) validateSpeakerIDs(ctx context.Context, campaignID pgtype.UUID, factionIDs, cultureIDs []pgtype.UUID) error {
+func (h *CreateLanguageHandler) validateSpeakerIDs(ctx context.Context, campaignID uuid.UUID, factionIDs, cultureIDs []uuid.UUID) error {
 	for i, factionID := range factionIDs {
-		faction, err := h.languageStore.GetFactionByID(ctx, factionID)
+		belongs, err := h.languageStore.FactionBelongsToCampaign(ctx, factionID, campaignID)
 		if err != nil {
 			return fmt.Errorf("validate spoken_by_faction_ids[%d]: %w", i, err)
 		}
-		if faction.CampaignID != campaignID {
+		if !belongs {
 			return fmt.Errorf("spoken_by_faction_ids[%d] must belong to campaign_id", i)
 		}
 	}
 
 	for i, cultureID := range cultureIDs {
-		culture, err := h.languageStore.GetCultureByID(ctx, cultureID)
+		belongs, err := h.languageStore.CultureBelongsToCampaign(ctx, cultureID, campaignID)
 		if err != nil {
 			return fmt.Errorf("validate spoken_by_culture_ids[%d]: %w", i, err)
 		}
-		if culture.CampaignID != campaignID {
+		if !belongs {
 			return fmt.Errorf("spoken_by_culture_ids[%d] must belong to campaign_id", i)
 		}
 	}
@@ -299,27 +276,13 @@ func (h *CreateLanguageHandler) validateSpeakerIDs(ctx context.Context, campaign
 	return nil
 }
 
-func uuidToPgtype(u uuid.UUID) pgtype.UUID {
-	return pgtype.UUID{Bytes: u, Valid: u != uuid.Nil}
-}
-
-func uuidFromPgtype(p pgtype.UUID) uuid.UUID {
-	if !p.Valid {
-		return uuid.Nil
-	}
-	return uuid.UUID(p.Bytes)
-}
-
-func pgUUIDsToStrings(ids []pgtype.UUID) []string {
+func uuidsToStrings(ids []uuid.UUID) []string {
 	if len(ids) == 0 {
 		return []string{}
 	}
-	out := make([]string, 0, len(ids))
-	for _, id := range ids {
-		if !id.Valid {
-			continue
-		}
-		out = append(out, uuidFromPgtype(id).String())
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		out[i] = id.String()
 	}
 	return out
 }

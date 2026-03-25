@@ -40,13 +40,8 @@ type StateManager interface {
 	// CreateCampaign creates a new campaign.
 	CreateCampaign(ctx context.Context, params CreateCampaignParams) (*domain.Campaign, error)
 
-	// LoadCampaign loads a campaign and its core associated entities.
-	LoadCampaign(ctx context.Context, id uuid.UUID) (*GameState, error)
-
-	// GetGameState returns a snapshot suitable for LLM context construction.
-	GetGameState(ctx context.Context, campaignID uuid.UUID) (*GameState, error)
-
-	// GatherState assembles all relevant campaign state in one call.
+	// GatherState assembles all relevant campaign state in one call,
+	// returning a snapshot suitable for LLM context construction.
 	GatherState(ctx context.Context, campaignID uuid.UUID) (*GameState, error)
 
 	// SaveSessionLog persists a turn's session log entry.

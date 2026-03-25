@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"math/rand/v2"
 
 	"github.com/google/uuid"
@@ -13,7 +12,6 @@ import (
 )
 
 const skillCheckToolName = "skill_check"
-const floatIntegerTolerance = 1e-9
 
 // StatModifierResolver resolves a character's modifier for a given skill/stat.
 type StatModifierResolver interface {
@@ -174,79 +172,3 @@ func (h *SkillCheckHandler) rollD20() int {
 	return h.roller.Intn(20) + 1
 }
 
-func parseUUIDArg(args map[string]any, key string) (uuid.UUID, error) {
-	raw, ok := args[key]
-	if !ok {
-		return uuid.Nil, fmt.Errorf("%s is required", key)
-	}
-	s, ok := raw.(string)
-	if !ok || s == "" {
-		return uuid.Nil, fmt.Errorf("%s must be a non-empty string", key)
-	}
-	id, err := uuid.Parse(s)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("%s must be a valid UUID", key)
-	}
-	return id, nil
-}
-
-func parseStringArg(args map[string]any, key string) (string, error) {
-	raw, ok := args[key]
-	if !ok {
-		return "", fmt.Errorf("%s is required", key)
-	}
-	s, ok := raw.(string)
-	if !ok || s == "" {
-		return "", fmt.Errorf("%s must be a non-empty string", key)
-	}
-	return s, nil
-}
-
-func parseBoolArg(args map[string]any, key string) (bool, error) {
-	raw, ok := args[key]
-	if !ok {
-		return false, nil
-	}
-	b, ok := raw.(bool)
-	if !ok {
-		return false, fmt.Errorf("%s must be a boolean", key)
-	}
-	return b, nil
-}
-
-func parseIntArg(args map[string]any, key string) (int, error) {
-	raw, ok := args[key]
-	if !ok {
-		return 0, fmt.Errorf("%s is required", key)
-	}
-
-	switch v := raw.(type) {
-	case int:
-		return v, nil
-	case int8:
-		return int(v), nil
-	case int16:
-		return int(v), nil
-	case int32:
-		return int(v), nil
-	case int64:
-		if v < int64(math.MinInt) || v > int64(math.MaxInt) {
-			return 0, fmt.Errorf("%s is out of range", key)
-		}
-		return int(v), nil
-	case float64:
-		if math.IsNaN(v) || math.IsInf(v, 0) {
-			return 0, fmt.Errorf("%s must be a finite integer", key)
-		}
-		rounded := math.Round(v)
-		if math.Abs(v-rounded) > floatIntegerTolerance {
-			return 0, fmt.Errorf("%s must be an integer", key)
-		}
-		if rounded < float64(math.MinInt) || rounded > float64(math.MaxInt) {
-			return 0, fmt.Errorf("%s is out of range", key)
-		}
-		return int(rounded), nil
-	default:
-		return 0, fmt.Errorf("%s must be an integer", key)
-	}
-}

@@ -2,26 +2,15 @@ package game
 
 import (
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/domain"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
 
-func uuidFromPgtype(p pgtype.UUID) uuid.UUID {
-	if !p.Valid {
-		return uuid.Nil
-	}
-	return uuid.UUID(p.Bytes)
-}
-
-func uuidToPgtype(u uuid.UUID) pgtype.UUID {
-	return pgtype.UUID{Bytes: u, Valid: u != uuid.Nil}
-}
-
 func userToDomain(u statedb.User) *domain.User {
 	return &domain.User{
-		ID:        uuidFromPgtype(u.ID),
+		ID:        dbutil.FromPgtype(u.ID),
 		Name:      u.Name,
 		CreatedAt: u.CreatedAt.Time,
 		UpdatedAt: u.UpdatedAt.Time,
@@ -30,14 +19,14 @@ func userToDomain(u statedb.User) *domain.User {
 
 func campaignToDomain(c statedb.Campaign) domain.Campaign {
 	return domain.Campaign{
-		ID:          uuidFromPgtype(c.ID),
+		ID:          dbutil.FromPgtype(c.ID),
 		Name:        c.Name,
 		Description: c.Description.String,
 		Genre:       c.Genre.String,
 		Tone:        c.Tone.String,
 		Themes:      c.Themes,
 		Status:      domain.CampaignStatus(c.Status),
-		CreatedBy:   uuidFromPgtype(c.CreatedBy),
+		CreatedBy:   dbutil.FromPgtype(c.CreatedBy),
 		CreatedAt:   c.CreatedAt.Time,
 		UpdatedAt:   c.UpdatedAt.Time,
 	}
@@ -46,14 +35,14 @@ func campaignToDomain(c statedb.Campaign) domain.Campaign {
 func playerCharacterToDomain(pc statedb.PlayerCharacter) domain.PlayerCharacter {
 	var locationID *uuid.UUID
 	if pc.CurrentLocationID.Valid {
-		id := uuidFromPgtype(pc.CurrentLocationID)
+		id := dbutil.FromPgtype(pc.CurrentLocationID)
 		locationID = &id
 	}
 
 	return domain.PlayerCharacter{
-		ID:                uuidFromPgtype(pc.ID),
-		CampaignID:        uuidFromPgtype(pc.CampaignID),
-		UserID:            uuidFromPgtype(pc.UserID),
+		ID:                dbutil.FromPgtype(pc.ID),
+		CampaignID:        dbutil.FromPgtype(pc.CampaignID),
+		UserID:            dbutil.FromPgtype(pc.UserID),
 		Name:              pc.Name,
 		Description:       pc.Description.String,
 		Stats:             pc.Stats,
@@ -71,8 +60,8 @@ func playerCharacterToDomain(pc statedb.PlayerCharacter) domain.PlayerCharacter 
 
 func locationToDomain(l statedb.Location) domain.Location {
 	return domain.Location{
-		ID:           uuidFromPgtype(l.ID),
-		CampaignID:   uuidFromPgtype(l.CampaignID),
+		ID:           dbutil.FromPgtype(l.ID),
+		CampaignID:   dbutil.FromPgtype(l.CampaignID),
 		Name:         l.Name,
 		Description:  l.Description.String,
 		Region:       l.Region.String,
@@ -85,26 +74,26 @@ func locationToDomain(l statedb.Location) domain.Location {
 
 func locationConnectionToDomain(c statedb.GetConnectionsFromLocationRow) domain.LocationConnection {
 	return domain.LocationConnection{
-		ID:             uuidFromPgtype(c.ID),
-		FromLocationID: uuidFromPgtype(c.FromLocationID),
-		ToLocationID:   uuidFromPgtype(c.ToLocationID),
+		ID:             dbutil.FromPgtype(c.ID),
+		FromLocationID: dbutil.FromPgtype(c.FromLocationID),
+		ToLocationID:   dbutil.FromPgtype(c.ToLocationID),
 		Description:    c.Description.String,
 		Bidirectional:  c.Bidirectional,
 		TravelTime:     c.TravelTime.String,
-		CampaignID:     uuidFromPgtype(c.CampaignID),
+		CampaignID:     dbutil.FromPgtype(c.CampaignID),
 	}
 }
 
 func npcToDomain(n statedb.Npc) domain.NPC {
 	var locationID *uuid.UUID
 	if n.LocationID.Valid {
-		id := uuidFromPgtype(n.LocationID)
+		id := dbutil.FromPgtype(n.LocationID)
 		locationID = &id
 	}
 
 	var factionID *uuid.UUID
 	if n.FactionID.Valid {
-		id := uuidFromPgtype(n.FactionID)
+		id := dbutil.FromPgtype(n.FactionID)
 		factionID = &id
 	}
 
@@ -115,8 +104,8 @@ func npcToDomain(n statedb.Npc) domain.NPC {
 	}
 
 	return domain.NPC{
-		ID:          uuidFromPgtype(n.ID),
-		CampaignID:  uuidFromPgtype(n.CampaignID),
+		ID:          dbutil.FromPgtype(n.ID),
+		CampaignID:  dbutil.FromPgtype(n.CampaignID),
 		Name:        n.Name,
 		Description: n.Description.String,
 		Personality: n.Personality.String,
@@ -135,13 +124,13 @@ func npcToDomain(n statedb.Npc) domain.NPC {
 func questToDomain(q statedb.Quest) domain.Quest {
 	var parentQuestID *uuid.UUID
 	if q.ParentQuestID.Valid {
-		id := uuidFromPgtype(q.ParentQuestID)
+		id := dbutil.FromPgtype(q.ParentQuestID)
 		parentQuestID = &id
 	}
 
 	return domain.Quest{
-		ID:            uuidFromPgtype(q.ID),
-		CampaignID:    uuidFromPgtype(q.CampaignID),
+		ID:            dbutil.FromPgtype(q.ID),
+		CampaignID:    dbutil.FromPgtype(q.CampaignID),
 		ParentQuestID: parentQuestID,
 		Title:         q.Title,
 		Description:   q.Description.String,
@@ -154,8 +143,8 @@ func questToDomain(q statedb.Quest) domain.Quest {
 
 func questObjectiveToDomain(o statedb.QuestObjective) domain.QuestObjective {
 	return domain.QuestObjective{
-		ID:          uuidFromPgtype(o.ID),
-		QuestID:     uuidFromPgtype(o.QuestID),
+		ID:          dbutil.FromPgtype(o.ID),
+		QuestID:     dbutil.FromPgtype(o.QuestID),
 		Description: o.Description,
 		Completed:   o.Completed,
 		OrderIndex:  int(o.OrderIndex),
@@ -165,13 +154,13 @@ func questObjectiveToDomain(o statedb.QuestObjective) domain.QuestObjective {
 func itemToDomain(i statedb.Item) domain.Item {
 	var playerCharacterID *uuid.UUID
 	if i.PlayerCharacterID.Valid {
-		id := uuidFromPgtype(i.PlayerCharacterID)
+		id := dbutil.FromPgtype(i.PlayerCharacterID)
 		playerCharacterID = &id
 	}
 
 	return domain.Item{
-		ID:                uuidFromPgtype(i.ID),
-		CampaignID:        uuidFromPgtype(i.CampaignID),
+		ID:                dbutil.FromPgtype(i.ID),
+		CampaignID:        dbutil.FromPgtype(i.CampaignID),
 		PlayerCharacterID: playerCharacterID,
 		Name:              i.Name,
 		Description:       i.Description.String,
@@ -188,13 +177,13 @@ func itemToDomain(i statedb.Item) domain.Item {
 func worldFactToDomain(f statedb.WorldFact) domain.WorldFact {
 	var supersededBy *uuid.UUID
 	if f.SupersededBy.Valid {
-		id := uuidFromPgtype(f.SupersededBy)
+		id := dbutil.FromPgtype(f.SupersededBy)
 		supersededBy = &id
 	}
 
 	return domain.WorldFact{
-		ID:           uuidFromPgtype(f.ID),
-		CampaignID:   uuidFromPgtype(f.CampaignID),
+		ID:           dbutil.FromPgtype(f.ID),
+		CampaignID:   dbutil.FromPgtype(f.CampaignID),
 		Fact:         f.Fact,
 		Category:     f.Category,
 		Source:       f.Source,
