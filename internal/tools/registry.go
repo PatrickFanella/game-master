@@ -55,13 +55,61 @@ func (r *Registry) Register(tool llm.Tool, handler Handler) error {
 
 // List returns registered tool definitions in registration order,
 // in the llm.Tool format suitable for passing to an LLM provider call.
+// Each returned Tool has a deep copy of its Parameters map so callers
+// cannot mutate the registry's internal schema.
 func (r *Registry) List() []llm.Tool {
 	if r == nil || len(r.tools) == 0 {
 		return nil
 	}
 	out := make([]llm.Tool, len(r.tools))
-	copy(out, r.tools)
+	for i, t := range r.tools {
+		out[i] = llm.Tool{
+			Name:        t.Name,
+			Description: t.Description,
+			Parameters:  deepCopyMap(t.Parameters),
+		}
+	}
 	return out
+}
+
+// deepCopyMap recursively copies a map[string]any, including nested maps and
+// slices of maps, so that mutations to the copy do not affect the original.
+func deepCopyMap(src map[string]any) map[string]any {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]any, len(src))
+	for k, v := range src {
+		switch val := v.(type) {
+		case map[string]any:
+			dst[k] = deepCopyMap(val)
+		case []any:
+			dst[k] = deepCopySlice(val)
+		default:
+			dst[k] = v
+		}
+	}
+	return dst
+}
+
+// deepCopySlice recursively copies a []any, deep-copying any nested
+// map[string]any or []any elements.
+func deepCopySlice(src []any) []any {
+	if src == nil {
+		return nil
+	}
+	dst := make([]any, len(src))
+	for i, v := range src {
+		switch val := v.(type) {
+		case map[string]any:
+			dst[i] = deepCopyMap(val)
+		case []any:
+			dst[i] = deepCopySlice(val)
+		default:
+			dst[i] = v
+		}
+	}
+	return dst
 }
 
 // Execute looks up a handler by tool name and invokes it with the given

@@ -44,7 +44,15 @@ func TestRegisterAndList(t *testing.T) {
 
 func TestListReturnsCopy(t *testing.T) {
 	reg := NewRegistry()
-	tool := llm.Tool{Name: "copy_tool", Parameters: map[string]any{}}
+	tool := llm.Tool{
+		Name: "copy_tool",
+		Parameters: map[string]any{
+			"type": "object",
+			"nested": map[string]any{
+				"key": "original",
+			},
+		},
+	}
 	handler := func(_ context.Context, _ map[string]any) (*ToolResult, error) {
 		return &ToolResult{Success: true}, nil
 	}
@@ -52,11 +60,30 @@ func TestListReturnsCopy(t *testing.T) {
 		t.Fatalf("Register: %v", err)
 	}
 
+	// Mutating the returned slice element's Name must not affect the registry.
 	list1 := reg.List()
 	list1[0].Name = "mutated"
 	list2 := reg.List()
 	if list2[0].Name != "copy_tool" {
-		t.Fatalf("List[0].Name = %q after mutation, want %q", list2[0].Name, "copy_tool")
+		t.Fatalf("List[0].Name = %q after Name mutation, want %q", list2[0].Name, "copy_tool")
+	}
+
+	// Mutating a top-level Parameters entry must not affect the registry.
+	list3 := reg.List()
+	list3[0].Parameters["type"] = "mutated-type"
+	list4 := reg.List()
+	if list4[0].Parameters["type"] != "object" {
+		t.Fatalf("Parameters[\"type\"] = %v after top-level mutation, want %q", list4[0].Parameters["type"], "object")
+	}
+
+	// Mutating a nested Parameters map must not affect the registry.
+	list5 := reg.List()
+	nested, _ := list5[0].Parameters["nested"].(map[string]any)
+	nested["key"] = "mutated-nested"
+	list6 := reg.List()
+	nested2, _ := list6[0].Parameters["nested"].(map[string]any)
+	if nested2["key"] != "original" {
+		t.Fatalf("Parameters[\"nested\"][\"key\"] = %v after nested mutation, want %q", nested2["key"], "original")
 	}
 }
 
