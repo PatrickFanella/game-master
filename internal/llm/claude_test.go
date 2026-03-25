@@ -3,8 +3,10 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -118,5 +120,163 @@ func TestClaudeClientCompleteRequestHeadersAndPayload(t *testing.T) {
 	}
 	if resp.Usage.PromptTokens != 11 || resp.Usage.CompletionTokens != 7 || resp.Usage.TotalTokens != 18 {
 		t.Fatalf("usage = %#v, want prompt=11 completion=7 total=18", resp.Usage)
+	}
+}
+
+func TestClaudeClientStreamEmitsToolCallDeltasAndFinalDoneChunk(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+"content":[
+  {"type":"tool_use","id":"tool_1","name":"lookup_weather","input":{"city":"Paris"}},
+  {"type":"tool_use","id":"tool_2","name":"lookup_time","input":{"city":"Paris"}},
+  {"type":"text","text":"done"}
+],
+"stop_reason":"end_turn",
+"usage":{"input_tokens":9,"output_tokens":4}
+}`))
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	var chunks []StreamChunk
+	for chunk := range ch {
+		chunks = append(chunks, chunk)
+	}
+	if len(chunks) != 3 {
+		t.Fatalf("chunks len = %d, want 3", len(chunks))
+	}
+	if chunks[0].Done || chunks[0].ToolCallDelta == nil || chunks[0].ToolCallDelta.Name != "lookup_weather" {
+		t.Fatalf("chunk[0] = %#v, want non-done lookup_weather tool delta", chunks[0])
+	}
+	if chunks[1].Done || chunks[1].ToolCallDelta == nil || chunks[1].ToolCallDelta.Name != "lookup_time" {
+		t.Fatalf("chunk[1] = %#v, want non-done lookup_time tool delta", chunks[1])
+	}
+	if !chunks[2].Done || chunks[2].ContentDelta != "done" || chunks[2].ToolCallDelta != nil {
+		t.Fatalf("chunk[2] = %#v, want final done text chunk", chunks[2])
+	}
+}
+
+func TestClaudeClientCompleteErrorClassificationHTTPStatus(t *testing.T) {
+	tests := []struct {
+		name         string
+		status       int
+		body         string
+		wantErr      any
+		wantContains string
+	}{
+		{name: "auth unauthorized", status: http.StatusUnauthorized, body: "invalid auth token", wantErr: &ErrAuth{}, wantContains: "status 401"},
+		{name: "auth forbidden", status: http.StatusForbidden, body: "forbidden", wantErr: &ErrAuth{}, wantContains: "status 403"},
+		{name: "rate limit", status: http.StatusTooManyRequests, body: "too many requests", wantErr: &ErrRateLimit{}, wantContains: "status 429"},
+		{name: "model not found", status: http.StatusNotFound, body: "model 'claude-test' not found", wantErr: &ErrModelNotFound{}, wantContains: "claude-test"},
+		{name: "generic non-2xx", status: http.StatusInternalServerError, body: "internal error", wantErr: &ErrConnection{}, wantContains: "status 500"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer server.Close()
+
+			client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+			_, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+			if err == nil {
+				t.Fatalf("expected error for status %d", tt.status)
+			}
+
+			switch tt.wantErr.(type) {
+			case *ErrAuth:
+				var e *ErrAuth
+				if !errors.As(err, &e) {
+					t.Fatalf("error type = %T, want *ErrAuth (error=%v)", err, err)
+				}
+				if e.StatusCode != tt.status || e.URL != server.URL+claudeMessagesPath {
+					t.Fatalf("auth error = %#v, want status=%d url=%q", e, tt.status, server.URL+claudeMessagesPath)
+				}
+			case *ErrRateLimit:
+				var e *ErrRateLimit
+				if !errors.As(err, &e) {
+					t.Fatalf("error type = %T, want *ErrRateLimit (error=%v)", err, err)
+				}
+				if e.StatusCode != tt.status || e.URL != server.URL+claudeMessagesPath {
+					t.Fatalf("rate limit error = %#v, want status=%d url=%q", e, tt.status, server.URL+claudeMessagesPath)
+				}
+			case *ErrModelNotFound:
+				var e *ErrModelNotFound
+				if !errors.As(err, &e) {
+					t.Fatalf("error type = %T, want *ErrModelNotFound (error=%v)", err, err)
+				}
+				if e.StatusCode != tt.status || e.URL != server.URL+claudeMessagesPath || e.Model != "claude-test" {
+					t.Fatalf("model not found error = %#v, want status=%d url=%q model=claude-test", e, tt.status, server.URL+claudeMessagesPath)
+				}
+			case *ErrConnection:
+				var e *ErrConnection
+				if !errors.As(err, &e) {
+					t.Fatalf("error type = %T, want *ErrConnection (error=%v)", err, err)
+				}
+				if e.URL != server.URL+claudeMessagesPath {
+					t.Fatalf("connection error URL = %q, want %q", e.URL, server.URL+claudeMessagesPath)
+				}
+			default:
+				t.Fatalf("unsupported expected type %T", tt.wantErr)
+			}
+
+			if !strings.Contains(err.Error(), tt.wantContains) {
+				t.Fatalf("error = %q, want to contain %q", err.Error(), tt.wantContains)
+			}
+		})
+	}
+}
+
+func TestClaudeClientCompleteMalformedResponseErrorType(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("{invalid json"))
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	_, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err == nil {
+		t.Fatal("expected malformed response error")
+	}
+
+	var malformedErr *ErrMalformedResponse
+	if !errors.As(err, &malformedErr) {
+		t.Fatalf("error type = %T, want *ErrMalformedResponse (error=%v)", err, err)
+	}
+	if malformedErr.URL != server.URL+claudeMessagesPath {
+		t.Fatalf("URL = %q, want %q", malformedErr.URL, server.URL+claudeMessagesPath)
+	}
+}
+
+func TestClaudeClientCompleteUnsupportedContentTypeReturnsMalformedResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+"content":[{"type":"image","text":"ignored"}],
+"stop_reason":"end_turn",
+"usage":{"input_tokens":1,"output_tokens":1}
+}`))
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	_, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err == nil {
+		t.Fatal("expected malformed response error")
+	}
+
+	var malformedErr *ErrMalformedResponse
+	if !errors.As(err, &malformedErr) {
+		t.Fatalf("error type = %T, want *ErrMalformedResponse (error=%v)", err, err)
+	}
+	if !strings.Contains(malformedErr.Error(), "unsupported claude content block type") {
+		t.Fatalf("error = %q, want unsupported content type context", malformedErr.Error())
 	}
 }

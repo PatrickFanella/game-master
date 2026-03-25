@@ -84,7 +84,13 @@ func (c *ClaudeClient) Complete(ctx context.Context, messages []Message, tools [
 		}
 	}
 
-	content, toolCalls := fromClaudeContent(messagesResp.Content)
+	content, toolCalls, err := fromClaudeContent(messagesResp.Content)
+	if err != nil {
+		return nil, &ErrMalformedResponse{
+			URL: c.baseURL + claudeMessagesPath,
+			Err: err,
+		}
+	}
 
 	return &Response{
 		Content:      content,
@@ -104,7 +110,15 @@ func (c *ClaudeClient) Stream(ctx context.Context, messages []Message, tools []T
 		return nil, err
 	}
 
-	ch := make(chan StreamChunk, 1)
+	ch := make(chan StreamChunk, len(resp.ToolCalls)+1)
+	for _, tc := range resp.ToolCalls {
+		tcCopy := tc
+		ch <- StreamChunk{
+			ContentDelta:  "",
+			ToolCallDelta: &tcCopy,
+			Done:          false,
+		}
+	}
 	ch <- StreamChunk{
 		ContentDelta:  resp.Content,
 		ToolCallDelta: nil,
@@ -313,9 +327,9 @@ func toClaudeTools(tools []Tool) []claudeTool {
 	return out
 }
 
-func fromClaudeContent(content []claudeContentBlock) (string, []ToolCall) {
+func fromClaudeContent(content []claudeContentBlock) (string, []ToolCall, error) {
 	if len(content) == 0 {
-		return "", nil
+		return "", nil, fmt.Errorf("claude response contained no content blocks")
 	}
 
 	var text strings.Builder
@@ -330,7 +344,12 @@ func fromClaudeContent(content []claudeContentBlock) (string, []ToolCall) {
 				Name:      block.Name,
 				Arguments: block.Input,
 			})
+		default:
+			return "", nil, fmt.Errorf("unsupported claude content block type %q", block.Type)
 		}
 	}
-	return text.String(), toolCalls
+	if text.Len() == 0 && len(toolCalls) == 0 {
+		return "", nil, fmt.Errorf("claude response contained no text or tool calls")
+	}
+	return text.String(), toolCalls, nil
 }
