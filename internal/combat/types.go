@@ -77,6 +77,8 @@ type Combatant struct {
 	Conditions []string
 	// Initiative determines action order within a round.
 	Initiative int
+	// Surprised indicates this combatant skips turns during the surprise round.
+	Surprised bool
 }
 
 // Validate checks that the combatant has the minimum required fields.
@@ -123,6 +125,14 @@ type CombatState struct {
 	CampaignID uuid.UUID
 	// Combatants lists all participants and their current stats.
 	Combatants []Combatant
+	// InitiativeOrder stores combatant entity IDs ordered by current initiative.
+	InitiativeOrder []uuid.UUID
+	// InitiativeRerollEachRound controls whether initiative is re-rolled each round.
+	// Defaults to false (roll once per combat).
+	InitiativeRerollEachRound bool
+	// SurpriseRoundActive indicates whether round 1 is currently treated as a
+	// surprise round.
+	SurpriseRoundActive bool
 	// RoundNumber is the current round (0 before the first round, then starts at 1).
 	RoundNumber int
 	// ActiveEffects holds persistent effects that span multiple rounds
