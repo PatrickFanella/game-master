@@ -517,7 +517,10 @@ func (q *Queries) ListLanguagesByCampaign(ctx context.Context, campaignID pgtype
 const listLanguagesByFaction = `-- name: ListLanguagesByFaction :many
 SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at, l.spoken_by_faction_ids, l.spoken_by_culture_ids, l.description
 FROM languages l
-WHERE $1::uuid = ANY(l.spoken_by_faction_ids)
+INNER JOIN factions f
+  ON f.id = $1::uuid
+ AND f.campaign_id = l.campaign_id
+WHERE l.spoken_by_faction_ids @> ARRAY[f.id]
 ORDER BY l.created_at, l.id
 `
 

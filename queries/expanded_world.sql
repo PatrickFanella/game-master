@@ -166,7 +166,10 @@ WHERE id = sqlc.arg(id);
 -- name: ListLanguagesByFaction :many
 SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at, l.spoken_by_faction_ids, l.spoken_by_culture_ids, l.description
 FROM languages l
-WHERE sqlc.arg(faction_id)::uuid = ANY(l.spoken_by_faction_ids)
+INNER JOIN factions f
+  ON f.id = sqlc.arg(faction_id)::uuid
+ AND f.campaign_id = l.campaign_id
+WHERE l.spoken_by_faction_ids @> ARRAY[f.id]
 ORDER BY l.created_at, l.id;
 
 -- name: GetBeliefSystemByCulture :one

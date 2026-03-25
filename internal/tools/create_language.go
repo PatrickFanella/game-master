@@ -21,6 +21,8 @@ const createLanguageToolName = "create_language"
 // LanguageStore persists language records.
 type LanguageStore interface {
 	CreateLanguage(ctx context.Context, arg statedb.CreateLanguageParams) (statedb.Language, error)
+	GetFactionByID(ctx context.Context, id pgtype.UUID) (statedb.Faction, error)
+	GetCultureByID(ctx context.Context, id pgtype.UUID) (statedb.Culture, error)
 }
 
 // MemoryStore persists semantic memories.
@@ -164,6 +166,10 @@ func (h *CreateLanguageHandler) Handle(ctx context.Context, args map[string]any)
 		return nil, err
 	}
 
+	if err := h.validateSpeakerIDs(ctx, uuidToPgtype(campaignID), spokenByFactionIDs, spokenByCultureIDs); err != nil {
+		return nil, err
+	}
+
 	phonologyJSON, err := json.Marshal(phonologicalRules)
 	if err != nil {
 		return nil, fmt.Errorf("marshal phonological_rules: %w", err)
@@ -267,6 +273,30 @@ func parseUUIDArrayArg(args map[string]any, key string) ([]pgtype.UUID, error) {
 		out = append(out, uuidToPgtype(id))
 	}
 	return out, nil
+}
+
+func (h *CreateLanguageHandler) validateSpeakerIDs(ctx context.Context, campaignID pgtype.UUID, factionIDs, cultureIDs []pgtype.UUID) error {
+	for i, factionID := range factionIDs {
+		faction, err := h.languageStore.GetFactionByID(ctx, factionID)
+		if err != nil {
+			return fmt.Errorf("validate spoken_by_faction_ids[%d]: %w", i, err)
+		}
+		if faction.CampaignID != campaignID {
+			return fmt.Errorf("spoken_by_faction_ids[%d] must belong to campaign_id", i)
+		}
+	}
+
+	for i, cultureID := range cultureIDs {
+		culture, err := h.languageStore.GetCultureByID(ctx, cultureID)
+		if err != nil {
+			return fmt.Errorf("validate spoken_by_culture_ids[%d]: %w", i, err)
+		}
+		if culture.CampaignID != campaignID {
+			return fmt.Errorf("spoken_by_culture_ids[%d] must belong to campaign_id", i)
+		}
+	}
+
+	return nil
 }
 
 func uuidToPgtype(u uuid.UUID) pgtype.UUID {
