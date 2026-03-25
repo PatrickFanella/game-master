@@ -87,21 +87,6 @@ func makeSessionLogs(n int) []domain.SessionLog {
 	return logs
 }
 
-// itoa is a minimal int-to-string helper to avoid importing strconv.
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	buf := [20]byte{}
-	pos := len(buf)
-	for n > 0 {
-		pos--
-		buf[pos] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(buf[pos:])
-}
-
 // ---------------------------------------------------------------------------
 // NewContextAssembler
 // ---------------------------------------------------------------------------
@@ -118,9 +103,12 @@ func TestNewContextAssembler_NilRegistry(t *testing.T) {
 
 func TestNewContextAssembler_WithRegistry(t *testing.T) {
 	reg := tools.NewRegistry()
-	_ = reg.Register(llm.Tool{Name: "test_tool", Description: "a test tool"}, func(_ context.Context, _ map[string]any) (map[string]any, error) {
+	err := reg.Register(llm.Tool{Name: "test_tool", Description: "a test tool"}, func(_ context.Context, _ map[string]any) (map[string]any, error) {
 		return nil, nil
 	})
+	if err != nil {
+		t.Fatalf("failed to register test tool: %v", err)
+	}
 
 	a := NewContextAssembler(reg)
 	if a == nil {
@@ -449,8 +437,12 @@ func TestTools_ReturnsRegisteredTools(t *testing.T) {
 	tool1 := llm.Tool{Name: "tool_a", Description: "first"}
 	tool2 := llm.Tool{Name: "tool_b", Description: "second"}
 	noop := func(_ context.Context, _ map[string]any) (map[string]any, error) { return nil, nil }
-	_ = reg.Register(tool1, noop)
-	_ = reg.Register(tool2, noop)
+	if err := reg.Register(tool1, noop); err != nil {
+		t.Fatalf("failed to register tool1: %v", err)
+	}
+	if err := reg.Register(tool2, noop); err != nil {
+		t.Fatalf("failed to register tool2: %v", err)
+	}
 
 	a := NewContextAssembler(reg)
 	got := a.Tools()

@@ -109,8 +109,10 @@ func buildSystemContent(state *game.GameState) string {
 	return sb.String()
 }
 
-// serializeState renders state as structured plain text.  Each section is
-// only written when there is data to show.
+// serializeState renders state as structured plain text. Core sections
+// (Campaign, Player Character, and Current Location) are always written when
+// a game state is available; optional sections (NPCs, Quests, Inventory,
+// World Facts) and optional fields are only included when there is data to show.
 func serializeState(state *game.GameState) string {
 	if state == nil {
 		return "(no game state available)\n"
@@ -160,16 +162,19 @@ func serializeState(state *game.GameState) string {
 	if state.CurrentLocation.Description != "" {
 		sb.WriteString(fmt.Sprintf("- Description: %s\n", state.CurrentLocation.Description))
 	}
-	if len(state.CurrentLocationConnections) > 0 {
-		sb.WriteString("- Exits:\n")
-		for _, conn := range state.CurrentLocationConnections {
-			if conn.Description != "" {
-				if conn.TravelTime != "" {
-					sb.WriteString(fmt.Sprintf("  - %s (travel time: %s)\n", conn.Description, conn.TravelTime))
-				} else {
-					sb.WriteString(fmt.Sprintf("  - %s\n", conn.Description))
-				}
-			}
+	wroteExitsHeader := false
+	for _, conn := range state.CurrentLocationConnections {
+		if conn.Description == "" {
+			continue
+		}
+		if !wroteExitsHeader {
+			sb.WriteString("- Exits:\n")
+			wroteExitsHeader = true
+		}
+		if conn.TravelTime != "" {
+			sb.WriteString(fmt.Sprintf("  - %s (travel time: %s)\n", conn.Description, conn.TravelTime))
+		} else {
+			sb.WriteString(fmt.Sprintf("  - %s\n", conn.Description))
 		}
 	}
 	sb.WriteString("\n")
