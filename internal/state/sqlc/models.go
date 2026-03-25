@@ -9,6 +9,15 @@ import (
 	pgvector_go "github.com/pgvector/pgvector-go"
 )
 
+type BeliefSystem struct {
+	ID         pgtype.UUID
+	CampaignID pgtype.UUID
+	Name       string
+	Details    []byte
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+}
+
 type Campaign struct {
 	ID          pgtype.UUID
 	Name        string
@@ -20,6 +29,26 @@ type Campaign struct {
 	CreatedBy   pgtype.UUID
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+}
+
+type Culture struct {
+	ID             pgtype.UUID
+	CampaignID     pgtype.UUID
+	LanguageID     pgtype.UUID
+	BeliefSystemID pgtype.UUID
+	Name           string
+	Details        []byte
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type EconomicSystem struct {
+	ID         pgtype.UUID
+	CampaignID pgtype.UUID
+	Name       string
+	Details    []byte
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type EntityRelationship struct {
@@ -71,6 +100,17 @@ type Item struct {
 	Quantity          int32
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
+}
+
+type Language struct {
+	ID         pgtype.UUID
+	CampaignID pgtype.UUID
+	Name       string
+	Phonology  []byte
+	Naming     []byte
+	Vocabulary []byte
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type Location struct {

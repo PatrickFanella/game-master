@@ -84,11 +84,55 @@ func (m *mockQuerier) CreateCampaign(_ context.Context, _ statedb.CreateCampaign
 	return statedb.Campaign{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) CreateBeliefSystem(_ context.Context, _ statedb.CreateBeliefSystemParams) (statedb.BeliefSystem, error) {
+	return statedb.BeliefSystem{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) CreateCulture(_ context.Context, _ statedb.CreateCultureParams) (statedb.Culture, error) {
+	return statedb.Culture{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) CreateEconomicSystem(_ context.Context, _ statedb.CreateEconomicSystemParams) (statedb.EconomicSystem, error) {
+	return statedb.EconomicSystem{}, pgx.ErrNoRows
+}
+
 func (m *mockQuerier) GetCampaignByID(_ context.Context, _ pgtype.UUID) (statedb.Campaign, error) {
 	return statedb.Campaign{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) GetBeliefSystemByID(_ context.Context, _ pgtype.UUID) (statedb.BeliefSystem, error) {
+	return statedb.BeliefSystem{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetBeliefSystemByCulture(_ context.Context, _ pgtype.UUID) (statedb.BeliefSystem, error) {
+	return statedb.BeliefSystem{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetCultureByID(_ context.Context, _ pgtype.UUID) (statedb.Culture, error) {
+	return statedb.Culture{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) ListCulturesByLanguage(_ context.Context, _ pgtype.UUID) ([]statedb.Culture, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) GetEconomicSystemByID(_ context.Context, _ pgtype.UUID) (statedb.EconomicSystem, error) {
+	return statedb.EconomicSystem{}, pgx.ErrNoRows
+}
+
 func (m *mockQuerier) ListCampaignsByUser(_ context.Context, _ pgtype.UUID) ([]statedb.Campaign, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListBeliefSystemsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.BeliefSystem, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListCulturesByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Culture, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListEconomicSystemsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.EconomicSystem, error) {
 	return nil, nil
 }
 
@@ -96,11 +140,39 @@ func (m *mockQuerier) UpdateCampaign(_ context.Context, _ statedb.UpdateCampaign
 	return statedb.Campaign{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) UpdateBeliefSystem(_ context.Context, _ statedb.UpdateBeliefSystemParams) (statedb.BeliefSystem, error) {
+	return statedb.BeliefSystem{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) UpdateCulture(_ context.Context, _ statedb.UpdateCultureParams) (statedb.Culture, error) {
+	return statedb.Culture{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) UpdateEconomicSystem(_ context.Context, _ statedb.UpdateEconomicSystemParams) (statedb.EconomicSystem, error) {
+	return statedb.EconomicSystem{}, pgx.ErrNoRows
+}
+
 func (m *mockQuerier) UpdateCampaignStatus(_ context.Context, _ statedb.UpdateCampaignStatusParams) (statedb.Campaign, error) {
 	return statedb.Campaign{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) DeleteBeliefSystem(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+
 func (m *mockQuerier) DeleteCampaign(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+
+func (m *mockQuerier) DeleteCulture(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+
+func (m *mockQuerier) DeleteEconomicSystem(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+
+func (m *mockQuerier) DeleteLanguage(_ context.Context, _ pgtype.UUID) error {
 	return nil
 }
 
@@ -184,6 +256,10 @@ func (m *mockQuerier) CreateItem(_ context.Context, _ statedb.CreateItemParams) 
 	return statedb.Item{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) CreateLanguage(_ context.Context, _ statedb.CreateLanguageParams) (statedb.Language, error) {
+	return statedb.Language{}, pgx.ErrNoRows
+}
+
 func (m *mockQuerier) CreateNPC(_ context.Context, _ statedb.CreateNPCParams) (statedb.Npc, error) {
 	return statedb.Npc{}, pgx.ErrNoRows
 }
@@ -204,6 +280,14 @@ func (m *mockQuerier) GetItemByID(_ context.Context, _ pgtype.UUID) (statedb.Ite
 	return statedb.Item{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) GetLanguageByID(_ context.Context, _ pgtype.UUID) (statedb.Language, error) {
+	return statedb.Language{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) ListLanguagesByFaction(_ context.Context, _ pgtype.UUID) ([]statedb.Language, error) {
+	return nil, nil
+}
+
 func (m *mockQuerier) GetLocationByID(_ context.Context, _ pgtype.UUID) (statedb.Location, error) {
 	return statedb.Location{}, pgx.ErrNoRows
 }
@@ -213,6 +297,10 @@ func (m *mockQuerier) GetNPCByID(_ context.Context, _ pgtype.UUID) (statedb.Npc,
 }
 
 func (m *mockQuerier) ListLocationsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListLanguagesByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Language, error) {
 	return nil, nil
 }
 
@@ -290,6 +378,10 @@ func (m *mockQuerier) UpdateItemEquipped(_ context.Context, _ statedb.UpdateItem
 
 func (m *mockQuerier) UpdateItemQuantity(_ context.Context, _ statedb.UpdateItemQuantityParams) (statedb.Item, error) {
 	return statedb.Item{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) UpdateLanguage(_ context.Context, _ statedb.UpdateLanguageParams) (statedb.Language, error) {
+	return statedb.Language{}, pgx.ErrNoRows
 }
 
 func (m *mockQuerier) UpdateNPC(_ context.Context, _ statedb.UpdateNPCParams) (statedb.Npc, error) {

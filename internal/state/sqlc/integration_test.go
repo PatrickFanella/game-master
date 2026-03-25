@@ -496,9 +496,9 @@ func TestIntegrationLocations(t *testing.T) {
 
 	// UpdateLocation
 	updated, err := q.UpdateLocation(ctx, statedb.UpdateLocationParams{
-		ID:          loc.ID,
-		Name:        "The Enchanted Forest",
-		Region:      txt("Northlands"),
+		ID:           loc.ID,
+		Name:         "The Enchanted Forest",
+		Region:       txt("Northlands"),
 		LocationType: txt("magical wilderness"),
 	})
 	if err != nil {
@@ -518,11 +518,11 @@ func TestIntegrationFactions(t *testing.T) {
 
 	// CreateFaction
 	f1, err := q.CreateFaction(ctx, statedb.CreateFactionParams{
-		CampaignID: camp.ID,
-		Name:       "The Order",
+		CampaignID:  camp.ID,
+		Name:        "The Order",
 		Description: txt("A noble order"),
-		Agenda:     txt("Protect the realm"),
-		Territory:  txt("Capital City"),
+		Agenda:      txt("Protect the realm"),
+		Territory:   txt("Capital City"),
 	})
 	if err != nil {
 		t.Fatalf("CreateFaction: %v", err)
@@ -794,13 +794,13 @@ func TestIntegrationPlayerCharacters(t *testing.T) {
 
 	// UpdatePlayerCharacter
 	upd, err := q.UpdatePlayerCharacter(ctx, statedb.UpdatePlayerCharacterParams{
-		ID:     pc.ID,
-		Name:   "Frodo Baggins",
-		Hp:     90,
-		MaxHp:  100,
+		ID:         pc.ID,
+		Name:       "Frodo Baggins",
+		Hp:         90,
+		MaxHp:      100,
 		Experience: 100,
-		Level:  2,
-		Status: "active",
+		Level:      2,
+		Status:     "active",
 	})
 	if err != nil {
 		t.Fatalf("UpdatePlayerCharacter: %v", err)
@@ -1409,6 +1409,205 @@ func TestIntegrationWorldFacts(t *testing.T) {
 
 	// Unused but validated: f2 still active
 	_ = f2
+}
+
+// TestIntegrationExpandedWorldTables tests CRUD and association queries for expanded world tables.
+func TestIntegrationExpandedWorldTables(t *testing.T) {
+	ctx := context.Background()
+	q := newTx(t)
+	user := createUser(t, q, "expanded-world-user")
+	camp := createCampaign(t, q, user.ID)
+	faction, err := q.CreateFaction(ctx, statedb.CreateFactionParams{
+		CampaignID: camp.ID,
+		Name:       "Expanded Faction",
+	})
+	if err != nil {
+		t.Fatalf("CreateFaction: %v", err)
+	}
+
+	// Languages CRUD + ListLanguagesByFaction
+	lang, err := q.CreateLanguage(ctx, statedb.CreateLanguageParams{
+		CampaignID: camp.ID,
+		Name:       "Eldertongue",
+		Phonology:  []byte(`{"vowels":["a","e"]}`),
+		Naming:     []byte(`{"pattern":"CV-CV"}`),
+		Vocabulary: []byte(`{"sun":"sol"}`),
+	})
+	if err != nil {
+		t.Fatalf("CreateLanguage: %v", err)
+	}
+	gotLang, err := q.GetLanguageByID(ctx, lang.ID)
+	if err != nil {
+		t.Fatalf("GetLanguageByID: %v", err)
+	}
+	if gotLang.ID != lang.ID {
+		t.Error("GetLanguageByID: ID mismatch")
+	}
+	langs, err := q.ListLanguagesByCampaign(ctx, camp.ID)
+	if err != nil {
+		t.Fatalf("ListLanguagesByCampaign: %v", err)
+	}
+	if len(langs) != 1 || langs[0].ID != lang.ID {
+		t.Error("ListLanguagesByCampaign: unexpected result")
+	}
+	updatedLang, err := q.UpdateLanguage(ctx, statedb.UpdateLanguageParams{
+		ID:         lang.ID,
+		Name:       "Modern Eldertongue",
+		Phonology:  []byte(`{"vowels":["a","e","i"]}`),
+		Naming:     []byte(`{"pattern":"CVC"}`),
+		Vocabulary: []byte(`{"sun":"sol","moon":"luna"}`),
+	})
+	if err != nil {
+		t.Fatalf("UpdateLanguage: %v", err)
+	}
+	if updatedLang.Name != "Modern Eldertongue" {
+		t.Errorf("UpdateLanguage: expected Modern Eldertongue, got %q", updatedLang.Name)
+	}
+	langsByFaction, err := q.ListLanguagesByFaction(ctx, faction.ID)
+	if err != nil {
+		t.Fatalf("ListLanguagesByFaction: %v", err)
+	}
+	if len(langsByFaction) != 1 || langsByFaction[0].ID != lang.ID {
+		t.Error("ListLanguagesByFaction: unexpected result")
+	}
+
+	// Belief systems CRUD
+	belief, err := q.CreateBeliefSystem(ctx, statedb.CreateBeliefSystemParams{
+		CampaignID: camp.ID,
+		Name:       "Solar Creed",
+		Details:    []byte(`{"principle":"light"}`),
+	})
+	if err != nil {
+		t.Fatalf("CreateBeliefSystem: %v", err)
+	}
+	gotBelief, err := q.GetBeliefSystemByID(ctx, belief.ID)
+	if err != nil {
+		t.Fatalf("GetBeliefSystemByID: %v", err)
+	}
+	if gotBelief.ID != belief.ID {
+		t.Error("GetBeliefSystemByID: ID mismatch")
+	}
+	beliefs, err := q.ListBeliefSystemsByCampaign(ctx, camp.ID)
+	if err != nil {
+		t.Fatalf("ListBeliefSystemsByCampaign: %v", err)
+	}
+	if len(beliefs) != 1 || beliefs[0].ID != belief.ID {
+		t.Error("ListBeliefSystemsByCampaign: unexpected result")
+	}
+	updatedBelief, err := q.UpdateBeliefSystem(ctx, statedb.UpdateBeliefSystemParams{
+		ID:      belief.ID,
+		Name:    "Reformed Solar Creed",
+		Details: []byte(`{"principle":"balance"}`),
+	})
+	if err != nil {
+		t.Fatalf("UpdateBeliefSystem: %v", err)
+	}
+	if updatedBelief.Name != "Reformed Solar Creed" {
+		t.Errorf("UpdateBeliefSystem: expected Reformed Solar Creed, got %q", updatedBelief.Name)
+	}
+
+	// Economic systems CRUD
+	economy, err := q.CreateEconomicSystem(ctx, statedb.CreateEconomicSystemParams{
+		CampaignID: camp.ID,
+		Name:       "Coin Guild",
+		Details:    []byte(`{"currency":"mark"}`),
+	})
+	if err != nil {
+		t.Fatalf("CreateEconomicSystem: %v", err)
+	}
+	gotEconomy, err := q.GetEconomicSystemByID(ctx, economy.ID)
+	if err != nil {
+		t.Fatalf("GetEconomicSystemByID: %v", err)
+	}
+	if gotEconomy.ID != economy.ID {
+		t.Error("GetEconomicSystemByID: ID mismatch")
+	}
+	economicSystems, err := q.ListEconomicSystemsByCampaign(ctx, camp.ID)
+	if err != nil {
+		t.Fatalf("ListEconomicSystemsByCampaign: %v", err)
+	}
+	if len(economicSystems) != 1 || economicSystems[0].ID != economy.ID {
+		t.Error("ListEconomicSystemsByCampaign: unexpected result")
+	}
+	updatedEconomy, err := q.UpdateEconomicSystem(ctx, statedb.UpdateEconomicSystemParams{
+		ID:      economy.ID,
+		Name:    "Merchant Guild",
+		Details: []byte(`{"currency":"crown"}`),
+	})
+	if err != nil {
+		t.Fatalf("UpdateEconomicSystem: %v", err)
+	}
+	if updatedEconomy.Name != "Merchant Guild" {
+		t.Errorf("UpdateEconomicSystem: expected Merchant Guild, got %q", updatedEconomy.Name)
+	}
+
+	// Cultures CRUD + GetBeliefSystemByCulture + ListCulturesByLanguage
+	culture, err := q.CreateCulture(ctx, statedb.CreateCultureParams{
+		CampaignID:     camp.ID,
+		LanguageID:     lang.ID,
+		BeliefSystemID: belief.ID,
+		Name:           "Highland Culture",
+		Details:        []byte(`{"value":"honor"}`),
+	})
+	if err != nil {
+		t.Fatalf("CreateCulture: %v", err)
+	}
+	gotCulture, err := q.GetCultureByID(ctx, culture.ID)
+	if err != nil {
+		t.Fatalf("GetCultureByID: %v", err)
+	}
+	if gotCulture.ID != culture.ID {
+		t.Error("GetCultureByID: ID mismatch")
+	}
+	cultures, err := q.ListCulturesByCampaign(ctx, camp.ID)
+	if err != nil {
+		t.Fatalf("ListCulturesByCampaign: %v", err)
+	}
+	if len(cultures) != 1 || cultures[0].ID != culture.ID {
+		t.Error("ListCulturesByCampaign: unexpected result")
+	}
+	updatedCulture, err := q.UpdateCulture(ctx, statedb.UpdateCultureParams{
+		ID:             culture.ID,
+		LanguageID:     lang.ID,
+		BeliefSystemID: belief.ID,
+		Name:           "Coastal Culture",
+		Details:        []byte(`{"value":"trade"}`),
+	})
+	if err != nil {
+		t.Fatalf("UpdateCulture: %v", err)
+	}
+	if updatedCulture.Name != "Coastal Culture" {
+		t.Errorf("UpdateCulture: expected Coastal Culture, got %q", updatedCulture.Name)
+	}
+
+	beliefByCulture, err := q.GetBeliefSystemByCulture(ctx, culture.ID)
+	if err != nil {
+		t.Fatalf("GetBeliefSystemByCulture: %v", err)
+	}
+	if beliefByCulture.ID != belief.ID {
+		t.Error("GetBeliefSystemByCulture: unexpected result")
+	}
+
+	culturesByLanguage, err := q.ListCulturesByLanguage(ctx, lang.ID)
+	if err != nil {
+		t.Fatalf("ListCulturesByLanguage: %v", err)
+	}
+	if len(culturesByLanguage) != 1 || culturesByLanguage[0].ID != culture.ID {
+		t.Error("ListCulturesByLanguage: unexpected result")
+	}
+
+	if err := q.DeleteCulture(ctx, culture.ID); err != nil {
+		t.Fatalf("DeleteCulture: %v", err)
+	}
+	if err := q.DeleteEconomicSystem(ctx, economy.ID); err != nil {
+		t.Fatalf("DeleteEconomicSystem: %v", err)
+	}
+	if err := q.DeleteBeliefSystem(ctx, belief.ID); err != nil {
+		t.Fatalf("DeleteBeliefSystem: %v", err)
+	}
+	if err := q.DeleteLanguage(ctx, lang.ID); err != nil {
+		t.Fatalf("DeleteLanguage: %v", err)
+	}
 }
 
 // TestIntegrationMemories tests vector storage, retrieval, and cosine similarity search.
