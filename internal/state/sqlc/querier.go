@@ -24,11 +24,13 @@ type Querier interface {
 	CreateObjective(ctx context.Context, arg CreateObjectiveParams) (QuestObjective, error)
 	CreatePlayerCharacter(ctx context.Context, arg CreatePlayerCharacterParams) (PlayerCharacter, error)
 	CreateQuest(ctx context.Context, arg CreateQuestParams) (Quest, error)
+	CreateRelationship(ctx context.Context, arg CreateRelationshipParams) (EntityRelationship, error)
 	CreateSessionLog(ctx context.Context, arg CreateSessionLogParams) (SessionLog, error)
 	CreateUser(ctx context.Context, name string) (User, error)
 	DeleteCampaign(ctx context.Context, id pgtype.UUID) error
 	DeleteConnection(ctx context.Context, arg DeleteConnectionParams) error
 	DeleteItem(ctx context.Context, id pgtype.UUID) error
+	DeleteRelationship(ctx context.Context, arg DeleteRelationshipParams) error
 	DeleteUser(ctx context.Context, id pgtype.UUID) error
 	GetCampaignByID(ctx context.Context, id pgtype.UUID) (Campaign, error)
 	GetConnectionsFromLocation(ctx context.Context, arg GetConnectionsFromLocationParams) ([]GetConnectionsFromLocationRow, error)
@@ -42,6 +44,8 @@ type Querier interface {
 	GetPlayerCharacterByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]PlayerCharacter, error)
 	GetPlayerCharacterByID(ctx context.Context, id pgtype.UUID) (PlayerCharacter, error)
 	GetQuestByID(ctx context.Context, id pgtype.UUID) (Quest, error)
+	GetRelationshipsBetween(ctx context.Context, arg GetRelationshipsBetweenParams) ([]EntityRelationship, error)
+	GetRelationshipsByEntity(ctx context.Context, arg GetRelationshipsByEntityParams) ([]EntityRelationship, error)
 	GetSessionLogByID(ctx context.Context, id pgtype.UUID) (SessionLog, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserByName(ctx context.Context, name string) (User, error)
@@ -65,6 +69,7 @@ type Querier interface {
 	ListQuestsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Quest, error)
 	ListQuestsByType(ctx context.Context, arg ListQuestsByTypeParams) ([]Quest, error)
 	ListRecentSessionLogs(ctx context.Context, arg ListRecentSessionLogsParams) ([]SessionLog, error)
+	ListRelationshipsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]EntityRelationship, error)
 	ListSessionLogsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]SessionLog, error)
 	ListSessionLogsByLocation(ctx context.Context, arg ListSessionLogsByLocationParams) ([]SessionLog, error)
 	ListSubquestsByParentQuest(ctx context.Context, parentQuestID pgtype.UUID) ([]Quest, error)
@@ -94,6 +99,7 @@ type Querier interface {
 	UpdatePlayerStatus(ctx context.Context, arg UpdatePlayerStatusParams) (PlayerCharacter, error)
 	UpdateQuest(ctx context.Context, arg UpdateQuestParams) (Quest, error)
 	UpdateQuestStatus(ctx context.Context, arg UpdateQuestStatusParams) (Quest, error)
+	UpdateRelationship(ctx context.Context, arg UpdateRelationshipParams) (EntityRelationship, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 }
 

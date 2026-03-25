@@ -152,6 +152,30 @@ func (m *mockQuerier) UpdateFactionRelationship(_ context.Context, _ statedb.Upd
 	return statedb.FactionRelationship{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) CreateRelationship(_ context.Context, _ statedb.CreateRelationshipParams) (statedb.EntityRelationship, error) {
+	return statedb.EntityRelationship{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) GetRelationshipsByEntity(_ context.Context, _ statedb.GetRelationshipsByEntityParams) ([]statedb.EntityRelationship, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) GetRelationshipsBetween(_ context.Context, _ statedb.GetRelationshipsBetweenParams) ([]statedb.EntityRelationship, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListRelationshipsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.EntityRelationship, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) UpdateRelationship(_ context.Context, _ statedb.UpdateRelationshipParams) (statedb.EntityRelationship, error) {
+	return statedb.EntityRelationship{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) DeleteRelationship(_ context.Context, _ statedb.DeleteRelationshipParams) error {
+	return nil
+}
+
 func (m *mockQuerier) CreateLocation(_ context.Context, _ statedb.CreateLocationParams) (statedb.Location, error) {
 	return statedb.Location{}, pgx.ErrNoRows
 }
