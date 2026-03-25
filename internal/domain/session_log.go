@@ -11,9 +11,13 @@ import (
 type InputType string
 
 const (
-	InputTypeGameAction InputType = "game_action"
-	InputTypeMeta       InputType = "meta"
-	InputTypeNarrative  InputType = "narrative"
+	GameAction InputType = "game_action"
+	MetaAction InputType = "meta_action"
+	Narrative  InputType = "narrative"
+
+	InputTypeGameAction InputType = GameAction
+	InputTypeMeta       InputType = MetaAction
+	InputTypeNarrative  InputType = Narrative
 )
 
 type SessionLog struct {
