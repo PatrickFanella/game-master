@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewOllamaClientDefaults(t *testing.T) {
@@ -594,6 +595,124 @@ func TestOllamaClientStreamContextCancellation(t *testing.T) {
 	}
 }
 
+func TestOllamaClientStreamFixtureResponses(t *testing.T) {
+	tests := []struct {
+		name    string
+		fixture string
+		want    []StreamChunk
+	}{
+		{
+			name:    "text only",
+			fixture: "ollama_stream_text_chunks.ndjson",
+			want: []StreamChunk{
+				{ContentDelta: "The dragon ", Done: false},
+				{ContentDelta: "breathes fire across the cavern.", Done: true},
+			},
+		},
+		{
+			name:    "tool calls only",
+			fixture: "ollama_stream_tool_calls_only.ndjson",
+			want: []StreamChunk{
+				{
+					ToolCallDelta: &ToolCall{
+						Name:      "roll_dice",
+						Arguments: map[string]any{"sides": float64(20), "count": float64(1)},
+					},
+					Done: false,
+				},
+				{
+					ToolCallDelta: &ToolCall{
+						Name:      "lookup_npc",
+						Arguments: map[string]any{"name": "Gandalf"},
+					},
+					Done: true,
+				},
+			},
+		},
+		{
+			name:    "mixed text and tool calls",
+			fixture: "ollama_stream_mixed_content.ndjson",
+			want: []StreamChunk{
+				{ContentDelta: "You approach the merchant's stall. ", Done: false},
+				{
+					ToolCallDelta: &ToolCall{
+						Name:      "get_inventory",
+						Arguments: map[string]any{"merchant_id": "m-17", "category": "weapons"},
+					},
+					Done: false,
+				},
+				{ContentDelta: "Let me see what is available.", Done: true},
+			},
+		},
+		{
+			name:    "multiple tool calls",
+			fixture: "ollama_stream_multiple_tool_calls.ndjson",
+			want: []StreamChunk{
+				{
+					ToolCallDelta: &ToolCall{
+						Name:      "roll_dice",
+						Arguments: map[string]any{"sides": float64(20), "count": float64(1)},
+					},
+					Done: false,
+				},
+				{
+					ToolCallDelta: &ToolCall{
+						Name:      "lookup_npc",
+						Arguments: map[string]any{"name": "Gandalf", "location": "Minas Tirith"},
+					},
+					Done: false,
+				},
+				{
+					ToolCallDelta: &ToolCall{
+						Name:      "update_quest",
+						Arguments: map[string]any{"quest_id": "q-42", "status": "in_progress"},
+					},
+					Done: true,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			fixture := loadFixture(t, tt.fixture)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write(fixture)
+			}))
+			defer server.Close()
+
+			client := NewOllamaClient(server.URL, "test-model")
+			ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+			if err != nil {
+				t.Fatalf("Stream() error = %v", err)
+			}
+
+			var got []StreamChunk
+			for chunk := range ch {
+				got = append(got, chunk)
+			}
+
+			if len(got) != len(tt.want) {
+				t.Fatalf("chunks len = %d, want %d", len(got), len(tt.want))
+			}
+
+			for i := range tt.want {
+				if got[i].ContentDelta != tt.want[i].ContentDelta {
+					t.Fatalf("chunk[%d] content delta = %q, want %q", i, got[i].ContentDelta, tt.want[i].ContentDelta)
+				}
+				if got[i].Done != tt.want[i].Done {
+					t.Fatalf("chunk[%d] done = %v, want %v", i, got[i].Done, tt.want[i].Done)
+				}
+				if !reflect.DeepEqual(got[i].ToolCallDelta, tt.want[i].ToolCallDelta) {
+					t.Fatalf("chunk[%d] tool delta = %#v, want %#v", i, got[i].ToolCallDelta, tt.want[i].ToolCallDelta)
+				}
+			}
+		})
+	}
+}
+
 // loadFixture reads a JSON fixture file from testdata/.
 func loadFixture(t *testing.T, name string) []byte {
 	t.Helper()
@@ -745,6 +864,92 @@ func TestOllamaCompleteMixedContent(t *testing.T) {
 	}
 	if resp.ToolCalls[1].Arguments["player_id"] != "p-1" {
 		t.Fatalf("tool call[1] player_id = %v, want p-1", resp.ToolCalls[1].Arguments["player_id"])
+	}
+}
+
+func TestOllamaClientCompleteErrorFixtures(t *testing.T) {
+	tests := []struct {
+		name         string
+		status       int
+		fixture      string
+		wantErr      any
+		wantContains string
+	}{
+		{
+			name:         "internal server error fixture",
+			status:       http.StatusInternalServerError,
+			fixture:      "ollama_error_internal_server.json",
+			wantErr:      &ErrConnection{},
+			wantContains: "status 500",
+		},
+		{
+			name:         "malformed response fixture",
+			status:       http.StatusOK,
+			fixture:      "ollama_error_malformed_response.json",
+			wantErr:      &ErrMalformedResponse{},
+			wantContains: "failed to decode ollama chat response",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			fixture := loadFixture(t, tt.fixture)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.status)
+				_, _ = w.Write(fixture)
+			}))
+			defer server.Close()
+
+			client := NewOllamaClient(server.URL, "test-model")
+			_, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+
+			switch tt.wantErr.(type) {
+			case *ErrConnection:
+				var connErr *ErrConnection
+				if !errors.As(err, &connErr) {
+					t.Fatalf("error type = %T, want *ErrConnection (error=%v)", err, err)
+				}
+			case *ErrMalformedResponse:
+				var malformedErr *ErrMalformedResponse
+				if !errors.As(err, &malformedErr) {
+					t.Fatalf("error type = %T, want *ErrMalformedResponse (error=%v)", err, err)
+				}
+			default:
+				t.Fatalf("unsupported expected type %T", tt.wantErr)
+			}
+
+			if !strings.Contains(err.Error(), tt.wantContains) {
+				t.Fatalf("error = %q, want to contain %q", err.Error(), tt.wantContains)
+			}
+		})
+	}
+}
+
+func TestOllamaClientCompleteTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+	}))
+	defer server.Close()
+
+	client := NewOllamaClient(server.URL, "test-model")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	_, err := client.Complete(ctx, []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+
+	var timeoutErr *ErrTimeout
+	if !errors.As(err, &timeoutErr) {
+		t.Fatalf("error type = %T, want *ErrTimeout (error=%v)", err, err)
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error should unwrap context deadline exceeded, got %v", err)
 	}
 }
 

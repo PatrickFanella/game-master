@@ -1,0 +1,3 @@
+{"message":{"content":"","tool_calls":[{"function":{"name":"roll_dice","arguments":"{\"sides\":20,\"count\":1}"}}]},"done":false}
+{"message":{"content":"","tool_calls":[{"function":{"name":"lookup_npc","arguments":"{\"name\":\"Gandalf\",\"location\":\"Minas Tirith\"}"}}]},"done":false}
+{"message":{"content":"","tool_calls":[{"function":{"name":"update_quest","arguments":"{\"quest_id\":\"q-42\",\"status\":\"in_progress\"}"}}]},"done":true}

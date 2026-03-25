@@ -1,0 +1,3 @@
+{"message":{"content":"You approach the merchant's stall. "},"done":false}
+{"message":{"content":"","tool_calls":[{"function":{"name":"get_inventory","arguments":"{\"merchant_id\":\"m-17\",\"category\":\"weapons\"}"}}]},"done":false}
+{"message":{"content":"Let me see what is available."},"done":true}

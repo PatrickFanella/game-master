@@ -1,0 +1,2 @@
+{"message":{"content":"","tool_calls":[{"function":{"name":"roll_dice","arguments":"{\"sides\":20,\"count\":1}"}}]},"done":false}
+{"message":{"content":"","tool_calls":[{"function":{"name":"lookup_npc","arguments":"{\"name\":\"Gandalf\"}"}}]},"done":true}
