@@ -38,6 +38,11 @@ type ClaudeClient struct {
 
 // NewClaudeClient returns a Claude-backed provider.
 func NewClaudeClient(baseURL, apiKey, model string) *ClaudeClient {
+	return NewClaudeClientWithMaxTokens(baseURL, apiKey, model, defaultClaudeMaxTokens)
+}
+
+// NewClaudeClientWithMaxTokens returns a Claude-backed provider with configurable max tokens.
+func NewClaudeClientWithMaxTokens(baseURL, apiKey, model string, maxTokens int) *ClaudeClient {
 	if baseURL == "" {
 		baseURL = defaultClaudeBaseURL
 	}
@@ -61,12 +66,19 @@ func NewClaudeClient(baseURL, apiKey, model string) *ClaudeClient {
 		apiKey:           apiKey,
 		model:            model,
 		anthropicVersion: defaultAnthropicVersion,
-		maxTokens:        defaultClaudeMaxTokens,
+		maxTokens:        normalizeClaudeMaxTokens(maxTokens),
 		client: &http.Client{
 			Timeout:   30 * time.Second,
 			Transport: transport,
 		},
 	}
+}
+
+func normalizeClaudeMaxTokens(maxTokens int) int {
+	if maxTokens <= 0 {
+		return defaultClaudeMaxTokens
+	}
+	return maxTokens
 }
 
 func (c *ClaudeClient) Complete(ctx context.Context, messages []Message, tools []Tool) (*Response, error) {
