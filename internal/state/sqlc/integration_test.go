@@ -1429,9 +1429,11 @@ func TestIntegrationExpandedWorldTables(t *testing.T) {
 	lang, err := q.CreateLanguage(ctx, statedb.CreateLanguageParams{
 		CampaignID: camp.ID,
 		Name:       "Eldertongue",
+		Description: txt("Ancestral language"),
 		Phonology:  []byte(`{"vowels":["a","e"]}`),
 		Naming:     []byte(`{"pattern":"CV-CV"}`),
 		Vocabulary: []byte(`{"sun":"sol"}`),
+		SpokenByFactionIds: []pgtype.UUID{faction.ID},
 	})
 	if err != nil {
 		t.Fatalf("CreateLanguage: %v", err)
@@ -1453,15 +1455,20 @@ func TestIntegrationExpandedWorldTables(t *testing.T) {
 	updatedLang, err := q.UpdateLanguage(ctx, statedb.UpdateLanguageParams{
 		ID:         lang.ID,
 		Name:       "Modern Eldertongue",
+		Description: txt("Contemporary dialect"),
 		Phonology:  []byte(`{"vowels":["a","e","i"]}`),
 		Naming:     []byte(`{"pattern":"CVC"}`),
 		Vocabulary: []byte(`{"sun":"sol","moon":"luna"}`),
+		SpokenByFactionIds: []pgtype.UUID{faction.ID},
 	})
 	if err != nil {
 		t.Fatalf("UpdateLanguage: %v", err)
 	}
 	if updatedLang.Name != "Modern Eldertongue" {
 		t.Errorf("UpdateLanguage: expected Modern Eldertongue, got %q", updatedLang.Name)
+	}
+	if updatedLang.Description != "Contemporary dialect" {
+		t.Errorf("UpdateLanguage: expected Contemporary dialect description, got %q", updatedLang.Description)
 	}
 	langsByFaction, err := q.ListLanguagesByFaction(ctx, faction.ID)
 	if err != nil {

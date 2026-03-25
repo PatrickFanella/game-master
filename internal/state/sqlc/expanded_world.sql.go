@@ -128,34 +128,46 @@ const createLanguage = `-- name: CreateLanguage :one
 INSERT INTO languages (
   campaign_id,
   name,
+  description,
   phonology,
   naming,
-  vocabulary
+  vocabulary,
+  spoken_by_faction_ids,
+  spoken_by_culture_ids
 ) VALUES (
   $1,
   $2,
-  COALESCE($3::jsonb, '{}'::jsonb),
+  COALESCE($3::text, ''),
   COALESCE($4::jsonb, '{}'::jsonb),
-  COALESCE($5::jsonb, '{}'::jsonb)
+  COALESCE($5::jsonb, '{}'::jsonb),
+  COALESCE($6::jsonb, '{}'::jsonb),
+  COALESCE($7::uuid[], '{}'::uuid[]),
+  COALESCE($8::uuid[], '{}'::uuid[])
 )
-RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at
+RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
 `
 
 type CreateLanguageParams struct {
-	CampaignID pgtype.UUID
-	Name       string
-	Phonology  []byte
-	Naming     []byte
-	Vocabulary []byte
+	CampaignID         pgtype.UUID
+	Name               string
+	Description        pgtype.Text
+	Phonology          []byte
+	Naming             []byte
+	Vocabulary         []byte
+	SpokenByFactionIds []pgtype.UUID
+	SpokenByCultureIds []pgtype.UUID
 }
 
 func (q *Queries) CreateLanguage(ctx context.Context, arg CreateLanguageParams) (Language, error) {
 	row := q.db.QueryRow(ctx, createLanguage,
 		arg.CampaignID,
 		arg.Name,
+		arg.Description,
 		arg.Phonology,
 		arg.Naming,
 		arg.Vocabulary,
+		arg.SpokenByFactionIds,
+		arg.SpokenByCultureIds,
 	)
 	var i Language
 	err := row.Scan(
@@ -167,6 +179,9 @@ func (q *Queries) CreateLanguage(ctx context.Context, arg CreateLanguageParams) 
 		&i.Vocabulary,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SpokenByFactionIds,
+		&i.SpokenByCultureIds,
+		&i.Description,
 	)
 	return i, err
 }
@@ -296,7 +311,7 @@ func (q *Queries) GetEconomicSystemByID(ctx context.Context, id pgtype.UUID) (Ec
 }
 
 const getLanguageByID = `-- name: GetLanguageByID :one
-SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at
+SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
 FROM languages
 WHERE id = $1
 `
@@ -313,6 +328,9 @@ func (q *Queries) GetLanguageByID(ctx context.Context, id pgtype.UUID) (Language
 		&i.Vocabulary,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SpokenByFactionIds,
+		&i.SpokenByCultureIds,
+		&i.Description,
 	)
 	return i, err
 }
@@ -458,7 +476,7 @@ func (q *Queries) ListEconomicSystemsByCampaign(ctx context.Context, campaignID 
 }
 
 const listLanguagesByCampaign = `-- name: ListLanguagesByCampaign :many
-SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at
+SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
 FROM languages
 WHERE campaign_id = $1
 ORDER BY created_at, id
@@ -482,6 +500,9 @@ func (q *Queries) ListLanguagesByCampaign(ctx context.Context, campaignID pgtype
 			&i.Vocabulary,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SpokenByFactionIds,
+			&i.SpokenByCultureIds,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}
@@ -494,11 +515,9 @@ func (q *Queries) ListLanguagesByCampaign(ctx context.Context, campaignID pgtype
 }
 
 const listLanguagesByFaction = `-- name: ListLanguagesByFaction :many
-SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at
+SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at, l.spoken_by_faction_ids, l.spoken_by_culture_ids, l.description
 FROM languages l
-INNER JOIN factions f
-  ON f.campaign_id = l.campaign_id
-WHERE f.id = $1
+WHERE $1::uuid = ANY(l.spoken_by_faction_ids)
 ORDER BY l.created_at, l.id
 `
 
@@ -520,6 +539,9 @@ func (q *Queries) ListLanguagesByFaction(ctx context.Context, factionID pgtype.U
 			&i.Vocabulary,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SpokenByFactionIds,
+			&i.SpokenByCultureIds,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}
@@ -637,28 +659,37 @@ const updateLanguage = `-- name: UpdateLanguage :one
 UPDATE languages
 SET
   name = $1,
-  phonology = COALESCE($2::jsonb, phonology),
-  naming = COALESCE($3::jsonb, naming),
-  vocabulary = COALESCE($4::jsonb, vocabulary),
+  description = COALESCE($2::text, description),
+  phonology = COALESCE($3::jsonb, phonology),
+  naming = COALESCE($4::jsonb, naming),
+  vocabulary = COALESCE($5::jsonb, vocabulary),
+  spoken_by_faction_ids = COALESCE($6::uuid[], spoken_by_faction_ids),
+  spoken_by_culture_ids = COALESCE($7::uuid[], spoken_by_culture_ids),
   updated_at = now()
-WHERE id = $5
-RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at
+WHERE id = $8
+RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
 `
 
 type UpdateLanguageParams struct {
-	Name       string
-	Phonology  []byte
-	Naming     []byte
-	Vocabulary []byte
-	ID         pgtype.UUID
+	Name               string
+	Description        pgtype.Text
+	Phonology          []byte
+	Naming             []byte
+	Vocabulary         []byte
+	SpokenByFactionIds []pgtype.UUID
+	SpokenByCultureIds []pgtype.UUID
+	ID                 pgtype.UUID
 }
 
 func (q *Queries) UpdateLanguage(ctx context.Context, arg UpdateLanguageParams) (Language, error) {
 	row := q.db.QueryRow(ctx, updateLanguage,
 		arg.Name,
+		arg.Description,
 		arg.Phonology,
 		arg.Naming,
 		arg.Vocabulary,
+		arg.SpokenByFactionIds,
+		arg.SpokenByCultureIds,
 		arg.ID,
 	)
 	var i Language
@@ -671,6 +702,9 @@ func (q *Queries) UpdateLanguage(ctx context.Context, arg UpdateLanguageParams) 
 		&i.Vocabulary,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SpokenByFactionIds,
+		&i.SpokenByCultureIds,
+		&i.Description,
 	)
 	return i, err
 }

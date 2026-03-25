@@ -2,25 +2,31 @@
 INSERT INTO languages (
   campaign_id,
   name,
+  description,
   phonology,
   naming,
-  vocabulary
+  vocabulary,
+  spoken_by_faction_ids,
+  spoken_by_culture_ids
 ) VALUES (
   sqlc.arg(campaign_id),
   sqlc.arg(name),
+  COALESCE(sqlc.narg(description)::text, ''),
   COALESCE(sqlc.narg(phonology)::jsonb, '{}'::jsonb),
   COALESCE(sqlc.narg(naming)::jsonb, '{}'::jsonb),
-  COALESCE(sqlc.narg(vocabulary)::jsonb, '{}'::jsonb)
+  COALESCE(sqlc.narg(vocabulary)::jsonb, '{}'::jsonb),
+  COALESCE(sqlc.narg(spoken_by_faction_ids)::uuid[], '{}'::uuid[]),
+  COALESCE(sqlc.narg(spoken_by_culture_ids)::uuid[], '{}'::uuid[])
 )
-RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at;
+RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description;
 
 -- name: GetLanguageByID :one
-SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at
+SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
 FROM languages
 WHERE id = sqlc.arg(id);
 
 -- name: ListLanguagesByCampaign :many
-SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at
+SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
 FROM languages
 WHERE campaign_id = sqlc.arg(campaign_id)
 ORDER BY created_at, id;
@@ -29,12 +35,15 @@ ORDER BY created_at, id;
 UPDATE languages
 SET
   name = sqlc.arg(name),
+  description = COALESCE(sqlc.narg(description)::text, description),
   phonology = COALESCE(sqlc.narg(phonology)::jsonb, phonology),
   naming = COALESCE(sqlc.narg(naming)::jsonb, naming),
   vocabulary = COALESCE(sqlc.narg(vocabulary)::jsonb, vocabulary),
+  spoken_by_faction_ids = COALESCE(sqlc.narg(spoken_by_faction_ids)::uuid[], spoken_by_faction_ids),
+  spoken_by_culture_ids = COALESCE(sqlc.narg(spoken_by_culture_ids)::uuid[], spoken_by_culture_ids),
   updated_at = now()
 WHERE id = sqlc.arg(id)
-RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at;
+RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description;
 
 -- name: DeleteLanguage :exec
 DELETE FROM languages
@@ -155,11 +164,9 @@ DELETE FROM cultures
 WHERE id = sqlc.arg(id);
 
 -- name: ListLanguagesByFaction :many
-SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at
+SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at, l.spoken_by_faction_ids, l.spoken_by_culture_ids, l.description
 FROM languages l
-INNER JOIN factions f
-  ON f.campaign_id = l.campaign_id
-WHERE f.id = sqlc.arg(faction_id)
+WHERE sqlc.arg(faction_id)::uuid = ANY(l.spoken_by_faction_ids)
 ORDER BY l.created_at, l.id;
 
 -- name: GetBeliefSystemByCulture :one

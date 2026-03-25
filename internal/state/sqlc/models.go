@@ -103,14 +103,17 @@ type Item struct {
 }
 
 type Language struct {
-	ID         pgtype.UUID
-	CampaignID pgtype.UUID
-	Name       string
-	Phonology  []byte
-	Naming     []byte
-	Vocabulary []byte
-	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
+	ID                 pgtype.UUID
+	CampaignID         pgtype.UUID
+	Name               string
+	Phonology          []byte
+	Naming             []byte
+	Vocabulary         []byte
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	SpokenByFactionIds []pgtype.UUID
+	SpokenByCultureIds []pgtype.UUID
+	Description        string
 }
 
 type Location struct {
