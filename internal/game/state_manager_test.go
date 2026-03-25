@@ -725,7 +725,7 @@ func TestGatherState_AssemblesCompleteState(t *testing.T) {
 		QuestType:   "short_term",
 		Status:      "active",
 	}}
-	mq.objectivesByQuest[questID] = []statedb.QuestObjective{{
+	mq.objectivesByQuest[[16]byte(questID)] = []statedb.QuestObjective{{
 		ID:          uuidToPgtype(objectiveID),
 		QuestID:     uuidToPgtype(questID),
 		Description: "Search the ruins",
@@ -804,7 +804,7 @@ func TestGatherState_HandlesMissingDataGracefully(t *testing.T) {
 		t.Fatalf("expected campaign to be loaded")
 	}
 	if state.Player.ID != uuid.Nil {
-		t.Fatalf("expected empty player when none exists")
+		t.Fatalf("expected Player.ID to be uuid.Nil when no player characters exist")
 	}
 	if state.CurrentLocation.ID != uuid.Nil {
 		t.Fatalf("expected empty location when player has none")
