@@ -211,6 +211,28 @@ func (q *Queries) DeleteLanguage(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const getBeliefSystemByCulture = `-- name: GetBeliefSystemByCulture :one
+SELECT b.id, b.campaign_id, b.name, b.details, b.created_at, b.updated_at
+FROM belief_systems b
+INNER JOIN cultures c
+  ON c.belief_system_id = b.id
+WHERE c.id = $1
+`
+
+func (q *Queries) GetBeliefSystemByCulture(ctx context.Context, cultureID pgtype.UUID) (BeliefSystem, error) {
+	row := q.db.QueryRow(ctx, getBeliefSystemByCulture, cultureID)
+	var i BeliefSystem
+	err := row.Scan(
+		&i.ID,
+		&i.CampaignID,
+		&i.Name,
+		&i.Details,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getBeliefSystemByID = `-- name: GetBeliefSystemByID :one
 SELECT id, campaign_id, name, details, created_at, updated_at
 FROM belief_systems
@@ -229,116 +251,6 @@ func (q *Queries) GetBeliefSystemByID(ctx context.Context, id pgtype.UUID) (Beli
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const getByCulture = `-- name: GetByCulture :many
-SELECT b.id, b.campaign_id, b.name, b.details, b.created_at, b.updated_at
-FROM belief_systems b
-INNER JOIN cultures c
-  ON c.belief_system_id = b.id
-WHERE c.id = $1
-ORDER BY b.created_at, b.id
-`
-
-func (q *Queries) GetByCulture(ctx context.Context, cultureID pgtype.UUID) ([]BeliefSystem, error) {
-	rows, err := q.db.Query(ctx, getByCulture, cultureID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []BeliefSystem
-	for rows.Next() {
-		var i BeliefSystem
-		if err := rows.Scan(
-			&i.ID,
-			&i.CampaignID,
-			&i.Name,
-			&i.Details,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getByFaction = `-- name: GetByFaction :many
-SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at
-FROM languages l
-INNER JOIN factions f
-  ON f.campaign_id = l.campaign_id
-WHERE f.id = $1
-ORDER BY l.created_at, l.id
-`
-
-func (q *Queries) GetByFaction(ctx context.Context, factionID pgtype.UUID) ([]Language, error) {
-	rows, err := q.db.Query(ctx, getByFaction, factionID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Language
-	for rows.Next() {
-		var i Language
-		if err := rows.Scan(
-			&i.ID,
-			&i.CampaignID,
-			&i.Name,
-			&i.Phonology,
-			&i.Naming,
-			&i.Vocabulary,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getByLanguage = `-- name: GetByLanguage :many
-SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
-FROM cultures
-WHERE language_id = $1
-ORDER BY created_at, id
-`
-
-func (q *Queries) GetByLanguage(ctx context.Context, languageID pgtype.UUID) ([]Culture, error) {
-	rows, err := q.db.Query(ctx, getByLanguage, languageID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Culture
-	for rows.Next() {
-		var i Culture
-		if err := rows.Scan(
-			&i.ID,
-			&i.CampaignID,
-			&i.LanguageID,
-			&i.BeliefSystemID,
-			&i.Name,
-			&i.Details,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getCultureByID = `-- name: GetCultureByID :one
@@ -475,6 +387,42 @@ func (q *Queries) ListCulturesByCampaign(ctx context.Context, campaignID pgtype.
 	return items, nil
 }
 
+const listCulturesByLanguage = `-- name: ListCulturesByLanguage :many
+SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
+FROM cultures
+WHERE language_id = $1
+ORDER BY created_at, id
+`
+
+func (q *Queries) ListCulturesByLanguage(ctx context.Context, languageID pgtype.UUID) ([]Culture, error) {
+	rows, err := q.db.Query(ctx, listCulturesByLanguage, languageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Culture
+	for rows.Next() {
+		var i Culture
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.LanguageID,
+			&i.BeliefSystemID,
+			&i.Name,
+			&i.Details,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEconomicSystemsByCampaign = `-- name: ListEconomicSystemsByCampaign :many
 SELECT id, campaign_id, name, details, created_at, updated_at
 FROM economic_systems
@@ -518,6 +466,44 @@ ORDER BY created_at, id
 
 func (q *Queries) ListLanguagesByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Language, error) {
 	rows, err := q.db.Query(ctx, listLanguagesByCampaign, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Language
+	for rows.Next() {
+		var i Language
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.Name,
+			&i.Phonology,
+			&i.Naming,
+			&i.Vocabulary,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLanguagesByFaction = `-- name: ListLanguagesByFaction :many
+SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at
+FROM languages l
+INNER JOIN factions f
+  ON f.campaign_id = l.campaign_id
+WHERE f.id = $1
+ORDER BY l.created_at, l.id
+`
+
+func (q *Queries) ListLanguagesByFaction(ctx context.Context, factionID pgtype.UUID) ([]Language, error) {
+	rows, err := q.db.Query(ctx, listLanguagesByFaction, factionID)
 	if err != nil {
 		return nil, err
 	}

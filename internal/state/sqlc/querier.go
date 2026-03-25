@@ -40,10 +40,8 @@ type Querier interface {
 	DeleteLanguage(ctx context.Context, id pgtype.UUID) error
 	DeleteRelationship(ctx context.Context, arg DeleteRelationshipParams) error
 	DeleteUser(ctx context.Context, id pgtype.UUID) error
+	GetBeliefSystemByCulture(ctx context.Context, cultureID pgtype.UUID) (BeliefSystem, error)
 	GetBeliefSystemByID(ctx context.Context, id pgtype.UUID) (BeliefSystem, error)
-	GetByCulture(ctx context.Context, cultureID pgtype.UUID) ([]BeliefSystem, error)
-	GetByFaction(ctx context.Context, factionID pgtype.UUID) ([]Language, error)
-	GetByLanguage(ctx context.Context, languageID pgtype.UUID) ([]Culture, error)
 	GetCampaignByID(ctx context.Context, id pgtype.UUID) (Campaign, error)
 	GetConnectionsFromLocation(ctx context.Context, arg GetConnectionsFromLocationParams) ([]GetConnectionsFromLocationRow, error)
 	GetCultureByID(ctx context.Context, id pgtype.UUID) (Culture, error)
@@ -71,6 +69,7 @@ type Querier interface {
 	ListBeliefSystemsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]BeliefSystem, error)
 	ListCampaignsByUser(ctx context.Context, createdBy pgtype.UUID) ([]Campaign, error)
 	ListCulturesByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Culture, error)
+	ListCulturesByLanguage(ctx context.Context, languageID pgtype.UUID) ([]Culture, error)
 	ListEconomicSystemsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]EconomicSystem, error)
 	ListFactionsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Faction, error)
 	ListFactsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]WorldFact, error)
@@ -78,6 +77,7 @@ type Querier interface {
 	ListItemsByPlayer(ctx context.Context, arg ListItemsByPlayerParams) ([]Item, error)
 	ListItemsByType(ctx context.Context, arg ListItemsByTypeParams) ([]Item, error)
 	ListLanguagesByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Language, error)
+	ListLanguagesByFaction(ctx context.Context, factionID pgtype.UUID) ([]Language, error)
 	ListLocationsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Location, error)
 	ListLocationsByRegion(ctx context.Context, arg ListLocationsByRegionParams) ([]Location, error)
 	ListMemoriesByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Memory, error)

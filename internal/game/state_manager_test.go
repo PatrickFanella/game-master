@@ -104,15 +104,15 @@ func (m *mockQuerier) GetBeliefSystemByID(_ context.Context, _ pgtype.UUID) (sta
 	return statedb.BeliefSystem{}, pgx.ErrNoRows
 }
 
-func (m *mockQuerier) GetByCulture(_ context.Context, _ pgtype.UUID) ([]statedb.BeliefSystem, error) {
-	return nil, nil
+func (m *mockQuerier) GetBeliefSystemByCulture(_ context.Context, _ pgtype.UUID) (statedb.BeliefSystem, error) {
+	return statedb.BeliefSystem{}, pgx.ErrNoRows
 }
 
 func (m *mockQuerier) GetCultureByID(_ context.Context, _ pgtype.UUID) (statedb.Culture, error) {
 	return statedb.Culture{}, pgx.ErrNoRows
 }
 
-func (m *mockQuerier) GetByLanguage(_ context.Context, _ pgtype.UUID) ([]statedb.Culture, error) {
+func (m *mockQuerier) ListCulturesByLanguage(_ context.Context, _ pgtype.UUID) ([]statedb.Culture, error) {
 	return nil, nil
 }
 
@@ -284,7 +284,7 @@ func (m *mockQuerier) GetLanguageByID(_ context.Context, _ pgtype.UUID) (statedb
 	return statedb.Language{}, pgx.ErrNoRows
 }
 
-func (m *mockQuerier) GetByFaction(_ context.Context, _ pgtype.UUID) ([]statedb.Language, error) {
+func (m *mockQuerier) ListLanguagesByFaction(_ context.Context, _ pgtype.UUID) ([]statedb.Language, error) {
 	return nil, nil
 }
 

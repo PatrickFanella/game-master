@@ -154,7 +154,7 @@ RETURNING id, campaign_id, language_id, belief_system_id, name, details, created
 DELETE FROM cultures
 WHERE id = sqlc.arg(id);
 
--- name: GetByFaction :many
+-- name: ListLanguagesByFaction :many
 SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at
 FROM languages l
 INNER JOIN factions f
@@ -162,15 +162,14 @@ INNER JOIN factions f
 WHERE f.id = sqlc.arg(faction_id)
 ORDER BY l.created_at, l.id;
 
--- name: GetByCulture :many
+-- name: GetBeliefSystemByCulture :one
 SELECT b.id, b.campaign_id, b.name, b.details, b.created_at, b.updated_at
 FROM belief_systems b
 INNER JOIN cultures c
   ON c.belief_system_id = b.id
-WHERE c.id = sqlc.arg(culture_id)
-ORDER BY b.created_at, b.id;
+WHERE c.id = sqlc.arg(culture_id);
 
--- name: GetByLanguage :many
+-- name: ListCulturesByLanguage :many
 SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
 FROM cultures
 WHERE language_id = sqlc.arg(language_id)

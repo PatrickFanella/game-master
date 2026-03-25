@@ -1425,7 +1425,7 @@ func TestIntegrationExpandedWorldTables(t *testing.T) {
 		t.Fatalf("CreateFaction: %v", err)
 	}
 
-	// Languages CRUD + GetByFaction
+	// Languages CRUD + ListLanguagesByFaction
 	lang, err := q.CreateLanguage(ctx, statedb.CreateLanguageParams{
 		CampaignID: camp.ID,
 		Name:       "Eldertongue",
@@ -1463,12 +1463,12 @@ func TestIntegrationExpandedWorldTables(t *testing.T) {
 	if updatedLang.Name != "Modern Eldertongue" {
 		t.Errorf("UpdateLanguage: expected Modern Eldertongue, got %q", updatedLang.Name)
 	}
-	langsByFaction, err := q.GetByFaction(ctx, faction.ID)
+	langsByFaction, err := q.ListLanguagesByFaction(ctx, faction.ID)
 	if err != nil {
-		t.Fatalf("GetByFaction: %v", err)
+		t.Fatalf("ListLanguagesByFaction: %v", err)
 	}
 	if len(langsByFaction) != 1 || langsByFaction[0].ID != lang.ID {
-		t.Error("GetByFaction: unexpected result")
+		t.Error("ListLanguagesByFaction: unexpected result")
 	}
 
 	// Belief systems CRUD
@@ -1541,7 +1541,7 @@ func TestIntegrationExpandedWorldTables(t *testing.T) {
 		t.Errorf("UpdateEconomicSystem: expected Merchant Guild, got %q", updatedEconomy.Name)
 	}
 
-	// Cultures CRUD + GetByCulture + GetByLanguage
+	// Cultures CRUD + GetBeliefSystemByCulture + ListCulturesByLanguage
 	culture, err := q.CreateCulture(ctx, statedb.CreateCultureParams{
 		CampaignID:     camp.ID,
 		LanguageID:     lang.ID,
@@ -1580,20 +1580,20 @@ func TestIntegrationExpandedWorldTables(t *testing.T) {
 		t.Errorf("UpdateCulture: expected Coastal Culture, got %q", updatedCulture.Name)
 	}
 
-	beliefsByCulture, err := q.GetByCulture(ctx, culture.ID)
+	beliefByCulture, err := q.GetBeliefSystemByCulture(ctx, culture.ID)
 	if err != nil {
-		t.Fatalf("GetByCulture: %v", err)
+		t.Fatalf("GetBeliefSystemByCulture: %v", err)
 	}
-	if len(beliefsByCulture) != 1 || beliefsByCulture[0].ID != belief.ID {
-		t.Error("GetByCulture: unexpected result")
+	if beliefByCulture.ID != belief.ID {
+		t.Error("GetBeliefSystemByCulture: unexpected result")
 	}
 
-	culturesByLanguage, err := q.GetByLanguage(ctx, lang.ID)
+	culturesByLanguage, err := q.ListCulturesByLanguage(ctx, lang.ID)
 	if err != nil {
-		t.Fatalf("GetByLanguage: %v", err)
+		t.Fatalf("ListCulturesByLanguage: %v", err)
 	}
 	if len(culturesByLanguage) != 1 || culturesByLanguage[0].ID != culture.ID {
-		t.Error("GetByLanguage: unexpected result")
+		t.Error("ListCulturesByLanguage: unexpected result")
 	}
 
 	if err := q.DeleteCulture(ctx, culture.ID); err != nil {
