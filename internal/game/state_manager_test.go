@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -18,15 +19,35 @@ type mockQuerier struct {
 	nextUserID  pgtype.UUID
 	createCount int
 
+	campaign         statedb.Campaign
+	playerCharacters []statedb.PlayerCharacter
+	location         statedb.Location
+	connections      []statedb.GetConnectionsFromLocationRow
+	npcs             []statedb.Npc
+	quests           []statedb.Quest
+	objectivesByQuest map[[16]byte][]statedb.QuestObjective
+	items            []statedb.Item
+	worldFacts       []statedb.WorldFact
+
 	// Injectable errors for testing error paths.
-	getByNameErr error
-	createErr    error
+	getByNameErr       error
+	createErr          error
+	getCampaignErr     error
+	getPlayerErr       error
+	getLocationErr     error
+	getConnectionsErr  error
+	getNPCsErr         error
+	getQuestsErr       error
+	getObjectivesErr   error
+	getItemsErr        error
+	getWorldFactsErr   error
 }
 
 func newMockQuerier() *mockQuerier {
 	return &mockQuerier{
-		users:      make(map[string]statedb.User),
-		nextUserID: pgtype.UUID{Bytes: [16]byte{1}, Valid: true},
+		users:            make(map[string]statedb.User),
+		nextUserID:       pgtype.UUID{Bytes: [16]byte{1}, Valid: true},
+		objectivesByQuest: make(map[[16]byte][]statedb.QuestObjective),
 	}
 }
 
@@ -97,7 +118,10 @@ func (m *mockQuerier) CreateEconomicSystem(_ context.Context, _ statedb.CreateEc
 }
 
 func (m *mockQuerier) GetCampaignByID(_ context.Context, _ pgtype.UUID) (statedb.Campaign, error) {
-	return statedb.Campaign{}, pgx.ErrNoRows
+	if m.getCampaignErr != nil {
+		return statedb.Campaign{}, m.getCampaignErr
+	}
+	return m.campaign, nil
 }
 
 func (m *mockQuerier) GetBeliefSystemByID(_ context.Context, _ pgtype.UUID) (statedb.BeliefSystem, error) {
@@ -204,10 +228,6 @@ func (m *mockQuerier) ListFactsByCategory(_ context.Context, _ statedb.ListFacts
 	return nil, nil
 }
 
-func (m *mockQuerier) ListActiveFactsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.WorldFact, error) {
-	return nil, nil
-}
-
 func (m *mockQuerier) UpdateFaction(_ context.Context, _ statedb.UpdateFactionParams) (statedb.Faction, error) {
 	return statedb.Faction{}, pgx.ErrNoRows
 }
@@ -289,7 +309,10 @@ func (m *mockQuerier) ListLanguagesByFaction(_ context.Context, _ pgtype.UUID) (
 }
 
 func (m *mockQuerier) GetLocationByID(_ context.Context, _ pgtype.UUID) (statedb.Location, error) {
-	return statedb.Location{}, pgx.ErrNoRows
+	if m.getLocationErr != nil {
+		return statedb.Location{}, m.getLocationErr
+	}
+	return m.location, nil
 }
 
 func (m *mockQuerier) GetNPCByID(_ context.Context, _ pgtype.UUID) (statedb.Npc, error) {
@@ -305,7 +328,10 @@ func (m *mockQuerier) ListLanguagesByCampaign(_ context.Context, _ pgtype.UUID) 
 }
 
 func (m *mockQuerier) ListItemsByPlayer(_ context.Context, _ statedb.ListItemsByPlayerParams) ([]statedb.Item, error) {
-	return nil, nil
+	if m.getItemsErr != nil {
+		return nil, m.getItemsErr
+	}
+	return m.items, nil
 }
 
 func (m *mockQuerier) ListItemsByType(_ context.Context, _ statedb.ListItemsByTypeParams) ([]statedb.Item, error) {
@@ -324,8 +350,11 @@ func (m *mockQuerier) ListNPCsByLocation(_ context.Context, _ statedb.ListNPCsBy
 	return nil, nil
 }
 
-func (m *mockQuerier) ListObjectivesByQuest(_ context.Context, _ pgtype.UUID) ([]statedb.QuestObjective, error) {
-	return nil, nil
+func (m *mockQuerier) ListObjectivesByQuest(_ context.Context, questID pgtype.UUID) ([]statedb.QuestObjective, error) {
+	if m.getObjectivesErr != nil {
+		return nil, m.getObjectivesErr
+	}
+	return m.objectivesByQuest[questID.Bytes], nil
 }
 
 func (m *mockQuerier) ListQuestsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Quest, error) {
@@ -333,7 +362,10 @@ func (m *mockQuerier) ListQuestsByCampaign(_ context.Context, _ pgtype.UUID) ([]
 }
 
 func (m *mockQuerier) ListActiveQuests(_ context.Context, _ pgtype.UUID) ([]statedb.Quest, error) {
-	return nil, nil
+	if m.getQuestsErr != nil {
+		return nil, m.getQuestsErr
+	}
+	return m.quests, nil
 }
 
 func (m *mockQuerier) ListQuestsByType(_ context.Context, _ statedb.ListQuestsByTypeParams) ([]statedb.Quest, error) {
@@ -361,7 +393,10 @@ func (m *mockQuerier) ListNPCsByFaction(_ context.Context, _ statedb.ListNPCsByF
 }
 
 func (m *mockQuerier) ListAliveNPCsByLocation(_ context.Context, _ statedb.ListAliveNPCsByLocationParams) ([]statedb.Npc, error) {
-	return nil, nil
+	if m.getNPCsErr != nil {
+		return nil, m.getNPCsErr
+	}
+	return m.npcs, nil
 }
 
 func (m *mockQuerier) UpdateLocation(_ context.Context, _ statedb.UpdateLocationParams) (statedb.Location, error) {
@@ -409,7 +444,10 @@ func (m *mockQuerier) CreateConnection(_ context.Context, _ statedb.CreateConnec
 }
 
 func (m *mockQuerier) GetConnectionsFromLocation(_ context.Context, _ statedb.GetConnectionsFromLocationParams) ([]statedb.GetConnectionsFromLocationRow, error) {
-	return nil, nil
+	if m.getConnectionsErr != nil {
+		return nil, m.getConnectionsErr
+	}
+	return m.connections, nil
 }
 
 func (m *mockQuerier) DeleteConnection(_ context.Context, _ statedb.DeleteConnectionParams) error {
@@ -433,7 +471,10 @@ func (m *mockQuerier) GetSessionLogByID(_ context.Context, _ pgtype.UUID) (state
 }
 
 func (m *mockQuerier) GetPlayerCharacterByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.PlayerCharacter, error) {
-	return nil, nil
+	if m.getPlayerErr != nil {
+		return nil, m.getPlayerErr
+	}
+	return m.playerCharacters, nil
 }
 
 func (m *mockQuerier) UpdatePlayerCharacter(_ context.Context, _ statedb.UpdatePlayerCharacterParams) (statedb.PlayerCharacter, error) {
@@ -482,6 +523,13 @@ func (m *mockQuerier) TransferItem(_ context.Context, _ statedb.TransferItemPara
 
 func (m *mockQuerier) SupersedeFact(_ context.Context, _ statedb.SupersedeFactParams) (statedb.WorldFact, error) {
 	return statedb.WorldFact{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) ListActiveFactsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.WorldFact, error) {
+	if m.getWorldFactsErr != nil {
+		return nil, m.getWorldFactsErr
+	}
+	return m.worldFacts, nil
 }
 
 func (m *mockQuerier) CreateMemory(_ context.Context, _ statedb.CreateMemoryParams) (statedb.Memory, error) {
@@ -613,5 +661,167 @@ func TestGetOrCreateDefaultUser_CalledTwice(t *testing.T) {
 	}
 	if mq.createCount != 1 {
 		t.Fatalf("should create only once, got %d", mq.createCount)
+	}
+}
+
+func TestGatherState_AssemblesCompleteState(t *testing.T) {
+	mq := newMockQuerier()
+	campaignID := uuid.New()
+	userID := uuid.New()
+	playerID := uuid.New()
+	locationID := uuid.New()
+	npcID := uuid.New()
+	questID := uuid.New()
+	objectiveID := uuid.New()
+	itemID := uuid.New()
+	factID := uuid.New()
+
+	mq.campaign = statedb.Campaign{
+		ID:        uuidToPgtype(campaignID),
+		Name:      "Campaign",
+		Status:    "active",
+		CreatedBy: uuidToPgtype(userID),
+	}
+	mq.playerCharacters = []statedb.PlayerCharacter{{
+		ID:                uuidToPgtype(playerID),
+		CampaignID:        uuidToPgtype(campaignID),
+		UserID:            uuidToPgtype(userID),
+		Name:              "Hero",
+		Stats:             []byte(`{"str":14}`),
+		Hp:                10,
+		MaxHp:             12,
+		Level:             2,
+		Status:            "healthy",
+		Abilities:         []byte(`["dash"]`),
+		CurrentLocationID: uuidToPgtype(locationID),
+	}}
+	mq.location = statedb.Location{
+		ID:          uuidToPgtype(locationID),
+		CampaignID:  uuidToPgtype(campaignID),
+		Name:        "Town Square",
+		Description: pgtype.Text{String: "Busy center", Valid: true},
+	}
+	mq.connections = []statedb.GetConnectionsFromLocationRow{{
+		ID:             uuidToPgtype(uuid.New()),
+		FromLocationID: uuidToPgtype(locationID),
+		ToLocationID:   uuidToPgtype(uuid.New()),
+		Description:    pgtype.Text{String: "Road north", Valid: true},
+		CampaignID:     uuidToPgtype(campaignID),
+	}}
+	mq.npcs = []statedb.Npc{{
+		ID:          uuidToPgtype(npcID),
+		CampaignID:  uuidToPgtype(campaignID),
+		Name:        "Guard",
+		Description: pgtype.Text{String: "Watchful", Valid: true},
+		Disposition: 15,
+		LocationID:  uuidToPgtype(locationID),
+		Alive:       true,
+	}}
+	mq.quests = []statedb.Quest{{
+		ID:          uuidToPgtype(questID),
+		CampaignID:  uuidToPgtype(campaignID),
+		Title:       "Find Relic",
+		Description: pgtype.Text{String: "Seek the old relic", Valid: true},
+		QuestType:   "short_term",
+		Status:      "active",
+	}}
+	mq.objectivesByQuest[questID] = []statedb.QuestObjective{{
+		ID:          uuidToPgtype(objectiveID),
+		QuestID:     uuidToPgtype(questID),
+		Description: "Search the ruins",
+		OrderIndex:  1,
+	}}
+	mq.items = []statedb.Item{{
+		ID:                uuidToPgtype(itemID),
+		CampaignID:        uuidToPgtype(campaignID),
+		PlayerCharacterID: uuidToPgtype(playerID),
+		Name:              "Potion",
+		ItemType:          "consumable",
+		Quantity:          2,
+	}}
+	mq.worldFacts = []statedb.WorldFact{{
+		ID:         uuidToPgtype(factID),
+		CampaignID: uuidToPgtype(campaignID),
+		Fact:       "The moon is dimming",
+		Category:   "lore",
+		Source:     "oracle",
+	}}
+
+	sm := newStateManagerWithQuerier(mq)
+	state, err := sm.GatherState(context.Background(), campaignID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if state.Campaign.ID != campaignID {
+		t.Fatalf("expected campaign %v, got %v", campaignID, state.Campaign.ID)
+	}
+	if state.Player.ID != playerID {
+		t.Fatalf("expected player %v, got %v", playerID, state.Player.ID)
+	}
+	if state.CurrentLocation.ID != locationID {
+		t.Fatalf("expected location %v, got %v", locationID, state.CurrentLocation.ID)
+	}
+	if len(state.CurrentLocationConnections) != 1 {
+		t.Fatalf("expected 1 location connection, got %d", len(state.CurrentLocationConnections))
+	}
+	if len(state.NearbyNPCs) != 1 || state.NearbyNPCs[0].ID != npcID {
+		t.Fatalf("expected guard npc in state, got %+v", state.NearbyNPCs)
+	}
+	if len(state.ActiveQuests) != 1 || state.ActiveQuests[0].ID != questID {
+		t.Fatalf("expected active quest in state, got %+v", state.ActiveQuests)
+	}
+	objectives := state.ActiveQuestObjectives[questID]
+	if len(objectives) != 1 || objectives[0].ID != objectiveID {
+		t.Fatalf("expected quest objective in state, got %+v", objectives)
+	}
+	if len(state.PlayerInventory) != 1 || state.PlayerInventory[0].ID != itemID {
+		t.Fatalf("expected inventory item in state, got %+v", state.PlayerInventory)
+	}
+	if len(state.WorldFacts) != 1 || state.WorldFacts[0].ID != factID {
+		t.Fatalf("expected world fact in state, got %+v", state.WorldFacts)
+	}
+}
+
+func TestGatherState_HandlesMissingDataGracefully(t *testing.T) {
+	mq := newMockQuerier()
+	campaignID := uuid.New()
+	userID := uuid.New()
+	mq.campaign = statedb.Campaign{
+		ID:        uuidToPgtype(campaignID),
+		Name:      "New Campaign",
+		Status:    "active",
+		CreatedBy: uuidToPgtype(userID),
+	}
+
+	sm := newStateManagerWithQuerier(mq)
+	state, err := sm.GatherState(context.Background(), campaignID)
+	if err != nil {
+		t.Fatalf("unexpected error for sparse campaign data: %v", err)
+	}
+
+	if state.Campaign.ID != campaignID {
+		t.Fatalf("expected campaign to be loaded")
+	}
+	if state.Player.ID != uuid.Nil {
+		t.Fatalf("expected empty player when none exists")
+	}
+	if state.CurrentLocation.ID != uuid.Nil {
+		t.Fatalf("expected empty location when player has none")
+	}
+	if len(state.NearbyNPCs) != 0 {
+		t.Fatalf("expected no nearby npcs, got %d", len(state.NearbyNPCs))
+	}
+	if len(state.ActiveQuests) != 0 {
+		t.Fatalf("expected no active quests, got %d", len(state.ActiveQuests))
+	}
+	if len(state.ActiveQuestObjectives) != 0 {
+		t.Fatalf("expected no quest objectives, got %d", len(state.ActiveQuestObjectives))
+	}
+	if len(state.PlayerInventory) != 0 {
+		t.Fatalf("expected no inventory, got %d", len(state.PlayerInventory))
+	}
+	if len(state.WorldFacts) != 0 {
+		t.Fatalf("expected no world facts, got %d", len(state.WorldFacts))
 	}
 }

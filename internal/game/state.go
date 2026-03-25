@@ -10,11 +10,15 @@ import (
 
 // GameState is a snapshot of campaign data needed for the LLM context window.
 type GameState struct {
-	Campaign        domain.Campaign
-	Player          domain.PlayerCharacter
-	CurrentLocation domain.Location
-	NearbyNPCs      []domain.NPC
-	ActiveQuests    []domain.Quest
+	Campaign                   domain.Campaign
+	Player                     domain.PlayerCharacter
+	CurrentLocation            domain.Location
+	CurrentLocationConnections []domain.LocationConnection
+	NearbyNPCs                 []domain.NPC
+	ActiveQuests               []domain.Quest
+	ActiveQuestObjectives      map[uuid.UUID][]domain.QuestObjective
+	PlayerInventory            []domain.Item
+	WorldFacts                 []domain.WorldFact
 }
 
 // CreateCampaignParams holds parameters for creating a new campaign.
@@ -41,6 +45,9 @@ type StateManager interface {
 
 	// GetGameState returns a snapshot suitable for LLM context construction.
 	GetGameState(ctx context.Context, campaignID uuid.UUID) (*GameState, error)
+
+	// GatherState assembles all relevant campaign state in one call.
+	GatherState(ctx context.Context, campaignID uuid.UUID) (*GameState, error)
 
 	// SaveSessionLog persists a turn's session log entry.
 	SaveSessionLog(ctx context.Context, log domain.SessionLog) error
