@@ -25,6 +25,31 @@ func TestNewClaudeClientDefaults(t *testing.T) {
 	if client.client == nil {
 		t.Fatal("http client must be configured")
 	}
+	if client.maxTokens != defaultClaudeMaxTokens {
+		t.Fatalf("maxTokens = %d, want %d", client.maxTokens, defaultClaudeMaxTokens)
+	}
+}
+
+func TestNewClaudeClientWithMaxTokens(t *testing.T) {
+	tests := []struct {
+		name      string
+		maxTokens int
+		want      int
+	}{
+		{name: "custom positive", maxTokens: 4096, want: 4096},
+		{name: "zero falls back to default", maxTokens: 0, want: defaultClaudeMaxTokens},
+		{name: "negative falls back to default", maxTokens: -1, want: defaultClaudeMaxTokens},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			client := NewClaudeClientWithMaxTokens("", "sk-ant-test", "", tt.maxTokens)
+			if client.maxTokens != tt.want {
+				t.Fatalf("maxTokens = %d, want %d", client.maxTokens, tt.want)
+			}
+		})
+	}
 }
 
 func TestClaudeClientCompleteRequestHeadersAndPayload(t *testing.T) {
@@ -120,6 +145,31 @@ func TestClaudeClientCompleteRequestHeadersAndPayload(t *testing.T) {
 	}
 	if resp.Usage.PromptTokens != 11 || resp.Usage.CompletionTokens != 7 || resp.Usage.TotalTokens != 18 {
 		t.Fatalf("usage = %#v, want prompt=11 completion=7 total=18", resp.Usage)
+	}
+}
+
+func TestClaudeClientCompleteHonorsConfiguredMaxTokens(t *testing.T) {
+	var gotReq claudeMessagesRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&gotReq); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		_, _ = w.Write([]byte(`{
+"content":[{"type":"text","text":"ok"}],
+"stop_reason":"end_turn",
+"usage":{"input_tokens":1,"output_tokens":1}
+}`))
+	}))
+	defer server.Close()
+
+	client := NewClaudeClientWithMaxTokens(server.URL, "sk-ant-test", "claude-test", 2048)
+	_, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+
+	if gotReq.MaxTokens != 2048 {
+		t.Fatalf("max_tokens = %d, want %d", gotReq.MaxTokens, 2048)
 	}
 }
 
