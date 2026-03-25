@@ -5,9 +5,11 @@ package statedb_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -35,9 +37,16 @@ var (
 
 // TestMain sets up a pgvector Postgres container, applies all migrations, and runs the tests.
 func TestMain(m *testing.M) {
-	ctx := context.Background()
+	// Use a bounded context for container startup and migration so CI never hangs indefinitely.
+	setupCtx, setupCancel := context.WithTimeout(context.Background(), 5*time.Minute)
 
-	container, err := tcpostgres.Run(ctx,
+	var exitCode int
+	defer func() {
+		setupCancel()
+		os.Exit(exitCode)
+	}()
+
+	container, err := tcpostgres.Run(setupCtx,
 		"docker.io/pgvector/pgvector:pg16",
 		tcpostgres.WithDatabase(testDBName),
 		tcpostgres.WithUsername(testDBUser),
@@ -45,42 +54,54 @@ func TestMain(m *testing.M) {
 		tcpostgres.BasicWaitStrategies(),
 	)
 	if err != nil {
-		log.Fatalf("failed to start postgres container: %v", err)
+		log.Printf("failed to start postgres container: %v", err)
+		exitCode = 1
+		return
 	}
 	defer func() {
-		if err := container.Terminate(ctx); err != nil {
+		if err := container.Terminate(context.Background()); err != nil {
 			log.Printf("failed to terminate container: %v", err)
 		}
 	}()
 
-	testDSN, err = container.ConnectionString(ctx, "sslmode=disable")
+	testDSN, err = container.ConnectionString(setupCtx, "sslmode=disable")
 	if err != nil {
-		log.Fatalf("failed to get connection string: %v", err)
+		log.Printf("failed to get connection string: %v", err)
+		exitCode = 1
+		return
 	}
 
 	// Apply all migrations using goose.
 	migrationsDB, err := sql.Open("pgx", testDSN)
 	if err != nil {
-		log.Fatalf("failed to open database for migrations: %v", err)
+		log.Printf("failed to open database for migrations: %v", err)
+		exitCode = 1
+		return
 	}
 	defer migrationsDB.Close()
 
 	provider, err := goose.NewProvider(goose.DialectPostgres, migrationsDB, os.DirFS(migrationsDir))
 	if err != nil {
-		log.Fatalf("failed to create goose provider: %v", err)
+		log.Printf("failed to create goose provider: %v", err)
+		exitCode = 1
+		return
 	}
-	if _, err := provider.Up(ctx); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
+	if _, err := provider.Up(setupCtx); err != nil {
+		log.Printf("failed to run migrations: %v", err)
+		exitCode = 1
+		return
 	}
 
 	// Create a pgxpool for use in tests.
-	testPool, err = pgxpool.New(ctx, testDSN)
+	testPool, err = pgxpool.New(setupCtx, testDSN)
 	if err != nil {
-		log.Fatalf("failed to create connection pool: %v", err)
+		log.Printf("failed to create connection pool: %v", err)
+		exitCode = 1
+		return
 	}
 	defer testPool.Close()
 
-	os.Exit(m.Run())
+	exitCode = m.Run()
 }
 
 // newTx begins a transaction and returns a Queries instance backed by it.
@@ -229,16 +250,30 @@ func TestIntegrationMigrationsDown(t *testing.T) {
 	defer conn.Release()
 
 	const downDB = "game_master_down_test"
-	if _, err := conn.Exec(ctx, "CREATE DATABASE "+downDB); err != nil {
+	if _, err := conn.Exec(ctx, fmt.Sprintf("CREATE DATABASE %q", downDB)); err != nil {
 		t.Fatalf("CREATE DATABASE: %v", err)
 	}
 	t.Cleanup(func() {
 		c, err := testPool.Acquire(ctx)
 		if err != nil {
+			t.Logf("acquire connection for cleanup: %v", err)
 			return
 		}
 		defer c.Release()
-		c.Exec(ctx, "DROP DATABASE IF EXISTS "+downDB)
+
+		// Terminate any remaining connections so that DROP DATABASE can succeed.
+		if _, err := c.Exec(ctx, `
+			SELECT pg_terminate_backend(pid)
+			FROM pg_stat_activity
+			WHERE datname = $1
+				AND pid <> pg_backend_pid()
+		`, downDB); err != nil {
+			t.Logf("terminate connections to %s: %v", downDB, err)
+		}
+
+		if _, err := c.Exec(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %q", downDB)); err != nil {
+			t.Logf("DROP DATABASE %s: %v", downDB, err)
+		}
 	})
 
 	// Build a connection string for the new database.

@@ -1,6 +1,6 @@
 module github.com/PatrickFanella/game-master
 
-go 1.25.0
+go 1.24.0
 
 require (
 	github.com/charmbracelet/bubbles v0.21.0
@@ -15,8 +15,8 @@ require (
 	github.com/knadh/koanf/providers/file v1.2.1
 	github.com/knadh/koanf/v2 v2.3.4
 	github.com/pgvector/pgvector-go v0.3.0
-	github.com/pressly/goose/v3 v3.27.0
-	github.com/testcontainers/testcontainers-go/modules/postgres v0.41.0
+	github.com/pressly/goose/v3 v3.24.1
+	github.com/testcontainers/testcontainers-go/modules/postgres v0.40.0
 )
 
 require (
@@ -86,7 +86,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.26.2 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
-	github.com/testcontainers/testcontainers-go v0.41.0 // indirect
+	github.com/testcontainers/testcontainers-go v0.40.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
@@ -99,9 +99,11 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
+	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
+	google.golang.org/grpc v1.79.1 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
