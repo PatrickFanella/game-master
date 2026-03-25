@@ -176,15 +176,18 @@ func TestClaudeClientCompleteHonorsConfiguredMaxTokens(t *testing.T) {
 
 func TestClaudeClientStreamEmitsToolCallDeltasAndFinalDoneChunk(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{
-"content":[
-  {"type":"tool_use","id":"tool_1","name":"lookup_weather","input":{"city":"Paris"}},
-  {"type":"tool_use","id":"tool_2","name":"lookup_time","input":{"city":"Paris"}},
-  {"type":"text","text":"done"}
-],
-"stop_reason":"end_turn",
-"usage":{"input_tokens":9,"output_tokens":4}
-}`))
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("event: message_start\ndata: {\"type\":\"message_start\"}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"tool_1\",\"name\":\"lookup_weather\",\"input\":{}}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"tool_2\",\"name\":\"lookup_time\",\"input\":{}}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"text_delta\",\"text\":\"done\"}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":2}\n\n"))
+		_, _ = w.Write([]byte("event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"))
 	}))
 	defer server.Close()
 
@@ -198,8 +201,8 @@ func TestClaudeClientStreamEmitsToolCallDeltasAndFinalDoneChunk(t *testing.T) {
 	for chunk := range ch {
 		chunks = append(chunks, chunk)
 	}
-	if len(chunks) != 3 {
-		t.Fatalf("chunks len = %d, want 3", len(chunks))
+	if len(chunks) != 4 {
+		t.Fatalf("chunks len = %d, want 4", len(chunks))
 	}
 	if chunks[0].Done || chunks[0].ToolCallDelta == nil || chunks[0].ToolCallDelta.Name != "lookup_weather" {
 		t.Fatalf("chunk[0] = %#v, want non-done lookup_weather tool delta", chunks[0])
@@ -207,8 +210,11 @@ func TestClaudeClientStreamEmitsToolCallDeltasAndFinalDoneChunk(t *testing.T) {
 	if chunks[1].Done || chunks[1].ToolCallDelta == nil || chunks[1].ToolCallDelta.Name != "lookup_time" {
 		t.Fatalf("chunk[1] = %#v, want non-done lookup_time tool delta", chunks[1])
 	}
-	if !chunks[2].Done || chunks[2].ContentDelta != "done" || chunks[2].ToolCallDelta != nil {
-		t.Fatalf("chunk[2] = %#v, want final done text chunk", chunks[2])
+	if chunks[2].Done || chunks[2].ContentDelta != "done" || chunks[2].ToolCallDelta != nil {
+		t.Fatalf("chunk[2] = %#v, want non-done text chunk with content \"done\"", chunks[2])
+	}
+	if !chunks[3].Done || chunks[3].ContentDelta != "" || chunks[3].ToolCallDelta != nil {
+		t.Fatalf("chunk[3] = %#v, want final done chunk", chunks[3])
 	}
 }
 
@@ -440,5 +446,316 @@ func TestClaudeClientCompleteUnsupportedContentTypeReturnsMalformedResponse(t *t
 	}
 	if !strings.Contains(malformedErr.Error(), "unsupported claude content block type") {
 		t.Fatalf("error = %q, want unsupported content type context", malformedErr.Error())
+	}
+}
+
+func TestClaudeClientStreamSetsStreamTrue(t *testing.T) {
+	var gotReq claudeMessagesRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&gotReq); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"))
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+	for range ch {
+	}
+
+	if !gotReq.Stream {
+		t.Fatal("stream must be true for Stream()")
+	}
+}
+
+func TestClaudeClientStreamRejectsNonSSEContentType(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"content":[]}`))
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	_, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err == nil {
+		t.Fatal("expected error for non-SSE Content-Type")
+	}
+
+	var malformedErr *ErrMalformedResponse
+	if !errors.As(err, &malformedErr) {
+		t.Fatalf("error type = %T, want *ErrMalformedResponse (error=%v)", err, err)
+	}
+	if !strings.Contains(malformedErr.Error(), "text/event-stream") {
+		t.Fatalf("error = %q, want message referencing text/event-stream", malformedErr.Error())
+	}
+}
+
+func TestClaudeClientStreamContextCancellation(t *testing.T) {
+	started := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			t.Error("ResponseWriter does not support Flusher")
+			return
+		}
+		_, _ = w.Write([]byte("event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"first\"}}\n\n"))
+		flusher.Flush()
+		close(started)
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	ch, err := client.Stream(ctx, []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	<-started
+	cancel()
+
+	for range ch {
+	}
+}
+
+func TestClaudeClientStreamErrorEventClosesChannel(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"partial\"}}\n\n"))
+		_, _ = w.Write([]byte("event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"overloaded_error\",\"message\":\"Overloaded\"}}\n\n"))
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	var chunks []StreamChunk
+	for chunk := range ch {
+		chunks = append(chunks, chunk)
+	}
+
+	if len(chunks) != 1 {
+		t.Fatalf("chunks len = %d, want 1 (partial text before error)", len(chunks))
+	}
+	if chunks[0].ContentDelta != "partial" {
+		t.Fatalf("chunk[0].ContentDelta = %q, want \"partial\"", chunks[0].ContentDelta)
+	}
+	// Channel must be closed without a Done=true chunk when an error event is received.
+	for _, c := range chunks {
+		if c.Done {
+			t.Fatal("no chunk should have Done=true when error event received")
+		}
+	}
+}
+
+func TestClaudeClientStreamMalformedDataSkipsEvent(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("event: content_block_delta\ndata: {invalid json\n\n"))
+		_, _ = w.Write([]byte("event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\n"))
+		_, _ = w.Write([]byte("event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"))
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	var chunks []StreamChunk
+	for chunk := range ch {
+		chunks = append(chunks, chunk)
+	}
+
+	if len(chunks) != 2 {
+		t.Fatalf("chunks len = %d, want 2 (text delta + done)", len(chunks))
+	}
+	if chunks[0].ContentDelta != "ok" {
+		t.Fatalf("chunk[0].ContentDelta = %q, want \"ok\"", chunks[0].ContentDelta)
+	}
+	if !chunks[1].Done {
+		t.Fatal("last chunk must have Done=true")
+	}
+}
+
+func TestClaudeClientStreamMalformedToolArgsSkipsToolCall(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		// tool_use block with invalid JSON argument fragment
+		_, _ = w.Write([]byte("event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"tool_bad\",\"name\":\"bad_tool\",\"input\":{}}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{invalid\"}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n"))
+		// valid text follows
+		_, _ = w.Write([]byte("event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"safe\"}}\n\n"))
+		_, _ = w.Write([]byte("event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}\n\n"))
+		_, _ = w.Write([]byte("event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"))
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	var chunks []StreamChunk
+	for chunk := range ch {
+		chunks = append(chunks, chunk)
+	}
+
+	// The malformed tool call must be silently dropped; only the text delta and done chunk are emitted.
+	if len(chunks) != 2 {
+		t.Fatalf("chunks len = %d, want 2 (text delta + done); bad tool call must be skipped", len(chunks))
+	}
+	if chunks[0].ToolCallDelta != nil {
+		t.Fatalf("chunk[0] should not carry malformed tool call, got %#v", chunks[0])
+	}
+	if chunks[0].ContentDelta != "safe" {
+		t.Fatalf("chunk[0].ContentDelta = %q, want \"safe\"", chunks[0].ContentDelta)
+	}
+	if !chunks[1].Done {
+		t.Fatal("last chunk must have Done=true")
+	}
+}
+
+func TestClaudeClientStreamFixtureResponses(t *testing.T) {
+	tests := []struct {
+		name    string
+		fixture string
+		want    []StreamChunk
+	}{
+		{
+			name:    "text only",
+			fixture: "claude_stream_text_chunks.sse",
+			want: []StreamChunk{
+				{ContentDelta: "The dragon ", Done: false},
+				{ContentDelta: "breathes fire across the cavern.", Done: false},
+				{Done: true},
+			},
+		},
+		{
+			name:    "tool calls only",
+			fixture: "claude_stream_tool_calls_only.sse",
+			want: []StreamChunk{
+				{
+					ToolCallDelta: &ToolCall{
+						ID:        "toolu_01",
+						Name:      "roll_dice",
+						Arguments: map[string]any{"sides": float64(20), "count": float64(1)},
+					},
+					Done: false,
+				},
+				{
+					ToolCallDelta: &ToolCall{
+						ID:        "toolu_02",
+						Name:      "lookup_npc",
+						Arguments: map[string]any{"name": "Gandalf"},
+					},
+					Done: false,
+				},
+				{Done: true},
+			},
+		},
+		{
+			name:    "mixed text and tool calls",
+			fixture: "claude_stream_mixed_content.sse",
+			want: []StreamChunk{
+				{ContentDelta: "You approach the merchant's stall. ", Done: false},
+				{
+					ToolCallDelta: &ToolCall{
+						ID:        "toolu_03",
+						Name:      "get_inventory",
+						Arguments: map[string]any{"merchant_id": "m-17", "category": "weapons"},
+					},
+					Done: false,
+				},
+				{ContentDelta: "Let me see what is available.", Done: false},
+				{Done: true},
+			},
+		},
+		{
+			name:    "multiple tool calls",
+			fixture: "claude_stream_multiple_tool_calls.sse",
+			want: []StreamChunk{
+				{
+					ToolCallDelta: &ToolCall{
+						ID:        "toolu_100",
+						Name:      "roll_dice",
+						Arguments: map[string]any{"sides": float64(20), "count": float64(1)},
+					},
+					Done: false,
+				},
+				{
+					ToolCallDelta: &ToolCall{
+						ID:        "toolu_101",
+						Name:      "lookup_npc",
+						Arguments: map[string]any{"name": "Gandalf", "location": "Minas Tirith"},
+					},
+					Done: false,
+				},
+				{
+					ToolCallDelta: &ToolCall{
+						ID:        "toolu_102",
+						Name:      "update_quest",
+						Arguments: map[string]any{"quest_id": "q-42", "status": "in_progress"},
+					},
+					Done: false,
+				},
+				{Done: true},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			fixture := loadFixture(t, tt.fixture)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				_, _ = w.Write(fixture)
+			}))
+			defer server.Close()
+
+			client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+			ch, err := client.Stream(context.Background(), []Message{{Role: RoleUser, Content: "hi"}}, nil)
+			if err != nil {
+				t.Fatalf("Stream() error = %v", err)
+			}
+
+			var got []StreamChunk
+			for chunk := range ch {
+				got = append(got, chunk)
+			}
+
+			if len(got) != len(tt.want) {
+				t.Fatalf("chunks len = %d, want %d", len(got), len(tt.want))
+			}
+
+			for i := range tt.want {
+				if got[i].ContentDelta != tt.want[i].ContentDelta {
+					t.Fatalf("chunk[%d] content delta = %q, want %q", i, got[i].ContentDelta, tt.want[i].ContentDelta)
+				}
+				if got[i].Done != tt.want[i].Done {
+					t.Fatalf("chunk[%d] done = %v, want %v", i, got[i].Done, tt.want[i].Done)
+				}
+				if !reflect.DeepEqual(got[i].ToolCallDelta, tt.want[i].ToolCallDelta) {
+					t.Fatalf("chunk[%d] tool delta = %#v, want %#v", i, got[i].ToolCallDelta, tt.want[i].ToolCallDelta)
+				}
+			}
+		})
 	}
 }
