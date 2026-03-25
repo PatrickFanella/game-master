@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/PatrickFanella/game-master/internal/llm"
 )
@@ -33,7 +34,7 @@ func (r *Registry) Register(tool llm.Tool, handler Handler) error {
 		return errors.New("tool handler is required")
 	}
 	if _, exists := r.handlers[tool.Name]; exists {
-		return errors.New("tool already registered")
+		return fmt.Errorf("tool %q is already registered", tool.Name)
 	}
 
 	r.tools = append(r.tools, tool)
@@ -58,7 +59,7 @@ func (r *Registry) Invoke(ctx context.Context, name string, args map[string]any)
 	}
 	h, ok := r.handlers[name]
 	if !ok {
-		return nil, errors.New("tool is not registered")
+		return nil, fmt.Errorf("tool %q is not registered", name)
 	}
 	return h(ctx, args)
 }

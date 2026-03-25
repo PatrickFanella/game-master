@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"errors"
+	"math"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -49,8 +51,20 @@ func TestRegisterSkillCheck(t *testing.T) {
 	if !ok {
 		t.Fatalf("required schema has unexpected type %T", tools[0].Parameters["required"])
 	}
-	if len(required) != 3 || required[0] != "character_id" || required[1] != "skill" || required[2] != "difficulty" {
-		t.Fatalf("required schema = %#v, want [character_id skill difficulty]", required)
+	if len(required) != 3 {
+		t.Fatalf("required schema length = %d, want 3: %#v", len(required), required)
+	}
+	for _, field := range []string{"character_id", "skill", "difficulty"} {
+		found := false
+		for _, got := range required {
+			if got == field {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("required schema = %#v, missing field %q", required, field)
+		}
 	}
 }
 
@@ -61,7 +75,7 @@ func TestSkillCheckNormal(t *testing.T) {
 	got, err := h.Handle(context.Background(), map[string]any{
 		"character_id": id.String(),
 		"skill":        "athletics",
-		"difficulty":   15,
+		"difficulty":   15.0,
 	})
 	if err != nil {
 		t.Fatalf("Handle: %v", err)
@@ -207,4 +221,47 @@ func TestSkillCheckResolverError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected resolver error")
 	}
+}
+
+func TestRegisterSkillCheckNilResolver(t *testing.T) {
+	reg := NewRegistry()
+	err := RegisterSkillCheck(reg, nil, &stubRoller{rolls: []int{0}})
+	if err == nil {
+		t.Fatal("expected error for nil resolver")
+	}
+	if !strings.Contains(err.Error(), "resolver is required") {
+		t.Fatalf("error = %v, want resolver-required message", err)
+	}
+}
+
+func TestParseIntArgOutOfRangeOrNonFinite(t *testing.T) {
+	t.Run("float too large", func(t *testing.T) {
+		_, err := parseIntArg(map[string]any{"difficulty": float64(math.MaxInt) * 2}, "difficulty")
+		if err == nil {
+			t.Fatal("expected out-of-range error")
+		}
+		if !strings.Contains(err.Error(), "out of range") {
+			t.Fatalf("error = %v, want out-of-range message", err)
+		}
+	})
+
+	t.Run("float nan", func(t *testing.T) {
+		_, err := parseIntArg(map[string]any{"difficulty": math.NaN()}, "difficulty")
+		if err == nil {
+			t.Fatal("expected non-finite error")
+		}
+		if !strings.Contains(err.Error(), "finite integer") {
+			t.Fatalf("error = %v, want finite-integer message", err)
+		}
+	})
+
+	t.Run("float inf", func(t *testing.T) {
+		_, err := parseIntArg(map[string]any{"difficulty": math.Inf(1)}, "difficulty")
+		if err == nil {
+			t.Fatal("expected non-finite error")
+		}
+		if !strings.Contains(err.Error(), "finite integer") {
+			t.Fatalf("error = %v, want finite-integer message", err)
+		}
+	})
 }

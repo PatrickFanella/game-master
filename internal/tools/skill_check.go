@@ -72,6 +72,9 @@ func SkillCheckTool() llm.Tool {
 
 // RegisterSkillCheck registers the skill_check tool and handler.
 func RegisterSkillCheck(reg *Registry, resolver StatModifierResolver, roller DiceRoller) error {
+	if resolver == nil {
+		return errors.New("skill_check resolver is required")
+	}
 	handler := NewSkillCheckHandler(resolver, roller)
 	return reg.Register(SkillCheckTool(), handler.Handle)
 }
@@ -227,11 +230,20 @@ func parseIntArg(args map[string]any, key string) (int, error) {
 	case int32:
 		return int(v), nil
 	case int64:
+		if v < int64(math.MinInt) || v > int64(math.MaxInt) {
+			return 0, fmt.Errorf("%s is out of range", key)
+		}
 		return int(v), nil
 	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return 0, fmt.Errorf("%s must be a finite integer", key)
+		}
 		rounded := math.Round(v)
 		if math.Abs(v-rounded) > floatIntegerTolerance {
 			return 0, fmt.Errorf("%s must be an integer", key)
+		}
+		if rounded < float64(math.MinInt) || rounded > float64(math.MaxInt) {
+			return 0, fmt.Errorf("%s is out of range", key)
 		}
 		return int(rounded), nil
 	default:
