@@ -37,7 +37,7 @@ tasks:
   test:integration:
     desc: Run integration tests only
     cmds:
-      - go test -run Integration ./...
+      - go test -tags integration -run Integration ./...
 
   lint:
     desc: Run golangci-lint
