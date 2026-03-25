@@ -18,6 +18,12 @@ FROM quest_objectives
 WHERE quest_id = sqlc.arg(quest_id)
 ORDER BY order_index, id;
 
+-- name: ListObjectivesByQuests :many
+SELECT id, quest_id, description, completed, order_index
+FROM quest_objectives
+WHERE quest_id = ANY(sqlc.slice(quest_ids)::uuid[])
+ORDER BY quest_id, order_index, id;
+
 -- name: CompleteObjective :one
 UPDATE quest_objectives
 SET

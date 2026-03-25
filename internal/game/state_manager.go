@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/PatrickFanella/game-master/internal/domain"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
@@ -63,7 +64,12 @@ func (sm *pgStateManager) GetGameState(ctx context.Context, campaignID uuid.UUID
 
 func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID) (*GameState, error) {
 	state := &GameState{
-		ActiveQuestObjectives: make(map[uuid.UUID][]domain.QuestObjective),
+		CurrentLocationConnections: []domain.LocationConnection{},
+		NearbyNPCs:                 []domain.NPC{},
+		ActiveQuests:               []domain.Quest{},
+		ActiveQuestObjectives:      make(map[uuid.UUID][]domain.QuestObjective),
+		PlayerInventory:            []domain.Item{},
+		WorldFacts:                 []domain.WorldFact{},
 	}
 
 	pgCampaignID := uuidToPgtype(campaignID)
@@ -79,7 +85,9 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 		return nil, fmt.Errorf("gather state player: %w", err)
 	}
 	if len(playerCharacters) > 0 {
-		player := playerCharacterToDomain(playerCharacters[0])
+		// GetPlayerCharacterByCampaign SQL orders by created_at ASC, so use the most recently created character.
+		currentIdx := len(playerCharacters) - 1
+		player := playerCharacterToDomain(playerCharacters[currentIdx])
 		state.Player = player
 
 		if player.CurrentLocationID != nil {
@@ -128,23 +136,26 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 	if err != nil {
 		return nil, fmt.Errorf("gather state quests: %w", err)
 	}
+	questIDs := make([]pgtype.UUID, 0, len(quests))
 	for _, quest := range quests {
 		q := questToDomain(quest)
 		state.ActiveQuests = append(state.ActiveQuests, q)
+		questIDs = append(questIDs, quest.ID)
+	}
 
-		objectives, err := sm.queries.ListObjectivesByQuest(ctx, quest.ID)
+	if len(questIDs) > 0 {
+		objectives, err := sm.queries.ListObjectivesByQuests(ctx, questIDs)
 		if err != nil {
 			return nil, fmt.Errorf("gather state quest objectives: %w", err)
 		}
 
-		if len(objectives) == 0 {
-			continue
-		}
-		domainObjectives := make([]domain.QuestObjective, 0, len(objectives))
 		for _, objective := range objectives {
-			domainObjectives = append(domainObjectives, questObjectiveToDomain(objective))
+			questID := uuidFromPgtype(objective.QuestID)
+			state.ActiveQuestObjectives[questID] = append(
+				state.ActiveQuestObjectives[questID],
+				questObjectiveToDomain(objective),
+			)
 		}
-		state.ActiveQuestObjectives[q.ID] = domainObjectives
 	}
 
 	worldFacts, err := sm.queries.ListActiveFactsByCampaign(ctx, pgCampaignID)

@@ -105,6 +105,39 @@ func (q *Queries) ListObjectivesByQuest(ctx context.Context, questID pgtype.UUID
 	return items, nil
 }
 
+const listObjectivesByQuests = `-- name: ListObjectivesByQuests :many
+SELECT id, quest_id, description, completed, order_index
+FROM quest_objectives
+WHERE quest_id = ANY($1::uuid[])
+ORDER BY quest_id, order_index, id
+`
+
+func (q *Queries) ListObjectivesByQuests(ctx context.Context, questIds []pgtype.UUID) ([]QuestObjective, error) {
+	rows, err := q.db.Query(ctx, listObjectivesByQuests, questIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []QuestObjective
+	for rows.Next() {
+		var i QuestObjective
+		if err := rows.Scan(
+			&i.ID,
+			&i.QuestID,
+			&i.Description,
+			&i.Completed,
+			&i.OrderIndex,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateObjective = `-- name: UpdateObjective :one
 UPDATE quest_objectives
 SET

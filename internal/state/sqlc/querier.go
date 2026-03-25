@@ -85,6 +85,7 @@ type Querier interface {
 	ListNPCsByFaction(ctx context.Context, arg ListNPCsByFactionParams) ([]Npc, error)
 	ListNPCsByLocation(ctx context.Context, arg ListNPCsByLocationParams) ([]Npc, error)
 	ListObjectivesByQuest(ctx context.Context, questID pgtype.UUID) ([]QuestObjective, error)
+	ListObjectivesByQuests(ctx context.Context, questIds []pgtype.UUID) ([]QuestObjective, error)
 	ListQuestsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Quest, error)
 	ListQuestsByType(ctx context.Context, arg ListQuestsByTypeParams) ([]Quest, error)
 	ListRecentSessionLogs(ctx context.Context, arg ListRecentSessionLogsParams) ([]SessionLog, error)
