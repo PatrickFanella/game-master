@@ -8,15 +8,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
-
-	"github.com/PatrickFanella/game-master/internal/config"
 )
 
 // testApp returns a minimal App suitable for teatest integration tests.
 func testApp() App {
-	return NewApp(config.Config{
-		LLM: config.LLMConfig{Provider: "ollama"},
-	})
+	return NewApp(testCfg)
 }
 
 // finalTimeout is the maximum time to wait for the program to finish.
@@ -32,8 +28,8 @@ func TestTeatest_AppBootsShowsNarrativeView(t *testing.T) {
 		teatest.WithInitialTermSize(100, 30),
 	)
 
-	// The narrative view is seeded with "Welcome to Game Master" and the
-	// status bar shows [Narrative] as the active tab.
+	// Wait until the UI output contains "Narrative", indicating that the
+	// narrative view has been rendered.
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("Narrative"))
 	}, waitDuration)
@@ -75,7 +71,10 @@ func TestTeatest_TextInputAppearsInViewport(t *testing.T) {
 	// Quit and use FinalModel to verify the entry was added.
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	fm := tm.FinalModel(t, finalTimeout)
-	app := fm.(App)
+	app, ok := fm.(App)
+	if !ok {
+		t.Fatalf("expected App model, got %T", fm)
+	}
 
 	// Verify the submitted text is in the final rendered view.
 	finalView := app.View()
@@ -115,7 +114,10 @@ func TestTeatest_NumberKeysSwitchToCorrectView(t *testing.T) {
 			// Quit and verify final model state.
 			tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 			fm := tm.FinalModel(t, finalTimeout)
-			app := fm.(App)
+			app, ok := fm.(App)
+			if !ok {
+				t.Fatalf("expected App model, got %T", fm)
+			}
 			if app.ActiveViewState() != tt.expected {
 				t.Fatalf("expected ViewState %d, got %d", tt.expected, app.ActiveViewState())
 			}
@@ -144,7 +146,10 @@ func TestTeatest_NumberKeysSwitchToCorrectView(t *testing.T) {
 
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 		fm := tm.FinalModel(t, finalTimeout)
-		app := fm.(App)
+		app, ok := fm.(App)
+		if !ok {
+			t.Fatalf("expected App model, got %T", fm)
+		}
 		if app.ActiveViewState() != ViewNarrative {
 			t.Fatalf("expected ViewNarrative, got %d", app.ActiveViewState())
 		}
@@ -177,7 +182,10 @@ func TestTeatest_TabCyclesThroughViewsInOrder(t *testing.T) {
 	// Quit and verify we're back on narrative after a full cycle.
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	fm := tm.FinalModel(t, finalTimeout)
-	app := fm.(App)
+	app, ok := fm.(App)
+	if !ok {
+		t.Fatalf("expected App model, got %T", fm)
+	}
 	if app.ActiveViewState() != ViewNarrative {
 		t.Fatalf("expected ViewNarrative after full tab cycle, got %d", app.ActiveViewState())
 	}
@@ -210,7 +218,10 @@ func TestTeatest_ViewSwitchingPreservesState(t *testing.T) {
 	// Quit and use FinalModel to verify state was preserved.
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	fm := tm.FinalModel(t, finalTimeout)
-	app := fm.(App)
+	app, ok := fm.(App)
+	if !ok {
+		t.Fatalf("expected App model, got %T", fm)
+	}
 
 	if app.ActiveViewState() != ViewNarrative {
 		t.Fatalf("expected ViewNarrative after switching back, got %d", app.ActiveViewState())
