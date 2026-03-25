@@ -192,7 +192,10 @@ func (h *CreateLanguageHandler) Handle(ctx context.Context, args map[string]any)
 		return nil, fmt.Errorf("create language: %w", err)
 	}
 
-	memoryContent := buildLanguageMemoryContent(name, description, phonologicalRules, namingConventions, sampleVocabulary)
+	memoryContent, err := buildLanguageMemoryContent(name, description, phonologicalRules, namingConventions, sampleVocabulary)
+	if err != nil {
+		return nil, fmt.Errorf("build language memory content: %w", err)
+	}
 	embedding, err := h.embedder.Embed(ctx, memoryContent)
 	if err != nil {
 		return nil, fmt.Errorf("embed language memory: %w", err)
@@ -291,10 +294,19 @@ func pgUUIDsToStrings(ids []pgtype.UUID) []string {
 	return out
 }
 
-func buildLanguageMemoryContent(name, description string, phonologicalRules, namingConventions, sampleVocabulary map[string]any) string {
-	phonologyJSON, _ := json.Marshal(phonologicalRules)
-	namingJSON, _ := json.Marshal(namingConventions)
-	vocabularyJSON, _ := json.Marshal(sampleVocabulary)
+func buildLanguageMemoryContent(name, description string, phonologicalRules, namingConventions, sampleVocabulary map[string]any) (string, error) {
+	phonologyJSON, err := json.Marshal(phonologicalRules)
+	if err != nil {
+		return "", err
+	}
+	namingJSON, err := json.Marshal(namingConventions)
+	if err != nil {
+		return "", err
+	}
+	vocabularyJSON, err := json.Marshal(sampleVocabulary)
+	if err != nil {
+		return "", err
+	}
 
 	return fmt.Sprintf(
 		"Language created: %s. Description: %s. Phonological rules: %s. Naming conventions: %s. Sample vocabulary: %s.",
@@ -303,5 +315,5 @@ func buildLanguageMemoryContent(name, description string, phonologicalRules, nam
 		string(phonologyJSON),
 		string(namingJSON),
 		string(vocabularyJSON),
-	)
+	), nil
 }
