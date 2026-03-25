@@ -33,12 +33,22 @@ type EntityLookup interface {
 // Validator validates tool calls against the registered tool schemas and
 // known game-world entities.
 type Validator struct {
-	registry *Registry
+	// schemas is a pre-built map from tool name to its Parameters schema,
+	// populated at construction time to avoid repeated deep-copies during
+	// validation.
+	schemas map[string]map[string]any
 }
 
 // NewValidator creates a Validator backed by the given registry.
+// It snapshots the current registry contents into an O(1) lookup table.
 func NewValidator(reg *Registry) *Validator {
-	return &Validator{registry: reg}
+	schemas := make(map[string]map[string]any)
+	if reg != nil {
+		for _, t := range reg.List() {
+			schemas[t.Name] = t.Parameters
+		}
+	}
+	return &Validator{schemas: schemas}
 }
 
 // ValidatePreExecution validates a tool call before execution. It verifies that:
@@ -48,12 +58,12 @@ func NewValidator(reg *Registry) *Validator {
 //
 // Returns the first error found, or nil if the call is valid.
 func (v *Validator) ValidatePreExecution(call llm.ToolCall) error {
-	if v == nil || v.registry == nil {
+	if v == nil || v.schemas == nil {
 		return fmt.Errorf("validator registry is nil")
 	}
 
 	// 1. Check tool name is registered and retrieve its schema.
-	schema := v.schemaFor(call.Name)
+	schema := v.schemas[call.Name]
 	if schema == nil {
 		return fmt.Errorf("tool %q is not registered", call.Name)
 	}
@@ -107,13 +117,21 @@ func (v *Validator) ValidatePosthoc(call llm.ToolCall, lookup EntityLookup) Post
 		// NPC name deduplication.
 		dedupFixes, err := deduplicateNPCName(call.Name, args, lookup)
 		if err != nil {
-			return PosthocResult{Call: call, Fixes: fixes, Err: err}
+			return PosthocResult{
+				Call:  llm.ToolCall{ID: call.ID, Name: call.Name, Arguments: args},
+				Fixes: fixes,
+				Err:   err,
+			}
 		}
 		fixes = append(fixes, dedupFixes...)
 
 		// Referential integrity checks.
 		if err := checkReferentialIntegrity(call.Name, args, lookup); err != nil {
-			return PosthocResult{Call: call, Fixes: fixes, Err: err}
+			return PosthocResult{
+				Call:  llm.ToolCall{ID: call.ID, Name: call.Name, Arguments: args},
+				Fixes: fixes,
+				Err:   err,
+			}
 		}
 	}
 
@@ -128,18 +146,6 @@ func (v *Validator) ValidatePosthoc(call llm.ToolCall, lookup EntityLookup) Post
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-// schemaFor returns the Parameters schema for the named tool, or nil if the
-// tool is not registered.
-func (v *Validator) schemaFor(name string) map[string]any {
-	for _, t := range v.registry.List() {
-		if t.Name == name {
-			return t.Parameters
-		}
-	}
-	return nil
-}
-
 // checkRequiredArgs verifies that all fields listed under "required" in
 // schema are present in args.
 func checkRequiredArgs(toolName string, args map[string]any, schema map[string]any) error {
@@ -319,6 +325,11 @@ func deduplicateNPCName(toolName string, args map[string]any, lookup EntityLooku
 	}
 	existingID, found := lookup.NPCByName(name)
 	if !found {
+		return nil, nil
+	}
+	// Only inject npc_id when the caller has not already provided one,
+	// so an explicit reference is never silently overwritten.
+	if existing, _ := args["npc_id"].(string); existing != "" {
 		return nil, nil
 	}
 	args["npc_id"] = existingID.String()

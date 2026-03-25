@@ -239,6 +239,129 @@ func TestPreExecution_FractionalFloat_NotInteger(t *testing.T) {
 	}
 }
 
+// buildTypeTestRegistry creates a Registry that exposes one arg of every
+// supported JSON Schema type so that type-check tests can cover all branches.
+func buildTypeTestRegistry(t *testing.T) *Registry {
+	t.Helper()
+	reg := NewRegistry()
+	noop := func(_ context.Context, _ map[string]any) (*ToolResult, error) {
+		return &ToolResult{Success: true}, nil
+	}
+	if err := reg.Register(llm.Tool{
+		Name: "typed_tool",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"flag":   map[string]any{"type": "boolean"},
+				"score":  map[string]any{"type": "number"},
+				"meta":   map[string]any{"type": "object"},
+				"tags":   map[string]any{"type": "array"},
+				"label":  map[string]any{"type": "string"},
+				"amount": map[string]any{"type": "integer"},
+			},
+		},
+	}, noop); err != nil {
+		t.Fatalf("Register typed_tool: %v", err)
+	}
+	return reg
+}
+
+func TestPreExecution_WrongType_BooleanExpected(t *testing.T) {
+	v := NewValidator(buildTypeTestRegistry(t))
+	err := v.ValidatePreExecution(llm.ToolCall{
+		Name:      "typed_tool",
+		Arguments: map[string]any{"flag": "yes"}, // should be boolean
+	})
+	if err == nil {
+		t.Fatal("expected type error for non-boolean, got nil")
+	}
+	if !strings.Contains(err.Error(), "boolean") {
+		t.Errorf("error %q should mention 'boolean'", err.Error())
+	}
+}
+
+func TestPreExecution_CorrectType_Boolean(t *testing.T) {
+	v := NewValidator(buildTypeTestRegistry(t))
+	if err := v.ValidatePreExecution(llm.ToolCall{
+		Name:      "typed_tool",
+		Arguments: map[string]any{"flag": true},
+	}); err != nil {
+		t.Fatalf("unexpected error for valid boolean: %v", err)
+	}
+}
+
+func TestPreExecution_WrongType_NumberExpected(t *testing.T) {
+	v := NewValidator(buildTypeTestRegistry(t))
+	err := v.ValidatePreExecution(llm.ToolCall{
+		Name:      "typed_tool",
+		Arguments: map[string]any{"score": "high"}, // should be number
+	})
+	if err == nil {
+		t.Fatal("expected type error for non-number, got nil")
+	}
+	if !strings.Contains(err.Error(), "number") {
+		t.Errorf("error %q should mention 'number'", err.Error())
+	}
+}
+
+func TestPreExecution_CorrectType_Number(t *testing.T) {
+	v := NewValidator(buildTypeTestRegistry(t))
+	if err := v.ValidatePreExecution(llm.ToolCall{
+		Name:      "typed_tool",
+		Arguments: map[string]any{"score": float64(9.5)},
+	}); err != nil {
+		t.Fatalf("unexpected error for valid number: %v", err)
+	}
+}
+
+func TestPreExecution_WrongType_ObjectExpected(t *testing.T) {
+	v := NewValidator(buildTypeTestRegistry(t))
+	err := v.ValidatePreExecution(llm.ToolCall{
+		Name:      "typed_tool",
+		Arguments: map[string]any{"meta": "not-an-object"}, // should be object
+	})
+	if err == nil {
+		t.Fatal("expected type error for non-object, got nil")
+	}
+	if !strings.Contains(err.Error(), "object") {
+		t.Errorf("error %q should mention 'object'", err.Error())
+	}
+}
+
+func TestPreExecution_CorrectType_Object(t *testing.T) {
+	v := NewValidator(buildTypeTestRegistry(t))
+	if err := v.ValidatePreExecution(llm.ToolCall{
+		Name:      "typed_tool",
+		Arguments: map[string]any{"meta": map[string]any{"key": "val"}},
+	}); err != nil {
+		t.Fatalf("unexpected error for valid object: %v", err)
+	}
+}
+
+func TestPreExecution_WrongType_ArrayExpected(t *testing.T) {
+	v := NewValidator(buildTypeTestRegistry(t))
+	err := v.ValidatePreExecution(llm.ToolCall{
+		Name:      "typed_tool",
+		Arguments: map[string]any{"tags": "not-an-array"}, // should be array
+	})
+	if err == nil {
+		t.Fatal("expected type error for non-array, got nil")
+	}
+	if !strings.Contains(err.Error(), "array") {
+		t.Errorf("error %q should mention 'array'", err.Error())
+	}
+}
+
+func TestPreExecution_CorrectType_Array(t *testing.T) {
+	v := NewValidator(buildTypeTestRegistry(t))
+	if err := v.ValidatePreExecution(llm.ToolCall{
+		Name:      "typed_tool",
+		Arguments: map[string]any{"tags": []any{"a", "b"}},
+	}); err != nil {
+		t.Fatalf("unexpected error for valid array: %v", err)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // ValidatePosthoc – range clamping
 // ---------------------------------------------------------------------------
@@ -636,5 +759,82 @@ func TestPosthoc_CombinedFixes(t *testing.T) {
 	}
 	if result.Call.Arguments["npc_id"] != existingNPCID.String() {
 		t.Errorf("npc_id = %v, want %s", result.Call.Arguments["npc_id"], existingNPCID)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ValidatePosthoc – patched call returned even on error
+// ---------------------------------------------------------------------------
+
+func TestPosthoc_PatchedCallReturnedOnRefIntegrityError(t *testing.T) {
+	// Disposition will be clamped (a fix) before the referential integrity
+	// error is raised. The returned Call should carry the clamped value even
+	// though Err is non-nil.
+	lookup := emptyLookup() // location_id will not be found
+
+	v := NewValidator(buildTestRegistry(t))
+	locID := uuid.New()
+	call := llm.ToolCall{
+		Name: "mock_npc_create",
+		Arguments: map[string]any{
+			"name":        "Guard",
+			"campaign_id": uuid.New().String(),
+			"disposition": float64(200),  // will be clamped to 100
+			"location_id": locID.String(), // unknown → integrity error
+		},
+	}
+	result := v.ValidatePosthoc(call, lookup)
+	if result.Err == nil {
+		t.Fatal("expected referential integrity error, got nil")
+	}
+	// Clamping fix must still appear in Fixes.
+	if len(result.Fixes) == 0 {
+		t.Fatal("expected at least one fix (disposition clamp) even on error")
+	}
+	// result.Call should contain the patched (clamped) disposition.
+	got, _ := toFloat64(result.Call.Arguments["disposition"])
+	if got != 100 {
+		t.Errorf("patched Call disposition = %.0f, want 100", got)
+	}
+	// Original args must be unchanged.
+	if call.Arguments["disposition"] != float64(200) {
+		t.Errorf("original disposition mutated: got %v, want 200", call.Arguments["disposition"])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ValidatePosthoc – NPC dedup does not overwrite explicit npc_id
+// ---------------------------------------------------------------------------
+
+func TestPosthoc_NPCDedup_ExplicitNPCIDNotOverwritten(t *testing.T) {
+	existingID := uuid.New()
+	explicitID := uuid.New()
+	lookup := emptyLookup()
+	lookup.npcsByName["Guard"] = existingID
+	lookup.npcIDs[existingID] = true
+	lookup.npcIDs[explicitID] = true
+
+	v := NewValidator(buildTestRegistry(t))
+	call := llm.ToolCall{
+		Name: "mock_npc_create",
+		Arguments: map[string]any{
+			"name":        "Guard",
+			"campaign_id": uuid.New().String(),
+			"npc_id":      explicitID.String(), // caller already knows the ID
+		},
+	}
+	result := v.ValidatePosthoc(call, lookup)
+	if result.Err != nil {
+		t.Fatalf("unexpected error: %v", result.Err)
+	}
+	// The explicit npc_id must not be replaced by the dedup-detected ID.
+	if result.Call.Arguments["npc_id"] != explicitID.String() {
+		t.Errorf("npc_id = %v, want %s (explicit ID must not be overwritten)", result.Call.Arguments["npc_id"], explicitID)
+	}
+	// No dedup fix should be recorded.
+	for _, fix := range result.Fixes {
+		if strings.Contains(fix, "reusing existing") {
+			t.Errorf("unexpected dedup fix when npc_id was already set: %q", fix)
+		}
 	}
 }
