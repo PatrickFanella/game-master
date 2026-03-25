@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -208,6 +209,117 @@ func TestClaudeClientStreamEmitsToolCallDeltasAndFinalDoneChunk(t *testing.T) {
 	}
 	if !chunks[2].Done || chunks[2].ContentDelta != "done" || chunks[2].ToolCallDelta != nil {
 		t.Fatalf("chunk[2] = %#v, want final done text chunk", chunks[2])
+	}
+}
+
+func TestClaudeClientCompleteMixedContentFixture(t *testing.T) {
+	fixture := loadFixture(t, "claude_response_mixed_content.json")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(fixture)
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	resp, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "What is happening?"}}, nil)
+	if err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+
+	if resp.Content != "You approach the merchant's stall. Let me check the inventory for you." {
+		t.Fatalf("content = %q, want narrative text", resp.Content)
+	}
+	if len(resp.ToolCalls) != 2 {
+		t.Fatalf("tool calls length = %d, want 2", len(resp.ToolCalls))
+	}
+
+	expected := []ToolCall{
+		{
+			ID:   "toolu_01A",
+			Name: "get_inventory",
+			Arguments: map[string]any{
+				"merchant_id": "m-17",
+				"category":    "weapons",
+			},
+		},
+		{
+			ID:   "toolu_01B",
+			Name: "check_gold",
+			Arguments: map[string]any{
+				"player_id": "p-1",
+			},
+		},
+	}
+
+	for i := range expected {
+		if resp.ToolCalls[i].ID != expected[i].ID {
+			t.Fatalf("tool call[%d] id = %q, want %q", i, resp.ToolCalls[i].ID, expected[i].ID)
+		}
+		if resp.ToolCalls[i].Name != expected[i].Name {
+			t.Fatalf("tool call[%d] name = %q, want %q", i, resp.ToolCalls[i].Name, expected[i].Name)
+		}
+		if !reflect.DeepEqual(resp.ToolCalls[i].Arguments, expected[i].Arguments) {
+			t.Fatalf("tool call[%d] arguments = %#v, want %#v", i, resp.ToolCalls[i].Arguments, expected[i].Arguments)
+		}
+	}
+}
+
+func TestClaudeClientCompleteMultipleToolCallsFixture(t *testing.T) {
+	fixture := loadFixture(t, "claude_response_multiple_tool_calls.json")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(fixture)
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	resp, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "prepare for battle"}}, nil)
+	if err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+
+	if resp.Content != "" {
+		t.Fatalf("content = %q, want empty", resp.Content)
+	}
+	if len(resp.ToolCalls) != 3 {
+		t.Fatalf("tool calls length = %d, want 3", len(resp.ToolCalls))
+	}
+
+	expected := []ToolCall{
+		{
+			ID:   "toolu_100",
+			Name: "roll_dice",
+			Arguments: map[string]any{
+				"sides": float64(20),
+				"count": float64(1),
+			},
+		},
+		{
+			ID:   "toolu_101",
+			Name: "lookup_npc",
+			Arguments: map[string]any{
+				"name":     "Gandalf",
+				"location": "Minas Tirith",
+			},
+		},
+		{
+			ID:   "toolu_102",
+			Name: "update_quest",
+			Arguments: map[string]any{
+				"quest_id": "q-42",
+				"status":   "in_progress",
+			},
+		},
+	}
+
+	for i := range expected {
+		if resp.ToolCalls[i].ID != expected[i].ID {
+			t.Fatalf("tool call[%d] id = %q, want %q", i, resp.ToolCalls[i].ID, expected[i].ID)
+		}
+		if resp.ToolCalls[i].Name != expected[i].Name {
+			t.Fatalf("tool call[%d] name = %q, want %q", i, resp.ToolCalls[i].Name, expected[i].Name)
+		}
+		if !reflect.DeepEqual(resp.ToolCalls[i].Arguments, expected[i].Arguments) {
+			t.Fatalf("tool call[%d] arguments = %#v, want %#v", i, resp.ToolCalls[i].Arguments, expected[i].Arguments)
+		}
 	}
 }
 

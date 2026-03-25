@@ -1,0 +1,36 @@
+{
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_100",
+      "name": "roll_dice",
+      "input": {
+        "sides": 20,
+        "count": 1
+      }
+    },
+    {
+      "type": "tool_use",
+      "id": "toolu_101",
+      "name": "lookup_npc",
+      "input": {
+        "name": "Gandalf",
+        "location": "Minas Tirith"
+      }
+    },
+    {
+      "type": "tool_use",
+      "id": "toolu_102",
+      "name": "update_quest",
+      "input": {
+        "quest_id": "q-42",
+        "status": "in_progress"
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "usage": {
+    "input_tokens": 19,
+    "output_tokens": 9
+  }
+}

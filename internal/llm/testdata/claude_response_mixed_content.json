@@ -1,0 +1,34 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "You approach the merchant's stall. "
+    },
+    {
+      "type": "tool_use",
+      "id": "toolu_01A",
+      "name": "get_inventory",
+      "input": {
+        "merchant_id": "m-17",
+        "category": "weapons"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Let me check the inventory for you."
+    },
+    {
+      "type": "tool_use",
+      "id": "toolu_01B",
+      "name": "check_gold",
+      "input": {
+        "player_id": "p-1"
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "usage": {
+    "input_tokens": 24,
+    "output_tokens": 12
+  }
+}
