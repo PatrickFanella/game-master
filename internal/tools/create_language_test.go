@@ -89,7 +89,7 @@ func TestRegisterCreateLanguage(t *testing.T) {
 		t.Fatalf("register create_language: %v", err)
 	}
 
-	tools := reg.Tools()
+	tools := reg.List()
 	if len(tools) != 1 {
 		t.Fatalf("registered tool count = %d, want 1", len(tools))
 	}
@@ -130,7 +130,7 @@ func TestRegisterCreateLanguage_NilEmbedding(t *testing.T) {
 		t.Fatalf("register with nil embedding: %v", err)
 	}
 
-	tools := reg.Tools()
+	tools := reg.List()
 	if len(tools) != 1 {
 		t.Fatalf("registered tool count = %d, want 1", len(tools))
 	}
@@ -199,14 +199,14 @@ func TestCreateLanguageHandleSuccess(t *testing.T) {
 	if embedder.lastInput == "" {
 		t.Fatal("expected embedder input to be populated")
 	}
-	if got["id"] != languageID.String() {
-		t.Fatalf("result id = %v, want %s", got["id"], languageID.String())
+	if got.Data["id"] != languageID.String() {
+		t.Fatalf("result id = %v, want %s", got.Data["id"], languageID.String())
 	}
-	if got["name"] != "Eldertongue" {
-		t.Fatalf("result name = %v, want Eldertongue", got["name"])
+	if got.Data["name"] != "Eldertongue" {
+		t.Fatalf("result name = %v, want Eldertongue", got.Data["name"])
 	}
-	if got["description"] != "Ancient ritual language" {
-		t.Fatalf("result description = %v, want Ancient ritual language", got["description"])
+	if got.Data["description"] != "Ancient ritual language" {
+		t.Fatalf("result description = %v, want Ancient ritual language", got.Data["description"])
 	}
 }
 
@@ -235,11 +235,11 @@ func TestCreateLanguageHandleSuccess_NilEmbedding(t *testing.T) {
 		t.Fatalf("Handle: %v", err)
 	}
 
-	if got["id"] != languageID.String() {
-		t.Fatalf("result id = %v, want %s", got["id"], languageID.String())
+	if got.Data["id"] != languageID.String() {
+		t.Fatalf("result id = %v, want %s", got.Data["id"], languageID.String())
 	}
-	if got["name"] != "Elvish" {
-		t.Fatalf("result name = %v, want Elvish", got["name"])
+	if got.Data["name"] != "Elvish" {
+		t.Fatalf("result name = %v, want Elvish", got.Data["name"])
 	}
 }
 

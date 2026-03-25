@@ -91,7 +91,7 @@ func (a *ContextAssembler) Tools() []llm.Tool {
 	if a.registry == nil {
 		return nil
 	}
-	return a.registry.Tools()
+	return a.registry.List()
 }
 
 // ---------------------------------------------------------------------------

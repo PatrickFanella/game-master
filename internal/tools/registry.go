@@ -8,8 +8,19 @@ import (
 	"github.com/PatrickFanella/game-master/internal/llm"
 )
 
-// Handler executes a tool call and returns a JSON-serializable result.
-type Handler func(ctx context.Context, args map[string]any) (map[string]any, error)
+// ToolResult holds the outcome of a tool invocation.
+type ToolResult struct {
+	// Success indicates whether the tool call completed successfully.
+	Success bool
+	// Data contains the structured result returned by the tool.
+	Data map[string]any
+	// Narrative is an optional human-readable description of the result,
+	// suitable for inclusion in the LLM response.
+	Narrative string
+}
+
+// Handler executes a tool call and returns a ToolResult.
+type Handler func(ctx context.Context, args map[string]any) (*ToolResult, error)
 
 // Registry stores tool definitions and their handlers.
 type Registry struct {
@@ -42,8 +53,9 @@ func (r *Registry) Register(tool llm.Tool, handler Handler) error {
 	return nil
 }
 
-// Tools returns registered tool definitions in registration order.
-func (r *Registry) Tools() []llm.Tool {
+// List returns registered tool definitions in registration order,
+// in the llm.Tool format suitable for passing to an LLM provider call.
+func (r *Registry) List() []llm.Tool {
 	if r == nil || len(r.tools) == 0 {
 		return nil
 	}
@@ -52,8 +64,9 @@ func (r *Registry) Tools() []llm.Tool {
 	return out
 }
 
-// Invoke executes a registered tool by name.
-func (r *Registry) Invoke(ctx context.Context, name string, args map[string]any) (map[string]any, error) {
+// Execute looks up a handler by tool name and invokes it with the given
+// arguments. Returns a descriptive error if the tool name is not registered.
+func (r *Registry) Execute(ctx context.Context, name string, args map[string]any) (*ToolResult, error) {
 	if r == nil {
 		return nil, errors.New("tool registry is nil")
 	}

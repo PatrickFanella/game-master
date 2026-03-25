@@ -39,7 +39,7 @@ func TestRegisterSkillCheck(t *testing.T) {
 		t.Fatalf("register skill_check: %v", err)
 	}
 
-	tools := reg.Tools()
+	tools := reg.List()
 	if len(tools) != 1 {
 		t.Fatalf("registered tool count = %d, want 1", len(tools))
 	}
@@ -81,23 +81,23 @@ func TestSkillCheckNormal(t *testing.T) {
 		t.Fatalf("Handle: %v", err)
 	}
 
-	if got["roll"] != 12 {
-		t.Fatalf("roll = %v, want 12", got["roll"])
+	if got.Data["roll"] != 12 {
+		t.Fatalf("roll = %v, want 12", got.Data["roll"])
 	}
-	if got["modifier"] != 4 {
-		t.Fatalf("modifier = %v, want 4", got["modifier"])
+	if got.Data["modifier"] != 4 {
+		t.Fatalf("modifier = %v, want 4", got.Data["modifier"])
 	}
-	if got["total"] != 16 {
-		t.Fatalf("total = %v, want 16", got["total"])
+	if got.Data["total"] != 16 {
+		t.Fatalf("total = %v, want 16", got.Data["total"])
 	}
-	if got["dc"] != 15 {
-		t.Fatalf("dc = %v, want 15", got["dc"])
+	if got.Data["dc"] != 15 {
+		t.Fatalf("dc = %v, want 15", got.Data["dc"])
 	}
-	if got["success"] != true {
-		t.Fatalf("success = %v, want true", got["success"])
+	if got.Data["success"] != true {
+		t.Fatalf("success = %v, want true", got.Data["success"])
 	}
-	if got["margin"] != 1 {
-		t.Fatalf("margin = %v, want 1", got["margin"])
+	if got.Data["margin"] != 1 {
+		t.Fatalf("margin = %v, want 1", got.Data["margin"])
 	}
 }
 
@@ -115,14 +115,14 @@ func TestSkillCheckAdvantage(t *testing.T) {
 		t.Fatalf("Handle: %v", err)
 	}
 
-	if got["roll"] != 15 {
-		t.Fatalf("roll = %v, want 15", got["roll"])
+	if got.Data["roll"] != 15 {
+		t.Fatalf("roll = %v, want 15", got.Data["roll"])
 	}
-	if got["total"] != 17 {
-		t.Fatalf("total = %v, want 17", got["total"])
+	if got.Data["total"] != 17 {
+		t.Fatalf("total = %v, want 17", got.Data["total"])
 	}
-	if got["success"] != true {
-		t.Fatalf("success = %v, want true", got["success"])
+	if got.Data["success"] != true {
+		t.Fatalf("success = %v, want true", got.Data["success"])
 	}
 }
 
@@ -140,14 +140,14 @@ func TestSkillCheckDisadvantage(t *testing.T) {
 		t.Fatalf("Handle: %v", err)
 	}
 
-	if got["roll"] != 4 {
-		t.Fatalf("roll = %v, want 4", got["roll"])
+	if got.Data["roll"] != 4 {
+		t.Fatalf("roll = %v, want 4", got.Data["roll"])
 	}
-	if got["total"] != 9 {
-		t.Fatalf("total = %v, want 9", got["total"])
+	if got.Data["total"] != 9 {
+		t.Fatalf("total = %v, want 9", got.Data["total"])
 	}
-	if got["success"] != false {
-		t.Fatalf("success = %v, want false", got["success"])
+	if got.Data["success"] != false {
+		t.Fatalf("success = %v, want false", got.Data["success"])
 	}
 }
 
@@ -165,11 +165,11 @@ func TestSkillCheckCriticals(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Handle: %v", err)
 		}
-		if got["critical_success"] != true {
-			t.Fatalf("critical_success = %v, want true", got["critical_success"])
+		if got.Data["critical_success"] != true {
+			t.Fatalf("critical_success = %v, want true", got.Data["critical_success"])
 		}
-		if got["success"] != true {
-			t.Fatalf("success = %v, want true", got["success"])
+		if got.Data["success"] != true {
+			t.Fatalf("success = %v, want true", got.Data["success"])
 		}
 	})
 
@@ -184,11 +184,11 @@ func TestSkillCheckCriticals(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Handle: %v", err)
 		}
-		if got["critical_failure"] != true {
-			t.Fatalf("critical_failure = %v, want true", got["critical_failure"])
+		if got.Data["critical_failure"] != true {
+			t.Fatalf("critical_failure = %v, want true", got.Data["critical_failure"])
 		}
-		if got["success"] != false {
-			t.Fatalf("success = %v, want false", got["success"])
+		if got.Data["success"] != false {
+			t.Fatalf("success = %v, want false", got.Data["success"])
 		}
 	})
 }

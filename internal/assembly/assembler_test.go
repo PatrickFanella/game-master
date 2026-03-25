@@ -103,7 +103,7 @@ func TestNewContextAssembler_NilRegistry(t *testing.T) {
 
 func TestNewContextAssembler_WithRegistry(t *testing.T) {
 	reg := tools.NewRegistry()
-	err := reg.Register(llm.Tool{Name: "test_tool", Description: "a test tool"}, func(_ context.Context, _ map[string]any) (map[string]any, error) {
+	err := reg.Register(llm.Tool{Name: "test_tool", Description: "a test tool"}, func(_ context.Context, _ map[string]any) (*tools.ToolResult, error) {
 		return nil, nil
 	})
 	if err != nil {
@@ -436,7 +436,7 @@ func TestTools_ReturnsRegisteredTools(t *testing.T) {
 	reg := tools.NewRegistry()
 	tool1 := llm.Tool{Name: "tool_a", Description: "first"}
 	tool2 := llm.Tool{Name: "tool_b", Description: "second"}
-	noop := func(_ context.Context, _ map[string]any) (map[string]any, error) { return nil, nil }
+	noop := func(_ context.Context, _ map[string]any) (*tools.ToolResult, error) { return nil, nil }
 	if err := reg.Register(tool1, noop); err != nil {
 		t.Fatalf("failed to register tool1: %v", err)
 	}

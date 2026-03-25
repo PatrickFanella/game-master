@@ -92,7 +92,7 @@ func NewSkillCheckHandler(resolver StatModifierResolver, roller DiceRoller) *Ski
 }
 
 // Handle executes the skill_check tool.
-func (h *SkillCheckHandler) Handle(ctx context.Context, args map[string]any) (map[string]any, error) {
+func (h *SkillCheckHandler) Handle(ctx context.Context, args map[string]any) (*ToolResult, error) {
 	if h == nil {
 		return nil, errors.New("skill_check handler is nil")
 	}
@@ -155,7 +155,7 @@ func (h *SkillCheckHandler) Handle(ctx context.Context, args map[string]any) (ma
 		success = false
 	}
 
-	return map[string]any{
+	data := map[string]any{
 		"roll":             roll,
 		"rolls":            rolls,
 		"modifier":         modifier,
@@ -165,7 +165,30 @@ func (h *SkillCheckHandler) Handle(ctx context.Context, args map[string]any) (ma
 		"margin":           total - dc,
 		"critical_success": criticalSuccess,
 		"critical_failure": criticalFailure,
+	}
+
+	return &ToolResult{
+		Success:   success,
+		Data:      data,
+		Narrative: buildSkillCheckNarrative(skill, roll, modifier, total, dc, success, criticalSuccess, criticalFailure),
 	}, nil
+}
+
+func buildSkillCheckNarrative(skill string, roll, modifier, total, dc int, success, criticalSuccess, criticalFailure bool) string {
+	sign := "+"
+	if modifier < 0 {
+		sign = ""
+	}
+	result := "Failure"
+	switch {
+	case criticalSuccess:
+		result = "Critical Success"
+	case criticalFailure:
+		result = "Critical Failure"
+	case success:
+		result = "Success"
+	}
+	return fmt.Sprintf("%s check: d20 roll %d %s%d = %d vs DC %d — %s.", skill, roll, sign, modifier, total, dc, result)
 }
 
 func (h *SkillCheckHandler) rollD20() int {

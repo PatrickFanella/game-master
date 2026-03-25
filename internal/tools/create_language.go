@@ -131,7 +131,7 @@ func NewCreateLanguageHandler(languageStore LanguageStore, memoryStore MemorySto
 }
 
 // Handle executes the create_language tool.
-func (h *CreateLanguageHandler) Handle(ctx context.Context, args map[string]any) (map[string]any, error) {
+func (h *CreateLanguageHandler) Handle(ctx context.Context, args map[string]any) (*ToolResult, error) {
 	if h == nil {
 		return nil, errors.New("create_language handler is nil")
 	}
@@ -209,7 +209,7 @@ func (h *CreateLanguageHandler) Handle(ctx context.Context, args map[string]any)
 		}
 	}
 
-	return map[string]any{
+	data := map[string]any{
 		"id":                    languageID.String(),
 		"campaign_id":           campaignID.String(),
 		"name":                  name,
@@ -219,6 +219,12 @@ func (h *CreateLanguageHandler) Handle(ctx context.Context, args map[string]any)
 		"sample_vocabulary":     sampleVocabulary,
 		"spoken_by_faction_ids": uuidsToStrings(spokenByFactionIDs),
 		"spoken_by_culture_ids": uuidsToStrings(spokenByCultureIDs),
+	}
+
+	return &ToolResult{
+		Success:   true,
+		Data:      data,
+		Narrative: fmt.Sprintf("Language %q created successfully.", name),
 	}, nil
 }
 
