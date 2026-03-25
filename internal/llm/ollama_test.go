@@ -401,6 +401,7 @@ func TestTypedLLMErrorsUnwrap(t *testing.T) {
 		{name: "auth", err: &ErrAuth{URL: "u", StatusCode: 401, Err: root}},
 		{name: "malformed_response", err: &ErrMalformedResponse{URL: "u", Err: root}},
 		{name: "model_not_found", err: &ErrModelNotFound{URL: "u", Model: "m", StatusCode: 404, Err: root}},
+		{name: "transient", err: &ErrTransient{URL: "u", StatusCode: 500, Err: root}},
 	}
 
 	for _, tt := range tests {

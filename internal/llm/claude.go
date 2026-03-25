@@ -407,8 +407,6 @@ func classifyClaudeHTTPError(endpoint, model string, statusCode int, body, retry
 }
 
 func claudeAPIError(body string, statusCode int) error {
-	body = sanitizeClaudeErrorBody(body)
-
 	var apiErr struct {
 		Type  string `json:"type"`
 		Error struct {
@@ -417,17 +415,20 @@ func claudeAPIError(body string, statusCode int) error {
 		} `json:"error"`
 	}
 	if err := json.Unmarshal([]byte(body), &apiErr); err == nil {
-		if apiErr.Error.Type != "" && apiErr.Error.Message != "" {
-			return fmt.Errorf("claude %s: %s", apiErr.Error.Type, apiErr.Error.Message)
+		errType := sanitizeClaudeErrorField(apiErr.Error.Type)
+		msg := sanitizeClaudeErrorField(apiErr.Error.Message)
+
+		if errType != "" && msg != "" {
+			return fmt.Errorf("claude %s: %s", errType, msg)
 		}
-		if apiErr.Error.Message != "" {
-			return fmt.Errorf("claude error: %s", apiErr.Error.Message)
+		if msg != "" {
+			return fmt.Errorf("claude error: %s", msg)
 		}
-		if apiErr.Error.Type != "" {
-			return fmt.Errorf("claude %s error", apiErr.Error.Type)
+		if errType != "" {
+			return fmt.Errorf("claude %s error", errType)
 		}
 	}
-	return fmt.Errorf("claude error: %s (status %d)", body, statusCode)
+	return fmt.Errorf("claude error: %s (status %d)", sanitizeClaudeErrorBody(body), statusCode)
 }
 
 func parseRetryAfter(value string) (time.Duration, bool) {
@@ -453,13 +454,26 @@ func parseRetryAfter(value string) (time.Duration, bool) {
 
 func sanitizeClaudeErrorBody(body string) string {
 	const maxLen = 1024
-	body = strings.ReplaceAll(body, "\r", " ")
-	body = strings.ReplaceAll(body, "\n", " ")
-	body = strings.Join(strings.Fields(body), " ")
+	body = sanitizeClaudeErrorField(body)
 	if len(body) > maxLen {
 		return body[:maxLen] + "…"
 	}
 	return body
+}
+
+func sanitizeClaudeErrorField(s string) string {
+	if s == "" {
+		return ""
+	}
+	s = strings.Map(func(r rune) rune {
+		switch r {
+		case '\r', '\n', '\t':
+			return ' '
+		default:
+			return r
+		}
+	}, s)
+	return strings.Join(strings.Fields(s), " ")
 }
 
 type claudeMessagesRequest struct {

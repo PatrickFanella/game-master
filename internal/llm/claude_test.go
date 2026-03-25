@@ -562,6 +562,29 @@ func TestClaudeAPIErrorSanitizesRawBody(t *testing.T) {
 	}
 }
 
+func TestClaudeAPIErrorSanitizesJSONErrorFields(t *testing.T) {
+	body := `{"type":"error","error":{"type":"overloaded\nerror","message":"retry\tlater"}}`
+	err := claudeAPIError(body, http.StatusServiceUnavailable)
+	if got := err.Error(); strings.Contains(got, "\n") || strings.Contains(got, "\r") || strings.Contains(got, "\t") {
+		t.Fatalf("error contains control characters: %q", got)
+	}
+	if got := err.Error(); !strings.Contains(got, "claude overloaded error: retry later") {
+		t.Fatalf("error = %q, want sanitized type and message", got)
+	}
+}
+
+func TestClaudeAPIErrorParsesLongJSONBeforeFallbackSanitization(t *testing.T) {
+	longMsg := strings.Repeat("a", 1300)
+	body := `{"type":"error","error":{"type":"invalid_request_error","message":"` + longMsg + `"}}`
+	err := claudeAPIError(body, http.StatusBadRequest)
+	if got := err.Error(); !strings.Contains(got, "claude invalid_request_error: ") {
+		t.Fatalf("error = %q, want parsed claude type/message", got)
+	}
+	if got := err.Error(); strings.Contains(got, "…") {
+		t.Fatalf("error should not be fallback-truncated when json parse succeeds: %q", got)
+	}
+}
+
 func TestClaudeClientCompleteMalformedResponseErrorType(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("{invalid json"))
