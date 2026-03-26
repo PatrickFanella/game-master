@@ -11,9 +11,11 @@ import (
 
 	"github.com/charmbracelet/log"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/PatrickFanella/game-master/internal/config"
 	"github.com/PatrickFanella/game-master/internal/llm"
+	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/tui"
 )
 
@@ -47,8 +49,17 @@ func run(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	pool, err := pgxpool.New(ctx, cfg.DB.URL)
+	if err != nil {
+		logger.Errorf("open database: %v", err)
+		return 1
+	}
+	defer pool.Close()
+
+	queries := statedb.New(pool)
+
 	p := tea.NewProgram(
-		tui.NewApp(cfg),
+		tui.NewLauncher(cfg, ctx, queries),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 		tea.WithContext(ctx),

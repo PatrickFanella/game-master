@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/PatrickFanella/game-master/internal/config"
+	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/tui/character"
 	"github.com/PatrickFanella/game-master/tui/inventory"
 	"github.com/PatrickFanella/game-master/tui/narrative"
@@ -39,6 +40,7 @@ const statusBarViewSeparator = " | "
 // independently and only the active index changes.
 type App struct {
 	cfg       config.Config
+	campaign  statedb.Campaign
 	router    *Router
 	viewState ViewState
 	width     int
@@ -47,7 +49,8 @@ type App struct {
 
 // NewApp creates and initialises the root App model with all four sub-views
 // registered. The narrative log is pre-seeded with welcome messages.
-func NewApp(cfg config.Config) App {
+// campaign is the currently active campaign; its name is shown in the title bar.
+func NewApp(cfg config.Config, campaign statedb.Campaign) App {
 	router := NewRouter()
 
 	nv := narrative.New()
@@ -60,27 +63,19 @@ func NewApp(cfg config.Config) App {
 	router.Register("Inventory", &iv)
 	router.Register("Quests", &qv)
 
-	// Seed the narrative log with example entries.
+	// Seed the narrative log with a welcome message for the selected campaign.
 	nv.AddEntry(narrative.Entry{
 		Kind: narrative.KindSystem,
 		Text: fmt.Sprintf("Welcome to Game Master  ·  Provider: %s", cfg.LLM.Provider),
 	})
-	nv.AddEntry(narrative.Entry{
-		Kind:    narrative.KindNPC,
-		Speaker: "Innkeeper Brynn",
-		Text:    "\"Ah, a traveller! You've arrived just in time — there's trouble on the east road.\"",
-	})
-	nv.AddEntry(narrative.Entry{
-		Kind: narrative.KindPlayer,
-		Text: "What kind of trouble?",
-	})
-	nv.AddEntry(narrative.Entry{
-		Kind:    narrative.KindNPC,
-		Speaker: "Innkeeper Brynn",
-		Text:    "\"A merchant went missing three days ago. Cargo and all. Sheriff won't lift a finger.\"",
-	})
+	if campaign.Name != "" {
+		nv.AddEntry(narrative.Entry{
+			Kind: narrative.KindSystem,
+			Text: fmt.Sprintf("Campaign: %s", campaign.Name),
+		})
+	}
 
-	return App{cfg: cfg, router: router, viewState: ViewNarrative}
+	return App{cfg: cfg, campaign: campaign, router: router, viewState: ViewNarrative}
 }
 
 // ActiveViewState returns the currently active ViewState.
@@ -150,8 +145,12 @@ func (a App) View() string {
 
 // chrome renders the title bar and status bar at the current width.
 func (a App) chrome() (titleBar, statusBar string) {
+	title := "⚔  Game Master"
+	if a.campaign.Name != "" {
+		title += "  ·  " + a.campaign.Name
+	}
 	titleBar = styles.TitleBar.Width(a.width).Render(
-		"⚔  Game Master" + styles.Muted.Render(
+		title + styles.Muted.Render(
 			fmt.Sprintf("  ·  %s", a.cfg.LLM.Provider),
 		),
 	)

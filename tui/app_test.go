@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/PatrickFanella/game-master/internal/config"
+	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
 
 // Compile-time check: App must implement tea.Model.
@@ -16,6 +17,9 @@ var _ tea.Model = App{}
 var testCfg = config.Config{
 	LLM: config.LLMConfig{Provider: "ollama"},
 }
+
+// testCampaign is a zero-value campaign used in unit tests.
+var testCampaign = statedb.Campaign{}
 
 func keyForView(view ViewState) rune {
 	// ViewState is zero-based; user-facing key bindings are 1-based.
@@ -38,14 +42,14 @@ func TestViewStateConstants(t *testing.T) {
 }
 
 func TestNewAppRegistersAllViews(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	if app.router.TabCount() != 4 {
 		t.Fatalf("expected 4 registered views, got %d", app.router.TabCount())
 	}
 }
 
 func TestNewAppStartsOnNarrative(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	if app.ActiveViewState() != ViewNarrative {
 		t.Fatalf("expected initial ViewState %d (ViewNarrative), got %d",
 			ViewNarrative, app.ActiveViewState())
@@ -53,7 +57,7 @@ func TestNewAppStartsOnNarrative(t *testing.T) {
 }
 
 func TestAppTabNamesMatchViewStates(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	tabs := app.router.Tabs()
 	expected := []string{"Narrative", "Character", "Inventory", "Quests"}
 	for i, name := range expected {
@@ -64,14 +68,14 @@ func TestAppTabNamesMatchViewStates(t *testing.T) {
 }
 
 func TestAppInitReturnsNil(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	if app.Init() != nil {
 		t.Fatal("Init() should return nil")
 	}
 }
 
 func TestAppUpdateQuitCtrlC(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	if cmd == nil {
 		t.Fatal("expected quit command for ctrl+c, got nil")
@@ -82,7 +86,7 @@ func TestAppUpdateQuitCtrlC(t *testing.T) {
 }
 
 func TestAppUpdateQuitQ(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	_, cmd := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
 	if cmd == nil {
 		t.Fatal("expected quit command for q, got nil")
@@ -93,7 +97,7 @@ func TestAppUpdateQuitQ(t *testing.T) {
 }
 
 func TestAppUpdateTabNextView(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	m, _ := app.Update(tea.KeyMsg{Type: tea.KeyTab})
 	updated := m.(App)
 	if updated.ActiveViewState() != ViewCharacterSheet {
@@ -102,7 +106,7 @@ func TestAppUpdateTabNextView(t *testing.T) {
 }
 
 func TestAppUpdateTabWrapsAround(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	// Advance to the last view (QuestLog = index 3).
 	app.router.GoToTab(3)
 	app.viewState = ViewQuestLog
@@ -114,7 +118,7 @@ func TestAppUpdateTabWrapsAround(t *testing.T) {
 }
 
 func TestAppUpdateShiftTabCyclesBackward(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	// shift+tab from Narrative wraps to QuestLog.
 	m, _ := app.Update(tea.KeyMsg{Type: tea.KeyShiftTab})
 	updated := m.(App)
@@ -124,7 +128,7 @@ func TestAppUpdateShiftTabCyclesBackward(t *testing.T) {
 }
 
 func TestAppUpdateShiftTabPrevView(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	app.router.GoToTab(2)
 	app.viewState = ViewInventory
 	m, _ := app.Update(tea.KeyMsg{Type: tea.KeyShiftTab})
@@ -146,7 +150,7 @@ func TestAppUpdateNumberKeys(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		app := NewApp(testCfg)
+		app := NewApp(testCfg, testCampaign)
 		m, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{tt.key}})
 		updated := m.(App)
 		if updated.ActiveViewState() != tt.expected {
@@ -157,7 +161,7 @@ func TestAppUpdateNumberKeys(t *testing.T) {
 
 func TestAppUpdateViewSwitchingPreservesState(t *testing.T) {
 	// Sub-model state should not be reset when switching between views.
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 
 	// The narrative view was seeded with entries in NewApp; verify the router
 	// still holds those entries after switching away and back.
@@ -181,7 +185,7 @@ func TestAppUpdateViewSwitchingPreservesState(t *testing.T) {
 }
 
 func TestAppWindowSizeUpdatesState(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	m, _ := app.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	updated := m.(App)
 	if updated.width != 120 || updated.height != 40 {
@@ -190,7 +194,7 @@ func TestAppWindowSizeUpdatesState(t *testing.T) {
 }
 
 func TestAppViewReturnsNonEmpty(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	v := app.View()
 	if v == "" {
 		t.Fatal("View() should return non-empty string")
@@ -198,7 +202,7 @@ func TestAppViewReturnsNonEmpty(t *testing.T) {
 }
 
 func TestStatusBarShowsViewsHintsAndActiveView(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	_, statusBar := app.chrome()
 
 	for _, label := range []string{"Narrative", "Character", "Inventory", "Quests"} {
@@ -215,7 +219,7 @@ func TestStatusBarShowsViewsHintsAndActiveView(t *testing.T) {
 }
 
 func TestStatusBarUpdatesImmediatelyOnViewSwitch(t *testing.T) {
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	targetInventoryKey := keyForView(ViewInventory)
 	m, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{targetInventoryKey}})
 	updated := m.(App)
@@ -239,7 +243,7 @@ func TestStatusBarUpdatesImmediatelyOnViewSwitch(t *testing.T) {
 func TestAppOtherKeyDelegatedToSubView(t *testing.T) {
 	// Non-global keys should be forwarded to the active sub-view.
 	// The active view is a real narrative.Model; pressing Enter doesn't crash.
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	_, _ = app.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	// No panic = pass; the sub-view received the message.
 }
@@ -248,7 +252,7 @@ func TestAppUnknownMsgForwardedToSubView(t *testing.T) {
 	// Non-key, non-window messages (e.g. custom command results) must be
 	// forwarded to the active sub-view rather than silently dropped.
 	type customMsg struct{ value string }
-	app := NewApp(testCfg)
+	app := NewApp(testCfg, testCampaign)
 	// Sending an unrecognised message type must not panic and must return a
 	// well-formed model (not nil).
 	m, _ := app.Update(customMsg{"hello"})
