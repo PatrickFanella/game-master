@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -27,6 +29,7 @@ type Engine struct {
 }
 
 const recentTurnLimit = 10
+const rightSingleQuote = "’"
 
 // New creates a concrete GameEngine backed by the shared game and llm packages.
 func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider) *Engine {
@@ -62,12 +65,15 @@ func (e *Engine) ProcessTurn(ctx context.Context, campaignID uuid.UUID, playerIn
 		return nil, fmt.Errorf("process turn: %w", err)
 	}
 
+	narrative, choices := extractChoices(narrative)
+
 	result := &TurnResult{
 		Narrative:        narrative,
 		AppliedToolCalls: applied,
+		Choices:          choices,
 	}
 
-	toolCallsJSON, err := json.Marshal(applied)
+	toolCallsJSON, err := marshalAppliedToolCalls(applied)
 	if err != nil {
 		return nil, fmt.Errorf("marshal applied tool calls: %w", err)
 	}
@@ -174,4 +180,67 @@ func pgUUIDsToUUIDs(ids []pgtype.UUID) []uuid.UUID {
 		out = append(out, dbutil.FromPgtype(id))
 	}
 	return out
+}
+
+var numberedChoicePattern = regexp.MustCompile(`^\s*(\d+)[.)]\s+(.*\S)\s*$`)
+
+func extractChoices(narrative string) (string, []Choice) {
+	lines := strings.Split(narrative, "\n")
+	if len(lines) == 0 {
+		return narrative, nil
+	}
+
+	var (
+		narrativeLines []string
+		choices        []Choice
+		inChoices      bool
+	)
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" && !inChoices {
+			narrativeLines = append(narrativeLines, line)
+			continue
+		}
+
+		if matches := numberedChoicePattern.FindStringSubmatch(line); matches != nil {
+			inChoices = true
+			id := matches[1]
+			text := strings.TrimSpace(matches[2])
+			choices = append(choices, Choice{ID: id, Text: text})
+			continue
+		}
+
+		if inChoices {
+			lower := strings.ToLower(strings.ReplaceAll(trimmed, rightSingleQuote, "'"))
+			if strings.HasPrefix(lower, "or describe what you'd like to do") {
+				continue
+			}
+			if trimmed == "" {
+				continue
+			}
+			narrativeLines = append(narrativeLines, line)
+			inChoices = false
+			continue
+		}
+
+		narrativeLines = append(narrativeLines, line)
+	}
+
+	cleaned := strings.TrimSpace(strings.Join(narrativeLines, "\n"))
+	if len(choices) == 0 {
+		return narrative, nil
+	}
+	return cleaned, choices
+}
+
+func marshalAppliedToolCalls(applied []AppliedToolCall) (json.RawMessage, error) {
+	if applied == nil {
+		applied = []AppliedToolCall{}
+	}
+	data, err := json.Marshal(applied)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(data), nil
 }

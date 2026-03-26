@@ -379,3 +379,19 @@ func TestAppTurnErrorAddsSystemMessage(t *testing.T) {
 		t.Fatal("expected error state to be shown in the narrative viewport")
 	}
 }
+
+func TestNextNarrativeChunkPreservesUTF8Runes(t *testing.T) {
+	text := "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂"
+
+	chunk, remaining := nextNarrativeChunk(text)
+
+	if chunk == "" || remaining == "" {
+		t.Fatal("expected text to be split into two non-empty chunks")
+	}
+	if chunk != "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂" {
+		t.Fatalf("unexpected first chunk: %q", chunk)
+	}
+	if remaining != "🙂" {
+		t.Fatalf("unexpected remaining chunk: %q", remaining)
+	}
+}

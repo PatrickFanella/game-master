@@ -338,16 +338,19 @@ func (a App) streamNarrative(text string, choices []engine.Choice) tea.Cmd {
 		if text == "" {
 			return narrativeStreamDoneMsg{choices: choices}
 		}
-		chunk := text
-		remaining := ""
-		if len(text) > narrativeChunkSize {
-			chunk = text[:narrativeChunkSize]
-			remaining = text[narrativeChunkSize:]
-		}
+		chunk, remaining := nextNarrativeChunk(text)
 		return narrativeChunkMsg{
 			chunk:     chunk,
 			remaining: remaining,
 			choices:   choices,
 		}
 	})
+}
+
+func nextNarrativeChunk(text string) (chunk, remaining string) {
+	runes := []rune(text)
+	if len(runes) <= narrativeChunkSize {
+		return text, ""
+	}
+	return string(runes[:narrativeChunkSize]), string(runes[narrativeChunkSize:])
 }
