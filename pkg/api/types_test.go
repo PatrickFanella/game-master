@@ -231,15 +231,15 @@ func assertJSONKeys(t *testing.T, v any, keys ...string) {
 		expected[key] = struct{}{}
 	}
 
-	for _, key := range keys {
-		if _, ok := m[key]; !ok {
-			t.Fatalf("missing key %q in JSON: %s", key, string(b))
-		}
-	}
-
 	for key := range m {
 		if _, ok := expected[key]; !ok {
 			t.Fatalf("unexpected key %q in JSON: %s", key, string(b))
+		}
+	}
+
+	for _, key := range keys {
+		if _, ok := m[key]; !ok {
+			t.Fatalf("missing key %q in JSON: %s", key, string(b))
 		}
 	}
 }
