@@ -62,6 +62,10 @@ func NewRollDiceHandler() *RollDiceHandler {
 
 // Handle executes the roll_dice tool.
 func (h *RollDiceHandler) Handle(_ context.Context, args map[string]any) (*ToolResult, error) {
+	if h == nil {
+		return nil, errors.New("roll_dice handler is nil")
+	}
+
 	dice, err := parseStringArg(args, "dice")
 	if err != nil {
 		return nil, err
@@ -70,11 +74,11 @@ func (h *RollDiceHandler) Handle(_ context.Context, args map[string]any) (*ToolR
 	if err != nil {
 		return nil, err
 	}
-
 	expr, err := parseDiceNotation(dice)
 	if err != nil {
 		return nil, err
 	}
+	canonicalDice := formatDiceExpression(expr)
 
 	rolls := make([]int, 0, expr.Count)
 	sum := 0
@@ -91,13 +95,13 @@ func (h *RollDiceHandler) Handle(_ context.Context, args map[string]any) (*ToolR
 	return &ToolResult{
 		Success: true,
 		Data: map[string]any{
-			"dice":     dice,
+			"dice":     canonicalDice,
 			"rolls":    rolls,
 			"modifier": expr.Modifier,
 			"total":    total,
 			"reason":   reason,
 		},
-		Narrative: fmt.Sprintf("Rolled %s for %s: %v, modifier %+d, total %d.", dice, reason, rolls, expr.Modifier, total),
+		Narrative: fmt.Sprintf("Rolled %s for %s: %v, modifier %+d, total %d.", canonicalDice, reason, rolls, expr.Modifier, total),
 	}, nil
 }
 
@@ -144,4 +148,12 @@ func rollDie(sides int) (int, error) {
 		return 0, err
 	}
 	return int(n.Int64()) + 1, nil
+}
+
+func formatDiceExpression(expr diceExpression) string {
+	base := fmt.Sprintf("%dd%d", expr.Count, expr.Sides)
+	if expr.Modifier == 0 {
+		return base
+	}
+	return fmt.Sprintf("%s%+d", base, expr.Modifier)
 }

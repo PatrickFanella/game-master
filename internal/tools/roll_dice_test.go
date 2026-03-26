@@ -186,3 +186,39 @@ func TestRollDiceHandleInvalidNotation(t *testing.T) {
 		t.Fatalf("error = %v, want notation guidance", err)
 	}
 }
+
+func TestRollDiceHandleNormalizesDiceOutput(t *testing.T) {
+	h := NewRollDiceHandler()
+	result, err := h.Handle(context.Background(), map[string]any{
+		"dice":   " 2D6+03 ",
+		"reason": "normalization check",
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+
+	gotDice, ok := result.Data["dice"].(string)
+	if !ok {
+		t.Fatalf("dice type = %T, want string", result.Data["dice"])
+	}
+	if gotDice != "2d6+3" {
+		t.Fatalf("dice = %q, want %q", gotDice, "2d6+3")
+	}
+	if !strings.Contains(result.Narrative, "2d6+3") {
+		t.Fatalf("narrative = %q, want canonical dice notation", result.Narrative)
+	}
+}
+
+func TestRollDiceHandleNilHandler(t *testing.T) {
+	var h *RollDiceHandler
+	_, err := h.Handle(context.Background(), map[string]any{
+		"dice":   "1d6",
+		"reason": "nil handler check",
+	})
+	if err == nil {
+		t.Fatal("expected nil handler error")
+	}
+	if !strings.Contains(err.Error(), "handler is nil") {
+		t.Fatalf("error = %v, want nil-handler message", err)
+	}
+}
