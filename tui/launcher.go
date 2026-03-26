@@ -22,6 +22,7 @@ import (
 
 	"github.com/PatrickFanella/game-master/internal/bootstrap"
 	"github.com/PatrickFanella/game-master/internal/config"
+	"github.com/PatrickFanella/game-master/internal/engine"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/tui/campaign"
 	"github.com/PatrickFanella/game-master/tui/styles"
@@ -60,6 +61,7 @@ const (
 type Launcher struct {
 	cfg     config.Config
 	ctx     context.Context
+	engine  engine.GameEngine
 	queries statedb.Querier
 	user    statedb.User
 	state   launcherState
@@ -74,12 +76,18 @@ type Launcher struct {
 // they can be cancelled on SIGTERM/ctrl+c. queries must already be open and
 // ready.
 func NewLauncher(cfg config.Config, ctx context.Context, queries statedb.Querier) Launcher {
+	return NewLauncherWithEngine(cfg, ctx, queries, nil)
+}
+
+// NewLauncherWithEngine creates the Launcher model with a game engine dependency.
+func NewLauncherWithEngine(cfg config.Config, ctx context.Context, queries statedb.Querier, gameEngine engine.GameEngine) Launcher {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	sp.Style = lipgloss.NewStyle().Foreground(styles.ColorAccent)
 	return Launcher{
 		cfg:     cfg,
 		ctx:     ctx,
+		engine:  gameEngine,
 		queries: queries,
 		state:   launcherLoading,
 		spinner: sp,
@@ -196,7 +204,7 @@ func (l Launcher) loadingView(msg string) string {
 
 // transitionToApp creates the main App model and returns it as the new model.
 func (l Launcher) transitionToApp(c statedb.Campaign) (tea.Model, tea.Cmd) {
-	app := NewApp(l.cfg, c)
+	app := NewAppWithEngine(l.cfg, c, l.ctx, l.engine)
 	return app, app.Init()
 }
 

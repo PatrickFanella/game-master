@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/PatrickFanella/game-master/internal/engine"
 )
 
 // Compile-time check: Model must implement tea.Model.
@@ -193,21 +195,22 @@ func TestEnterSubmitsInputAndClears(t *testing.T) {
 	m.SetSize(50, 8)
 	m.input.SetValue("look around")
 
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = updated.(*Model)
 
 	if m.input.Value() != "" {
 		t.Fatalf("expected input to clear after submit, got %q", m.input.Value())
 	}
-	if len(m.log) == 0 {
-		t.Fatal("expected submitted input to be added to narrative log")
+	if cmd == nil {
+		t.Fatal("expected submit command")
 	}
-	last := m.log[len(m.log)-1]
-	if last.Kind != KindPlayer {
-		t.Fatalf("expected last entry kind %v, got %v", KindPlayer, last.Kind)
+	got := cmd()
+	msg, ok := got.(SubmitMsg)
+	if !ok {
+		t.Fatalf("expected SubmitMsg, got %T", got)
 	}
-	if last.Text != "look around" {
-		t.Fatalf("expected last entry text %q, got %q", "look around", last.Text)
+	if msg.Input != "look around" {
+		t.Fatalf("expected submitted input %q, got %q", "look around", msg.Input)
 	}
 }
 
@@ -226,5 +229,50 @@ func TestEnterIgnoresEmptySubmission(t *testing.T) {
 	}
 	if m.input.Value() != "   " {
 		t.Fatalf("expected input to remain unchanged for empty submission, got %q", m.input.Value())
+	}
+}
+
+func TestEnterSubmitsSelectedChoiceWhenInputEmpty(t *testing.T) {
+	model := New()
+	m := &model
+	m.SetSize(60, 12)
+	m.SetChoices([]engine.Choice{
+		{ID: "look", Text: "Look around the room"},
+		{ID: "leave", Text: "Leave quietly"},
+	})
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(*Model)
+
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(*Model)
+
+	if cmd == nil {
+		t.Fatal("expected submit command for selected choice")
+	}
+	got := cmd()
+	msg, ok := got.(SubmitMsg)
+	if !ok {
+		t.Fatalf("expected SubmitMsg, got %T", got)
+	}
+	if msg.ChoiceID != "leave" {
+		t.Fatalf("expected selected choice id %q, got %q", "leave", msg.ChoiceID)
+	}
+	if msg.Input != "Leave quietly" {
+		t.Fatalf("expected selected choice text %q, got %q", "Leave quietly", msg.Input)
+	}
+}
+
+func TestSetLoadingShowsSpinnerState(t *testing.T) {
+	model := New()
+	m := &model
+	m.SetSize(60, 12)
+
+	cmd := m.SetLoading(true)
+	if cmd == nil {
+		t.Fatal("expected spinner tick command while loading")
+	}
+	if !strings.Contains(m.View(), "Thinking…") {
+		t.Fatal("expected loading indicator in view")
 	}
 }

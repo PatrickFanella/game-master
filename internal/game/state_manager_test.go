@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/PatrickFanella/game-master/internal/dbutil"
+	"github.com/PatrickFanella/game-master/internal/domain"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
 
@@ -20,36 +21,38 @@ type mockQuerier struct {
 	nextUserID  pgtype.UUID
 	createCount int
 
-	campaign         statedb.Campaign
-	playerCharacters []statedb.PlayerCharacter
-	location         statedb.Location
-	connections      []statedb.GetConnectionsFromLocationRow
-	npcs             []statedb.Npc
-	quests           []statedb.Quest
-	objectivesByQuest map[[16]byte][]statedb.QuestObjective
+	campaign           statedb.Campaign
+	playerCharacters   []statedb.PlayerCharacter
+	location           statedb.Location
+	connections        []statedb.GetConnectionsFromLocationRow
+	npcs               []statedb.Npc
+	quests             []statedb.Quest
+	objectivesByQuest  map[[16]byte][]statedb.QuestObjective
 	objectivesByQuests []statedb.QuestObjective
-	items            []statedb.Item
-	worldFacts       []statedb.WorldFact
+	items              []statedb.Item
+	worldFacts         []statedb.WorldFact
+	lastSessionLog     *statedb.CreateSessionLogParams
 
 	// Injectable errors for testing error paths.
-	getByNameErr       error
-	createErr          error
-	getCampaignErr     error
-	getPlayerErr       error
-	getLocationErr     error
-	getConnectionsErr  error
-	getNPCsErr         error
-	getQuestsErr       error
-	getObjectivesErr   error
+	getByNameErr             error
+	createErr                error
+	getCampaignErr           error
+	getPlayerErr             error
+	getLocationErr           error
+	getConnectionsErr        error
+	getNPCsErr               error
+	getQuestsErr             error
+	getObjectivesErr         error
 	getObjectivesByQuestsErr error
-	getItemsErr        error
-	getWorldFactsErr   error
+	getItemsErr              error
+	getWorldFactsErr         error
+	createSessionLogErr      error
 }
 
 func newMockQuerier() *mockQuerier {
 	return &mockQuerier{
-		users:            make(map[string]statedb.User),
-		nextUserID:       pgtype.UUID{Bytes: [16]byte{1}, Valid: true},
+		users:             make(map[string]statedb.User),
+		nextUserID:        pgtype.UUID{Bytes: [16]byte{1}, Valid: true},
 		objectivesByQuest: make(map[[16]byte][]statedb.QuestObjective),
 	}
 }
@@ -298,8 +301,12 @@ func (m *mockQuerier) CreateQuest(_ context.Context, _ statedb.CreateQuestParams
 	return statedb.Quest{}, pgx.ErrNoRows
 }
 
-func (m *mockQuerier) CreateSessionLog(_ context.Context, _ statedb.CreateSessionLogParams) (statedb.SessionLog, error) {
-	return statedb.SessionLog{}, pgx.ErrNoRows
+func (m *mockQuerier) CreateSessionLog(_ context.Context, arg statedb.CreateSessionLogParams) (statedb.SessionLog, error) {
+	if m.createSessionLogErr != nil {
+		return statedb.SessionLog{}, m.createSessionLogErr
+	}
+	m.lastSessionLog = &arg
+	return statedb.SessionLog{}, nil
 }
 
 func (m *mockQuerier) GetItemByID(_ context.Context, _ pgtype.UUID) (statedb.Item, error) {
@@ -796,6 +803,59 @@ func TestGatherState_AssemblesCompleteState(t *testing.T) {
 	}
 	if len(state.WorldFacts) != 1 || state.WorldFacts[0].ID != factID {
 		t.Fatalf("expected world fact in state, got %+v", state.WorldFacts)
+	}
+}
+
+func TestSaveSessionLogPersistsMappedFields(t *testing.T) {
+	q := newMockQuerier()
+	sm := newStateManagerWithQuerier(q)
+	campaignID := uuid.New()
+	locationID := uuid.New()
+	npcID := uuid.New()
+
+	err := sm.SaveSessionLog(context.Background(), domain.SessionLog{
+		CampaignID:   campaignID,
+		TurnNumber:   4,
+		PlayerInput:  "inspect the sigil",
+		InputType:    domain.GameAction,
+		LLMResponse:  "The sigil glows faintly.",
+		ToolCalls:    []byte(`[{"tool":"describe_scene"}]`),
+		LocationID:   &locationID,
+		NPCsInvolved: []uuid.UUID{npcID},
+	})
+	if err != nil {
+		t.Fatalf("SaveSessionLog() error = %v", err)
+	}
+	if q.lastSessionLog == nil {
+		t.Fatal("expected session log insert to be recorded")
+	}
+	if got := dbutil.FromPgtype(q.lastSessionLog.CampaignID); got != campaignID {
+		t.Fatalf("expected campaign id %s, got %s", campaignID, got)
+	}
+	if q.lastSessionLog.TurnNumber != 4 {
+		t.Fatalf("expected turn number 4, got %d", q.lastSessionLog.TurnNumber)
+	}
+	if q.lastSessionLog.InputType != string(domain.GameAction) {
+		t.Fatalf("expected input type %q, got %q", domain.GameAction, q.lastSessionLog.InputType)
+	}
+	if got := dbutil.FromPgtype(q.lastSessionLog.LocationID); got != locationID {
+		t.Fatalf("expected location id %s, got %s", locationID, got)
+	}
+	if len(q.lastSessionLog.NpcsInvolved) != 1 || dbutil.FromPgtype(q.lastSessionLog.NpcsInvolved[0]) != npcID {
+		t.Fatal("expected npc ids to be converted to pgtype UUIDs")
+	}
+}
+
+func TestSaveSessionLogRejectsInvalidDomainLog(t *testing.T) {
+	q := newMockQuerier()
+	sm := newStateManagerWithQuerier(q)
+
+	err := sm.SaveSessionLog(context.Background(), domain.SessionLog{})
+	if err == nil {
+		t.Fatal("expected validation error for invalid session log")
+	}
+	if q.lastSessionLog != nil {
+		t.Fatal("expected invalid log not to hit the database")
 	}
 }
 
