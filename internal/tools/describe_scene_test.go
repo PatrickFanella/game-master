@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -97,6 +98,98 @@ func TestDescribeSceneHandleMissingRequiredDescription(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "description is required") {
 		t.Fatalf("error = %v, want description-required message", err)
+	}
+}
+
+func TestDescribeSceneHandleMissingCurrentLocationInContext(t *testing.T) {
+	store := &stubDescribeSceneStore{}
+	h := NewDescribeSceneHandler(store)
+
+	_, err := h.Handle(context.Background(), map[string]any{
+		"description": "Fog hangs over the marsh.",
+	})
+	if err == nil {
+		t.Fatal("expected error for missing current location in context")
+	}
+	if !strings.Contains(err.Error(), "requires current location id in context") {
+		t.Fatalf("error = %v, want context-location-required message", err)
+	}
+}
+
+func TestDescribeSceneHandleInvalidOptionalArgs(t *testing.T) {
+	locationID := uuid.New()
+	ctx := WithCurrentLocationID(context.Background(), locationID)
+
+	t.Run("empty mood", func(t *testing.T) {
+		h := NewDescribeSceneHandler(&stubDescribeSceneStore{})
+		_, err := h.Handle(ctx, map[string]any{
+			"description": "A shrine glows in candlelight.",
+			"mood":        "",
+		})
+		if err == nil {
+			t.Fatal("expected error for empty mood")
+		}
+		if !strings.Contains(err.Error(), "mood must be a non-empty string") {
+			t.Fatalf("error = %v, want mood validation message", err)
+		}
+	})
+
+	t.Run("non-string mood", func(t *testing.T) {
+		h := NewDescribeSceneHandler(&stubDescribeSceneStore{})
+		_, err := h.Handle(ctx, map[string]any{
+			"description": "A shrine glows in candlelight.",
+			"mood":        true,
+		})
+		if err == nil {
+			t.Fatal("expected error for non-string mood")
+		}
+		if !strings.Contains(err.Error(), "mood must be a non-empty string") {
+			t.Fatalf("error = %v, want mood validation message", err)
+		}
+	})
+
+	t.Run("empty time_of_day", func(t *testing.T) {
+		h := NewDescribeSceneHandler(&stubDescribeSceneStore{})
+		_, err := h.Handle(ctx, map[string]any{
+			"description": "A shrine glows in candlelight.",
+			"time_of_day": "",
+		})
+		if err == nil {
+			t.Fatal("expected error for empty time_of_day")
+		}
+		if !strings.Contains(err.Error(), "time_of_day must be a non-empty string") {
+			t.Fatalf("error = %v, want time_of_day validation message", err)
+		}
+	})
+
+	t.Run("non-string time_of_day", func(t *testing.T) {
+		h := NewDescribeSceneHandler(&stubDescribeSceneStore{})
+		_, err := h.Handle(ctx, map[string]any{
+			"description": "A shrine glows in candlelight.",
+			"time_of_day": 9,
+		})
+		if err == nil {
+			t.Fatal("expected error for non-string time_of_day")
+		}
+		if !strings.Contains(err.Error(), "time_of_day must be a non-empty string") {
+			t.Fatalf("error = %v, want time_of_day validation message", err)
+		}
+	})
+}
+
+func TestDescribeSceneHandleStoreErrorWrapped(t *testing.T) {
+	store := &stubDescribeSceneStore{err: errors.New("db down")}
+	h := NewDescribeSceneHandler(store)
+	ctx := WithCurrentLocationID(context.Background(), uuid.New())
+
+	_, err := h.Handle(ctx, map[string]any{
+		"description": "The market square hums with activity.",
+	})
+	if err == nil {
+		t.Fatal("expected store error")
+	}
+	if !strings.Contains(err.Error(), "update scene: db down") {
+		t.Fatalf("error = %v, want wrapped store error", err)
 	}
 }
 
