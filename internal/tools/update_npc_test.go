@@ -13,13 +13,15 @@ import (
 
 type stubUpdateNPCStore struct {
 	npcs      map[uuid.UUID]*domain.NPC
-	locations map[uuid.UUID]bool
+	locations map[uuid.UUID]uuid.UUID
 
 	lastUpdated *domain.NPC
 
 	getErr      error
 	locationErr error
 	updateErr   error
+
+	lastLocationCheckCampaignID uuid.UUID
 }
 
 var _ UpdateNPCStore = (*stubUpdateNPCStore)(nil)
@@ -36,11 +38,16 @@ func (s *stubUpdateNPCStore) GetNPCByID(_ context.Context, npcID uuid.UUID) (*do
 	return &copy, nil
 }
 
-func (s *stubUpdateNPCStore) LocationExists(_ context.Context, locationID uuid.UUID) (bool, error) {
+func (s *stubUpdateNPCStore) LocationExistsInCampaign(_ context.Context, locationID, campaignID uuid.UUID) (bool, error) {
 	if s.locationErr != nil {
 		return false, s.locationErr
 	}
-	return s.locations[locationID], nil
+	s.lastLocationCheckCampaignID = campaignID
+	locationCampaignID, ok := s.locations[locationID]
+	if !ok {
+		return false, nil
+	}
+	return locationCampaignID == campaignID, nil
 }
 
 func (s *stubUpdateNPCStore) UpdateNPC(_ context.Context, npc domain.NPC) (*domain.NPC, error) {
@@ -180,11 +187,12 @@ func TestUpdateNPCHandleLocationUpdate(t *testing.T) {
 	npcID := uuid.New()
 	oldLocationID := uuid.New()
 	newLocationID := uuid.New()
+	campaignID := uuid.New()
 	store := &stubUpdateNPCStore{
 		npcs: map[uuid.UUID]*domain.NPC{
-			npcID: {ID: npcID, CampaignID: uuid.New(), Name: "Guide", LocationID: &oldLocationID, Alive: true},
+			npcID: {ID: npcID, CampaignID: campaignID, Name: "Guide", LocationID: &oldLocationID, Alive: true},
 		},
-		locations: map[uuid.UUID]bool{newLocationID: true},
+		locations: map[uuid.UUID]uuid.UUID{newLocationID: campaignID},
 	}
 	h := NewUpdateNPCHandler(store)
 
@@ -200,6 +208,38 @@ func TestUpdateNPCHandleLocationUpdate(t *testing.T) {
 	}
 	if got.Data["location_id"] != newLocationID.String() {
 		t.Fatalf("result location_id = %v, want %s", got.Data["location_id"], newLocationID)
+	}
+	if store.lastLocationCheckCampaignID != store.npcs[npcID].CampaignID {
+		t.Fatalf("campaign_id passed to location check = %s, want %s", store.lastLocationCheckCampaignID, store.npcs[npcID].CampaignID)
+	}
+}
+
+func TestUpdateNPCHandleOmitsLocationWhenUnset(t *testing.T) {
+	npcID := uuid.New()
+	store := &stubUpdateNPCStore{
+		npcs: map[uuid.UUID]*domain.NPC{
+			npcID: {
+				ID:          npcID,
+				CampaignID:  uuid.New(),
+				Name:        "Hermit",
+				Description: "A lone figure.",
+				Disposition: 5,
+				LocationID:  nil,
+				Alive:       true,
+			},
+		},
+	}
+	h := NewUpdateNPCHandler(store)
+
+	got, err := h.Handle(context.Background(), map[string]any{
+		"npc_id":      npcID.String(),
+		"description": "A quiet lone figure.",
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if _, exists := got.Data["location_id"]; exists {
+		t.Fatalf("did not expect location_id in result data when npc has no location: %#v", got.Data)
 	}
 }
 
@@ -271,7 +311,7 @@ func TestUpdateNPCHandleUnknownLocationRejected(t *testing.T) {
 		npcs: map[uuid.UUID]*domain.NPC{
 			npcID: {ID: npcID, CampaignID: uuid.New(), Name: "Merchant", Alive: true},
 		},
-		locations: map[uuid.UUID]bool{},
+		locations: map[uuid.UUID]uuid.UUID{},
 	}
 	h := NewUpdateNPCHandler(store)
 
@@ -282,11 +322,47 @@ func TestUpdateNPCHandleUnknownLocationRejected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected unknown location error")
 	}
-	if !strings.Contains(err.Error(), "location_id does not reference an existing location") {
+	if !strings.Contains(err.Error(), "location_id does not reference an existing location in npc campaign") {
 		t.Fatalf("error = %v, want unknown location message", err)
 	}
 	if store.lastUpdated != nil {
 		t.Fatal("did not expect UpdateNPC to be called")
+	}
+}
+
+func TestUpdateNPCHandleLocationInDifferentCampaignRejected(t *testing.T) {
+	npcID := uuid.New()
+	locationID := uuid.New()
+	store := &stubUpdateNPCStore{
+		npcs: map[uuid.UUID]*domain.NPC{
+			npcID: {ID: npcID, CampaignID: uuid.New(), Name: "Merchant", Alive: true},
+		},
+		locations: map[uuid.UUID]uuid.UUID{
+			locationID: uuid.New(),
+		},
+	}
+	h := NewUpdateNPCHandler(store)
+
+	_, err := h.Handle(context.Background(), map[string]any{
+		"npc_id":      npcID.String(),
+		"location_id": locationID.String(),
+	})
+	if err == nil {
+		t.Fatal("expected cross-campaign location error")
+	}
+	if !strings.Contains(err.Error(), "location_id does not reference an existing location in npc campaign") {
+		t.Fatalf("error = %v, want campaign-scoped location error", err)
+	}
+}
+
+func TestUpdateNPCHandleNilReceiver(t *testing.T) {
+	var h *UpdateNPCHandler
+	_, err := h.Handle(context.Background(), map[string]any{})
+	if err == nil {
+		t.Fatal("expected nil receiver error")
+	}
+	if !strings.Contains(err.Error(), "update_npc handler is required") {
+		t.Fatalf("error = %v, want nil receiver message", err)
 	}
 }
 

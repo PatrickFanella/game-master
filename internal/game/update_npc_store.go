@@ -38,22 +38,22 @@ func (s *updateNPCStore) GetNPCByID(ctx context.Context, npcID uuid.UUID) (*doma
 	return &domainNPC, nil
 }
 
-func (s *updateNPCStore) LocationExists(ctx context.Context, locationID uuid.UUID) (bool, error) {
-	_, err := s.queries.GetLocationByID(ctx, dbutil.ToPgtype(locationID))
+func (s *updateNPCStore) LocationExistsInCampaign(ctx context.Context, locationID, campaignID uuid.UUID) (bool, error) {
+	location, err := s.queries.GetLocationByID(ctx, dbutil.ToPgtype(locationID))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
 		}
 		return false, err
 	}
-	return true, nil
+	return dbutil.FromPgtype(location.CampaignID) == campaignID, nil
 }
 
 func (s *updateNPCStore) UpdateNPC(ctx context.Context, npc domain.NPC) (*domain.NPC, error) {
 	updated, err := s.queries.UpdateNPC(ctx, statedb.UpdateNPCParams{
 		Name:        npc.Name,
-		Description: pgtype.Text{String: npc.Description, Valid: true},
-		Personality: pgtype.Text{String: npc.Personality, Valid: true},
+		Description: stringToPgText(npc.Description),
+		Personality: stringToPgText(npc.Personality),
 		Disposition: int32(npc.Disposition),
 		LocationID:  dbutil.ToPgtype(uuidOrNil(npc.LocationID)),
 		FactionID:   dbutil.ToPgtype(uuidOrNil(npc.FactionID)),
@@ -75,4 +75,11 @@ func intOrNullInt4(value *int) pgtype.Int4 {
 		return pgtype.Int4{}
 	}
 	return pgtype.Int4{Int32: int32(*value), Valid: true}
+}
+
+func stringToPgText(value string) pgtype.Text {
+	if value == "" {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: value, Valid: true}
 }

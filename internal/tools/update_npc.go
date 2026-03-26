@@ -16,7 +16,7 @@ const updateNPCToolName = "update_npc"
 // UpdateNPCStore provides NPC lookup and persistence for update_npc.
 type UpdateNPCStore interface {
 	GetNPCByID(ctx context.Context, npcID uuid.UUID) (*domain.NPC, error)
-	LocationExists(ctx context.Context, locationID uuid.UUID) (bool, error)
+	LocationExistsInCampaign(ctx context.Context, locationID, campaignID uuid.UUID) (bool, error)
 	UpdateNPC(ctx context.Context, npc domain.NPC) (*domain.NPC, error)
 }
 
@@ -75,6 +75,9 @@ func NewUpdateNPCHandler(store UpdateNPCStore) *UpdateNPCHandler {
 
 // Handle executes the update_npc tool.
 func (h *UpdateNPCHandler) Handle(ctx context.Context, args map[string]any) (*ToolResult, error) {
+	if h == nil {
+		return nil, errors.New("update_npc handler is required")
+	}
 	if h.store == nil {
 		return nil, errors.New("update_npc store is required")
 	}
@@ -109,12 +112,12 @@ func (h *UpdateNPCHandler) Handle(ctx context.Context, args map[string]any) (*To
 		return nil, err
 	}
 	if locationSet {
-		exists, err := h.store.LocationExists(ctx, locationID)
+		exists, err := h.store.LocationExistsInCampaign(ctx, locationID, npc.CampaignID)
 		if err != nil {
-			return nil, fmt.Errorf("check location exists: %w", err)
+			return nil, fmt.Errorf("check location exists in campaign: %w", err)
 		}
 		if !exists {
-			return nil, errors.New("location_id does not reference an existing location")
+			return nil, errors.New("location_id does not reference an existing location in npc campaign")
 		}
 		updated.LocationID = &locationID
 		changed = true
@@ -151,7 +154,6 @@ func (h *UpdateNPCHandler) Handle(ctx context.Context, args map[string]any) (*To
 		"disposition": npc.Disposition,
 		"alive":       npc.Alive,
 		"description": npc.Description,
-		"location_id": nil,
 	}
 	if npc.LocationID != nil {
 		data["location_id"] = npc.LocationID.String()
