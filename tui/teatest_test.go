@@ -12,7 +12,7 @@ import (
 
 // testApp returns a minimal App suitable for teatest integration tests.
 func testApp() App {
-	return NewApp(testCfg)
+	return NewApp(testCfg, testCampaign)
 }
 
 // finalTimeout is the maximum time to wait for the program to finish.
