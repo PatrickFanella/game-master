@@ -9,6 +9,7 @@ CREATE TABLE world_facts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- +goose StatementBegin
 CREATE FUNCTION validate_world_facts_superseded_campaign()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -46,6 +47,7 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER world_facts_superseded_campaign_trigger
 BEFORE INSERT OR UPDATE OF campaign_id, superseded_by ON world_facts

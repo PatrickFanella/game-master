@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose StatementBegin
 DO $$
 DECLARE
   embedding_dimension_setting TEXT := COALESCE(
@@ -40,6 +41,7 @@ BEGIN
   $migration$, embedding_dimension);
 END
 $$;
+-- +goose StatementEnd
 
 CREATE INDEX idx_memories_campaign_id ON memories(campaign_id);
 CREATE INDEX idx_memories_location_id ON memories(location_id);
