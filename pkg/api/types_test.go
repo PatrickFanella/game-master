@@ -151,6 +151,68 @@ func TestActionTurnAndEnvelopeTypesJSONShape(t *testing.T) {
 	assertJSONKeys(t, envelope, "type", "payload", "timestamp")
 }
 
+func TestOmitEmptyPointerFieldsJSONShape(t *testing.T) {
+	t.Parallel()
+
+	character := CharacterResponse{
+		ID:          "pc-1",
+		CampaignID:  "camp-1",
+		UserID:      "user-1",
+		Name:        "Vera",
+		Description: "Scout",
+		Stats:       map[string]any{"strength": 12},
+		HP:          20,
+		MaxHP:       25,
+		Experience:  120,
+		Level:       3,
+		Status:      "healthy",
+		Abilities:   []CharacterAbility{{Name: "Track"}},
+	}
+	assertJSONKeys(t, character, "id", "campaign_id", "user_id", "name", "description", "stats", "hp", "max_hp", "experience", "level", "status", "abilities")
+
+	npc := NPCResponse{
+		ID:          "npc-1",
+		CampaignID:  "camp-1",
+		Name:        "Captain Rowan",
+		Description: "Guard commander",
+		Personality: "stern",
+		Disposition: 40,
+		Alive:       true,
+		Stats:       map[string]any{"intelligence": 14},
+		Properties:  map[string]any{"rank": "captain"},
+	}
+	assertJSONKeys(t, npc, "id", "campaign_id", "name", "description", "personality", "disposition", "alive", "stats", "properties")
+
+	quest := QuestResponse{
+		ID:          "quest-1",
+		CampaignID:  "camp-1",
+		Title:       "Secure the pass",
+		Description: "Defeat raiders",
+		QuestType:   "short_term",
+		Status:      "active",
+		Objectives: []QuestObjectiveResponse{{
+			ID:          "obj-1",
+			Description: "Scout the pass",
+			Completed:   false,
+			OrderIndex:  1,
+		}},
+	}
+	assertJSONKeys(t, quest, "id", "campaign_id", "title", "description", "quest_type", "status", "objectives")
+
+	item := ItemResponse{
+		ID:          "item-1",
+		CampaignID:  "camp-1",
+		Name:        "Lantern",
+		Description: "Oil lantern",
+		ItemType:    "misc",
+		Rarity:      "common",
+		Properties:  map[string]any{"weight": 2},
+		Equipped:    false,
+		Quantity:    1,
+	}
+	assertJSONKeys(t, item, "id", "campaign_id", "name", "description", "item_type", "rarity", "properties", "equipped", "quantity")
+}
+
 func assertJSONKeys(t *testing.T, v any, keys ...string) {
 	t.Helper()
 
@@ -164,9 +226,20 @@ func assertJSONKeys(t *testing.T, v any, keys ...string) {
 		t.Fatalf("unmarshal failed: %v", err)
 	}
 
+	expected := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		expected[key] = struct{}{}
+	}
+
 	for _, key := range keys {
 		if _, ok := m[key]; !ok {
 			t.Fatalf("missing key %q in JSON: %s", key, string(b))
+		}
+	}
+
+	for key := range m {
+		if _, ok := expected[key]; !ok {
+			t.Fatalf("unexpected key %q in JSON: %s", key, string(b))
 		}
 	}
 }
