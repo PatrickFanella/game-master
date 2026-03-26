@@ -31,6 +31,8 @@ type mockQuerier struct {
 	objectivesByQuests []statedb.QuestObjective
 	items              []statedb.Item
 	worldFacts         []statedb.WorldFact
+	npcByID            map[[16]byte]mockNPCRecord
+	recentSessionLogs  []statedb.SessionLog
 	lastSessionLog     *statedb.CreateSessionLogParams
 
 	// Injectable errors for testing error paths.
@@ -46,7 +48,9 @@ type mockQuerier struct {
 	getObjectivesByQuestsErr error
 	getItemsErr              error
 	getWorldFactsErr         error
+	getNPCByIDErr            error
 	createSessionLogErr      error
+	listRecentSessionLogsErr error
 }
 
 func newMockQuerier() *mockQuerier {
@@ -54,7 +58,13 @@ func newMockQuerier() *mockQuerier {
 		users:             make(map[string]statedb.User),
 		nextUserID:        pgtype.UUID{Bytes: [16]byte{1}, Valid: true},
 		objectivesByQuest: make(map[[16]byte][]statedb.QuestObjective),
+		npcByID:           make(map[[16]byte]mockNPCRecord),
 	}
+}
+
+type mockNPCRecord struct {
+	npc statedb.Npc
+	err error
 }
 
 func (m *mockQuerier) GetUserByName(_ context.Context, name string) (statedb.User, error) {
@@ -331,8 +341,18 @@ func (m *mockQuerier) GetLocationByID(_ context.Context, _ pgtype.UUID) (statedb
 	return m.location, nil
 }
 
-func (m *mockQuerier) GetNPCByID(_ context.Context, _ pgtype.UUID) (statedb.Npc, error) {
-	return statedb.Npc{}, pgx.ErrNoRows
+func (m *mockQuerier) GetNPCByID(_ context.Context, id pgtype.UUID) (statedb.Npc, error) {
+	if m.getNPCByIDErr != nil {
+		return statedb.Npc{}, m.getNPCByIDErr
+	}
+	record, ok := m.npcByID[id.Bytes]
+	if !ok {
+		return statedb.Npc{}, pgx.ErrNoRows
+	}
+	if record.err != nil {
+		return statedb.Npc{}, record.err
+	}
+	return record.npc, nil
 }
 
 func (m *mockQuerier) ListLocationsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
@@ -396,7 +416,10 @@ func (m *mockQuerier) ListQuestsByType(_ context.Context, _ statedb.ListQuestsBy
 }
 
 func (m *mockQuerier) ListRecentSessionLogs(_ context.Context, _ statedb.ListRecentSessionLogsParams) ([]statedb.SessionLog, error) {
-	return nil, nil
+	if m.listRecentSessionLogsErr != nil {
+		return nil, m.listRecentSessionLogsErr
+	}
+	return m.recentSessionLogs, nil
 }
 
 func (m *mockQuerier) ListSessionLogsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.SessionLog, error) {
