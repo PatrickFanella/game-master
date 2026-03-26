@@ -133,6 +133,8 @@ func startNextRoundWithRoller(combatState *CombatState, roller initiativeRoller)
 	combatState.RoundNumber = nextRound
 	combatState.SurpriseRoundActive = nextSurpriseRoundActive
 
+	TickAllConditions(combatState)
+
 	return nil
 }
 
