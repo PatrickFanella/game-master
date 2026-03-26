@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/PatrickFanella/game-master/internal/domain"
 	"github.com/PatrickFanella/game-master/internal/llm"
 )
 
@@ -18,11 +19,11 @@ const (
 )
 
 var allowedItemTypes = map[string]struct{}{
-	"weapon":     {},
-	"armor":      {},
-	"consumable": {},
-	"quest":      {},
-	"misc":       {},
+	string(domain.ItemTypeWeapon):     {},
+	string(domain.ItemTypeArmor):      {},
+	string(domain.ItemTypeConsumable): {},
+	string(domain.ItemTypeQuest):      {},
+	string(domain.ItemTypeMisc):       {},
 }
 
 // PlayerItem represents a player's item stack.
