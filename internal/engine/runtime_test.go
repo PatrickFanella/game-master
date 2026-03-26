@@ -73,18 +73,18 @@ func TestExtractChoicesLeavesNarrativeUntouchedWithoutOptions(t *testing.T) {
 	}
 }
 
-type runtimeRegistrationMockQuerier struct {
+type testQuerier struct {
 	statedb.Querier
 	updateNPCCalled bool
 }
 
-func (q *runtimeRegistrationMockQuerier) GetLocationByID(_ context.Context, id pgtype.UUID) (statedb.Location, error) {
+func (q *testQuerier) GetLocationByID(_ context.Context, id pgtype.UUID) (statedb.Location, error) {
 	return statedb.Location{
 		ID: id,
 	}, nil
 }
 
-func (q *runtimeRegistrationMockQuerier) GetNPCByID(_ context.Context, id pgtype.UUID) (statedb.Npc, error) {
+func (q *testQuerier) GetNPCByID(_ context.Context, id pgtype.UUID) (statedb.Npc, error) {
 	locationID := uuid.New()
 	return statedb.Npc{
 		ID:          id,
@@ -98,7 +98,7 @@ func (q *runtimeRegistrationMockQuerier) GetNPCByID(_ context.Context, id pgtype
 	}, nil
 }
 
-func (q *runtimeRegistrationMockQuerier) UpdateNPC(_ context.Context, arg statedb.UpdateNPCParams) (statedb.Npc, error) {
+func (q *testQuerier) UpdateNPC(_ context.Context, arg statedb.UpdateNPCParams) (statedb.Npc, error) {
 	q.updateNPCCalled = true
 	return statedb.Npc{
 		ID:          arg.ID,
@@ -116,9 +116,9 @@ func (q *runtimeRegistrationMockQuerier) UpdateNPC(_ context.Context, arg stated
 	}, nil
 }
 
-type runtimeRegistrationMockProvider struct{}
+type testProvider struct{}
 
-func (p *runtimeRegistrationMockProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.Tool) (*llm.Response, error) {
+func (p *testProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.Tool) (*llm.Response, error) {
 	var found bool
 	for _, tool := range tools {
 		if tool.Name == "update_npc" {
@@ -144,13 +144,13 @@ func (p *runtimeRegistrationMockProvider) Complete(_ context.Context, _ []llm.Me
 	}, nil
 }
 
-func (p *runtimeRegistrationMockProvider) Stream(_ context.Context, _ []llm.Message, _ []llm.Tool) (<-chan llm.StreamChunk, error) {
+func (p *testProvider) Stream(_ context.Context, _ []llm.Message, _ []llm.Tool) (<-chan llm.StreamChunk, error) {
 	return nil, errors.New("not implemented")
 }
 
 func TestNewRegistersUpdateNPCTool(t *testing.T) {
-	queries := &runtimeRegistrationMockQuerier{}
-	e := New(nil, queries, &runtimeRegistrationMockProvider{})
+	queries := &testQuerier{}
+	e := New(nil, queries, &testProvider{})
 
 	_, applied, err := e.processor.ProcessWithRecovery(context.Background(), nil, e.assembler.Tools())
 	if err != nil {

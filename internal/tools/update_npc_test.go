@@ -22,6 +22,8 @@ type stubUpdateNPCStore struct {
 	updateErr   error
 }
 
+var _ UpdateNPCStore = (*stubUpdateNPCStore)(nil)
+
 func (s *stubUpdateNPCStore) GetNPCByID(_ context.Context, npcID uuid.UUID) (*domain.NPC, error) {
 	if s.getErr != nil {
 		return nil, s.getErr
@@ -119,30 +121,59 @@ func TestUpdateNPCHandleDescriptionOnlyUpdatesProvidedField(t *testing.T) {
 }
 
 func TestUpdateNPCHandleDispositionClamped(t *testing.T) {
-	npcID := uuid.New()
-	store := &stubUpdateNPCStore{
-		npcs: map[uuid.UUID]*domain.NPC{
-			npcID: {ID: npcID, CampaignID: uuid.New(), Name: "Guard", Disposition: 0, Alive: true},
-		},
-	}
-	h := NewUpdateNPCHandler(store)
+	t.Run("clamps high values to 100", func(t *testing.T) {
+		npcID := uuid.New()
+		store := &stubUpdateNPCStore{
+			npcs: map[uuid.UUID]*domain.NPC{
+				npcID: {ID: npcID, CampaignID: uuid.New(), Name: "Guard", Disposition: 0, Alive: true},
+			},
+		}
+		h := NewUpdateNPCHandler(store)
 
-	got, err := h.Handle(context.Background(), map[string]any{
-		"npc_id":      npcID.String(),
-		"disposition": 500,
+		got, err := h.Handle(context.Background(), map[string]any{
+			"npc_id":      npcID.String(),
+			"disposition": 500,
+		})
+		if err != nil {
+			t.Fatalf("Handle: %v", err)
+		}
+		if store.lastUpdated == nil {
+			t.Fatal("expected UpdateNPC call")
+		}
+		if store.lastUpdated.Disposition != 100 {
+			t.Fatalf("disposition = %d, want 100", store.lastUpdated.Disposition)
+		}
+		if got.Data["disposition"] != 100 {
+			t.Fatalf("result disposition = %v, want 100", got.Data["disposition"])
+		}
 	})
-	if err != nil {
-		t.Fatalf("Handle: %v", err)
-	}
-	if store.lastUpdated == nil {
-		t.Fatal("expected UpdateNPC call")
-	}
-	if store.lastUpdated.Disposition != 100 {
-		t.Fatalf("disposition = %d, want 100", store.lastUpdated.Disposition)
-	}
-	if got.Data["disposition"] != 100 {
-		t.Fatalf("result disposition = %v, want 100", got.Data["disposition"])
-	}
+
+	t.Run("clamps low values to -100", func(t *testing.T) {
+		npcID := uuid.New()
+		store := &stubUpdateNPCStore{
+			npcs: map[uuid.UUID]*domain.NPC{
+				npcID: {ID: npcID, CampaignID: uuid.New(), Name: "Guard", Disposition: 0, Alive: true},
+			},
+		}
+		h := NewUpdateNPCHandler(store)
+
+		got, err := h.Handle(context.Background(), map[string]any{
+			"npc_id":      npcID.String(),
+			"disposition": -500,
+		})
+		if err != nil {
+			t.Fatalf("Handle: %v", err)
+		}
+		if store.lastUpdated == nil {
+			t.Fatal("expected UpdateNPC call")
+		}
+		if store.lastUpdated.Disposition != -100 {
+			t.Fatalf("disposition = %d, want -100", store.lastUpdated.Disposition)
+		}
+		if got.Data["disposition"] != -100 {
+			t.Fatalf("result disposition = %v, want -100", got.Data["disposition"])
+		}
+	})
 }
 
 func TestUpdateNPCHandleLocationUpdate(t *testing.T) {
@@ -215,6 +246,25 @@ func TestUpdateNPCHandleUnknownNPC(t *testing.T) {
 	}
 }
 
+func TestUpdateNPCHandleRequiresAtLeastOneUpdateField(t *testing.T) {
+	npcID := uuid.New()
+	h := NewUpdateNPCHandler(&stubUpdateNPCStore{
+		npcs: map[uuid.UUID]*domain.NPC{
+			npcID: {ID: npcID, CampaignID: uuid.New(), Name: "Watcher", Alive: true},
+		},
+	})
+
+	_, err := h.Handle(context.Background(), map[string]any{
+		"npc_id": npcID.String(),
+	})
+	if err == nil {
+		t.Fatal("expected no-fields-provided error")
+	}
+	if !strings.Contains(err.Error(), "at least one field must be provided") {
+		t.Fatalf("error = %v, want no-fields-provided message", err)
+	}
+}
+
 func TestUpdateNPCHandleUnknownLocationRejected(t *testing.T) {
 	npcID := uuid.New()
 	store := &stubUpdateNPCStore{
@@ -260,5 +310,3 @@ func TestUpdateNPCHandleStoreErrorWrapped(t *testing.T) {
 		t.Fatalf("error = %v, want wrapped update error", err)
 	}
 }
-
-var _ UpdateNPCStore = (*stubUpdateNPCStore)(nil)

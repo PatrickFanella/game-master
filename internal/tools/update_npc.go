@@ -75,9 +75,6 @@ func NewUpdateNPCHandler(store UpdateNPCStore) *UpdateNPCHandler {
 
 // Handle executes the update_npc tool.
 func (h *UpdateNPCHandler) Handle(ctx context.Context, args map[string]any) (*ToolResult, error) {
-	if h == nil {
-		return nil, errors.New("update_npc handler is nil")
-	}
 	if h.store == nil {
 		return nil, errors.New("update_npc store is required")
 	}
@@ -140,12 +137,13 @@ func (h *UpdateNPCHandler) Handle(ctx context.Context, args map[string]any) (*To
 		updated.Description = *description
 		changed = true
 	}
+	if !changed {
+		return nil, errors.New("at least one field must be provided to update_npc")
+	}
 
-	if changed {
-		npc, err = h.store.UpdateNPC(ctx, updated)
-		if err != nil {
-			return nil, fmt.Errorf("update npc: %w", err)
-		}
+	npc, err = h.store.UpdateNPC(ctx, updated)
+	if err != nil {
+		return nil, fmt.Errorf("update npc: %w", err)
 	}
 
 	data := map[string]any{

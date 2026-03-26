@@ -19,6 +19,8 @@ type updateNPCStore struct {
 	queries statedb.Querier
 }
 
+var _ tools.UpdateNPCStore = (*updateNPCStore)(nil)
+
 // NewUpdateNPCStore creates a tools.UpdateNPCStore backed by the given Querier.
 func NewUpdateNPCStore(q statedb.Querier) tools.UpdateNPCStore {
 	return &updateNPCStore{queries: q}
@@ -74,5 +76,3 @@ func intOrNullInt4(value *int) pgtype.Int4 {
 	}
 	return pgtype.Int4{Int32: int32(*value), Valid: true}
 }
-
-var _ tools.UpdateNPCStore = (*updateNPCStore)(nil)
