@@ -14,6 +14,8 @@ import (
 	"github.com/PatrickFanella/game-master/internal/tools"
 )
 
+const innkeeperName = "Innkeeper Toma"
+
 func TestNPCDialogueStoreGetNPCByID(t *testing.T) {
 	q := newMockQuerier()
 	npcID := uuid.New()
@@ -23,7 +25,7 @@ func TestNPCDialogueStoreGetNPCByID(t *testing.T) {
 		npc: statedb.Npc{
 			ID:         dbutil.ToPgtype(npcID),
 			CampaignID: dbutil.ToPgtype(campaignID),
-			Name:       "Innkeeper Toma",
+			Name:       innkeeperName,
 			LocationID: dbutil.ToPgtype(locationID),
 			Alive:      true,
 		},
@@ -40,8 +42,8 @@ func TestNPCDialogueStoreGetNPCByID(t *testing.T) {
 	if got.ID != npcID {
 		t.Fatalf("npc id = %s, want %s", got.ID, npcID)
 	}
-	if got.Name != "Innkeeper Toma" {
-		t.Fatalf("npc name = %q, want Innkeeper Toma", got.Name)
+	if got.Name != innkeeperName {
+		t.Fatalf("npc name = %q, want %s", got.Name, innkeeperName)
 	}
 	if got.LocationID == nil || *got.LocationID != locationID {
 		t.Fatalf("npc location = %v, want %s", got.LocationID, locationID)
