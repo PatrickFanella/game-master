@@ -332,6 +332,33 @@ func TestClaudeClientCompleteMultipleToolCallsFixture(t *testing.T) {
 	}
 }
 
+func TestClaudeClientCompleteTextOnlyFixture(t *testing.T) {
+	fixture := loadFixture(t, "claude_response_text_only.json")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(fixture)
+	}))
+	defer server.Close()
+
+	client := NewClaudeClient(server.URL, "sk-ant-test", "claude-test")
+	resp, err := client.Complete(context.Background(), []Message{{Role: RoleUser, Content: "tell me about the tavern"}}, nil)
+	if err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+
+	if resp.Content != "The tavern glows with warm candlelight as travelers trade stories near the hearth." {
+		t.Fatalf("content = %q, want narrative text", resp.Content)
+	}
+	if len(resp.ToolCalls) != 0 {
+		t.Fatalf("tool calls length = %d, want 0", len(resp.ToolCalls))
+	}
+	if resp.FinishReason != "end_turn" {
+		t.Fatalf("finish reason = %q, want end_turn", resp.FinishReason)
+	}
+	if resp.Usage.PromptTokens != 14 || resp.Usage.CompletionTokens != 16 || resp.Usage.TotalTokens != 30 {
+		t.Fatalf("usage = %+v, want prompt=14 completion=16 total=30", resp.Usage)
+	}
+}
+
 func TestClaudeClientCompleteErrorClassificationHTTPStatus(t *testing.T) {
 	tests := []struct {
 		name         string
