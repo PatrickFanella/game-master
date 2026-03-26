@@ -34,6 +34,9 @@ const rightSingleQuote = "’"
 // New creates a concrete GameEngine backed by the shared game and llm packages.
 func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider) *Engine {
 	registry := tools.NewRegistry()
+	if err := tools.RegisterPresentChoices(registry); err != nil {
+		panic(fmt.Sprintf("failed to register present_choices tool: %v (check tool schema/handler registration)", err))
+	}
 	return &Engine{
 		queries:   queries,
 		state:     game.NewStateManager(db),
