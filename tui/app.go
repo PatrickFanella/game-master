@@ -3,13 +3,18 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/PatrickFanella/game-master/internal/config"
+	"github.com/PatrickFanella/game-master/internal/dbutil"
+	"github.com/PatrickFanella/game-master/internal/engine"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/tui/character"
 	"github.com/PatrickFanella/game-master/tui/inventory"
@@ -31,6 +36,23 @@ const (
 const statusBarHints = "1-4: switch view | tab/shift+tab/right/left/h/l: cycle | q: quit"
 const statusBarSectionSeparator = "  ·  "
 const statusBarViewSeparator = " | "
+const narrativeChunkSize = 24 // small chunks keep the streamed narrative feeling responsive in the viewport
+const narrativeChunkDelay = 20 * time.Millisecond
+
+type turnProcessedMsg struct {
+	result *engine.TurnResult
+	err    error
+}
+
+type narrativeChunkMsg struct {
+	chunk     string
+	remaining string
+	choices   []engine.Choice
+}
+
+type narrativeStreamDoneMsg struct {
+	choices []engine.Choice
+}
 
 // App is the root Bubble Tea model for Game Master. It tracks the active
 // ViewState and delegates Init/Update/View to the appropriate sub-model via
@@ -40,17 +62,29 @@ const statusBarViewSeparator = " | "
 // independently and only the active index changes.
 type App struct {
 	cfg       config.Config
+	ctx       context.Context
+	engine    engine.GameEngine
 	campaign  statedb.Campaign
 	router    *Router
 	viewState ViewState
 	width     int
 	height    int
+	turnBusy  bool
 }
 
 // NewApp creates and initialises the root App model with all four sub-views
 // registered. The narrative log is pre-seeded with welcome messages.
 // campaign is the currently active campaign; its name is shown in the title bar.
 func NewApp(cfg config.Config, campaign statedb.Campaign) App {
+	return NewAppWithEngine(cfg, campaign, context.Background(), nil)
+}
+
+// NewAppWithEngine creates a root App that sends narrative turns through the engine.
+func NewAppWithEngine(cfg config.Config, campaign statedb.Campaign, ctx context.Context, gameEngine engine.GameEngine) App {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	router := NewRouter()
 
 	nv := narrative.New()
@@ -75,7 +109,14 @@ func NewApp(cfg config.Config, campaign statedb.Campaign) App {
 		})
 	}
 
-	return App{cfg: cfg, campaign: campaign, router: router, viewState: ViewNarrative}
+	return App{
+		cfg:       cfg,
+		ctx:       ctx,
+		engine:    gameEngine,
+		campaign:  campaign,
+		router:    router,
+		viewState: ViewNarrative,
+	}
 }
 
 // ActiveViewState returns the currently active ViewState.
@@ -113,6 +154,87 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := a.router.Update(msg)
 			return a, cmd
 		}
+
+	case spinner.TickMsg:
+		if a.turnBusy {
+			if nv := a.narrativeView(); nv != nil {
+				updated, cmd := nv.Update(msg)
+				if view, ok := updated.(*narrative.Model); ok {
+					a.router.tabs[int(ViewNarrative)].View = view
+				}
+				return a, cmd
+			}
+		}
+		return a, nil
+
+	case narrative.SubmitMsg:
+		if a.turnBusy {
+			return a, nil
+		}
+		if nv := a.narrativeView(); nv != nil {
+			nv.AddEntry(narrative.Entry{Kind: narrative.KindPlayer, Text: msg.Input})
+			nv.ClearChoices()
+			if a.engine == nil {
+				return a, nil
+			}
+			a.turnBusy = true
+			return a, tea.Batch(
+				nv.SetLoading(true),
+				a.processTurn(msg.Input),
+			)
+		}
+		return a, nil
+
+	case turnProcessedMsg:
+		nv := a.narrativeView()
+		if nv == nil {
+			a.turnBusy = false
+			return a, nil
+		}
+		// Turning loading off updates the narrative view state synchronously; it
+		// does not need to schedule another spinner tick command.
+		_ = nv.SetLoading(false)
+
+		if msg.err != nil {
+			a.turnBusy = false
+			nv.AddEntry(narrative.Entry{
+				Kind: narrative.KindSystem,
+				Text: fmt.Sprintf("Error: %v", msg.err),
+			})
+			return a, nil
+		}
+
+		if msg.result == nil {
+			a.turnBusy = false
+			return a, nil
+		}
+
+		if msg.result.Narrative == "" {
+			a.turnBusy = false
+			nv.SetChoices(msg.result.Choices)
+			return a, nil
+		}
+
+		nv.BeginStreamingNPCEntry()
+		return a, a.streamNarrative(msg.result.Narrative, msg.result.Choices)
+
+	case narrativeChunkMsg:
+		if nv := a.narrativeView(); nv != nil {
+			nv.AppendToLastEntry(msg.chunk)
+		}
+		if msg.remaining == "" {
+			return a, func() tea.Msg {
+				return narrativeStreamDoneMsg{choices: msg.choices}
+			}
+		}
+		return a, a.streamNarrative(msg.remaining, msg.choices)
+
+	case narrativeStreamDoneMsg:
+		a.turnBusy = false
+		if nv := a.narrativeView(); nv != nil {
+			nv.SetChoices(msg.choices)
+		}
+		return a, nil
 
 	case character.NavigateBackMsg:
 		a.router.GoToTab(int(ViewNarrative))
@@ -194,4 +316,38 @@ func (a App) renderStatusViews() string {
 	}
 	sep := styles.Muted.Render(statusBarViewSeparator)
 	return styles.Muted.Render("Views: ") + strings.Join(tabs, sep)
+}
+
+func (a App) narrativeView() *narrative.Model {
+	if len(a.router.tabs) <= int(ViewNarrative) {
+		return nil
+	}
+	view, _ := a.router.tabs[int(ViewNarrative)].View.(*narrative.Model)
+	return view
+}
+
+func (a App) processTurn(input string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := a.engine.ProcessTurn(a.ctx, dbutil.FromPgtype(a.campaign.ID), input)
+		return turnProcessedMsg{result: result, err: err}
+	}
+}
+
+func (a App) streamNarrative(text string, choices []engine.Choice) tea.Cmd {
+	return tea.Tick(narrativeChunkDelay, func(time.Time) tea.Msg {
+		if text == "" {
+			return narrativeStreamDoneMsg{choices: choices}
+		}
+		chunk := text
+		remaining := ""
+		if len(text) > narrativeChunkSize {
+			chunk = text[:narrativeChunkSize]
+			remaining = text[narrativeChunkSize:]
+		}
+		return narrativeChunkMsg{
+			chunk:     chunk,
+			remaining: remaining,
+			choices:   choices,
+		}
+	})
 }

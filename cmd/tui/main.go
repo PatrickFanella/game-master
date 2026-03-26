@@ -9,11 +9,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/charmbracelet/log"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/log"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/PatrickFanella/game-master/internal/config"
+	"github.com/PatrickFanella/game-master/internal/engine"
+	"github.com/PatrickFanella/game-master/internal/llm"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/tui"
 )
@@ -52,9 +54,15 @@ func run(args []string) int {
 	defer pool.Close()
 
 	queries := statedb.New(pool)
+	provider, err := newLLMProvider(cfg)
+	if err != nil {
+		logger.Errorf("create llm provider: %v", err)
+		return 1
+	}
+	gameEngine := engine.New(pool, queries, provider)
 
 	p := tea.NewProgram(
-		tui.NewLauncher(cfg, ctx, queries),
+		tui.NewLauncherWithEngine(cfg, ctx, queries, gameEngine),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 		tea.WithContext(ctx),
@@ -89,4 +97,15 @@ func parseConfigPath(args []string, defaultPath string) (string, error) {
 		return "", err
 	}
 	return configPath, nil
+}
+
+func newLLMProvider(cfg config.Config) (llm.Provider, error) {
+	switch cfg.LLM.Provider {
+	case "claude":
+		return llm.NewClaudeClient("", cfg.LLM.Claude.APIKey, cfg.LLM.Claude.Model), nil
+	case "ollama":
+		return llm.NewOllamaClient(cfg.LLM.Ollama.Endpoint, cfg.LLM.Ollama.Model), nil
+	default:
+		return nil, fmt.Errorf("unknown llm provider: %q", cfg.LLM.Provider)
+	}
 }

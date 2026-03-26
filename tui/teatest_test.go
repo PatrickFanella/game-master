@@ -2,17 +2,32 @@ package tui
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
+	"github.com/google/uuid"
+
+	"github.com/PatrickFanella/game-master/internal/dbutil"
+	"github.com/PatrickFanella/game-master/internal/engine"
+	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
 
 // testApp returns a minimal App suitable for teatest integration tests.
 func testApp() App {
 	return NewApp(testCfg, testCampaign)
+}
+
+func testAppWithEngine(gameEngine engine.GameEngine) App {
+	return NewAppWithEngine(
+		testCfg,
+		statedb.Campaign{ID: dbutil.ToPgtype(uuid.New())},
+		context.Background(),
+		gameEngine,
+	)
 }
 
 // finalTimeout is the maximum time to wait for the program to finish.
@@ -251,5 +266,57 @@ func TestTeatest_CtrlCTriggersQuit(t *testing.T) {
 	fm := tm.FinalModel(t, finalTimeout)
 	if fm == nil {
 		t.Fatal("expected non-nil final model after ctrl+c quit")
+	}
+}
+
+func TestTeatest_EngineTurnShowsSpinnerStreamsResponseAndChoices(t *testing.T) {
+	mockEngine := &mockGameEngine{
+		processTurnFn: func(_ context.Context, _ uuid.UUID, input string) (*engine.TurnResult, error) {
+			time.Sleep(100 * time.Millisecond)
+			return &engine.TurnResult{
+				Narrative: "A hidden passage opens behind the tapestry.",
+				Choices: []engine.Choice{
+					{ID: "enter", Text: "Enter the passage"},
+					{ID: "listen", Text: "Listen at the threshold"},
+				},
+			}, nil
+		},
+	}
+
+	tm := teatest.NewTestModel(
+		t,
+		testAppWithEngine(mockEngine),
+		teatest.WithInitialTermSize(100, 30),
+	)
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Narrative"))
+	}, waitDuration)
+
+	for _, r := range "peer at moss" {
+		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Thinking…"))
+	}, waitDuration)
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Suggested choices"))
+	}, waitDuration)
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	fm := tm.FinalModel(t, finalTimeout)
+	app, ok := fm.(App)
+	if !ok {
+		t.Fatalf("expected App model, got %T", fm)
+	}
+	finalView := app.View()
+	if !strings.Contains(finalView, "A hidden passage opens behind the tapestry.") {
+		t.Fatal("expected first streamed narrative to remain visible in final view")
+	}
+	if len(mockEngine.inputs) != 1 || mockEngine.inputs[0] != "peer at moss" {
+		t.Fatalf("expected engine to receive the typed turn once, got %#v", mockEngine.inputs)
 	}
 }

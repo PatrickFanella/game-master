@@ -163,5 +163,29 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 }
 
 func (sm *pgStateManager) SaveSessionLog(ctx context.Context, log domain.SessionLog) error {
-	return fmt.Errorf("SaveSessionLog: not yet implemented (requires session_log queries)")
+	if err := log.Validate(); err != nil {
+		return fmt.Errorf("save session log validate: %w", err)
+	}
+
+	_, err := sm.queries.CreateSessionLog(ctx, statedb.CreateSessionLogParams{
+		CampaignID:   dbutil.ToPgtype(log.CampaignID),
+		TurnNumber:   int32(log.TurnNumber),
+		PlayerInput:  log.PlayerInput,
+		InputType:    string(log.InputType),
+		LlmResponse:  log.LLMResponse,
+		ToolCalls:    log.ToolCalls,
+		LocationID:   dbutil.ToPgtype(uuidOrNil(log.LocationID)),
+		NpcsInvolved: dbutil.UUIDsToPgtype(log.NPCsInvolved),
+	})
+	if err != nil {
+		return fmt.Errorf("save session log: %w", err)
+	}
+	return nil
+}
+
+func uuidOrNil(id *uuid.UUID) uuid.UUID {
+	if id == nil {
+		return uuid.Nil
+	}
+	return *id
 }

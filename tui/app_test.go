@@ -1,13 +1,20 @@
 package tui
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/google/uuid"
 
 	"github.com/PatrickFanella/game-master/internal/config"
+	"github.com/PatrickFanella/game-master/internal/dbutil"
+	"github.com/PatrickFanella/game-master/internal/domain"
+	"github.com/PatrickFanella/game-master/internal/engine"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
+	"github.com/PatrickFanella/game-master/tui/narrative"
 )
 
 // Compile-time check: App must implement tea.Model.
@@ -20,6 +27,33 @@ var testCfg = config.Config{
 
 // testCampaign is a zero-value campaign used in unit tests.
 var testCampaign = statedb.Campaign{}
+
+type mockGameEngine struct {
+	processTurnFn func(context.Context, uuid.UUID, string) (*engine.TurnResult, error)
+	inputs        []string
+	campaignIDs   []uuid.UUID
+}
+
+func (m *mockGameEngine) ProcessTurn(ctx context.Context, campaignID uuid.UUID, input string) (*engine.TurnResult, error) {
+	m.inputs = append(m.inputs, input)
+	m.campaignIDs = append(m.campaignIDs, campaignID)
+	if m.processTurnFn != nil {
+		return m.processTurnFn(ctx, campaignID, input)
+	}
+	return &engine.TurnResult{}, nil
+}
+
+func (m *mockGameEngine) GetGameState(context.Context, uuid.UUID) (*engine.GameState, error) {
+	return &engine.GameState{}, nil
+}
+
+func (m *mockGameEngine) NewCampaign(context.Context, uuid.UUID) (*domain.Campaign, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockGameEngine) LoadCampaign(context.Context, uuid.UUID) error {
+	return nil
+}
 
 func keyForView(view ViewState) rune {
 	// ViewState is zero-based; user-facing key bindings are 1-based.
@@ -261,5 +295,87 @@ func TestAppUnknownMsgForwardedToSubView(t *testing.T) {
 	}
 	if _, ok := m.(App); !ok {
 		t.Fatal("Update should return an App model for unknown message types")
+	}
+}
+
+func TestAppSubmitCallsEngineAndStreamsNarrativeWithChoices(t *testing.T) {
+	campaignID := uuid.New()
+	mockEngine := &mockGameEngine{
+		processTurnFn: func(_ context.Context, gotCampaignID uuid.UUID, gotInput string) (*engine.TurnResult, error) {
+			if gotCampaignID != campaignID {
+				t.Fatalf("expected campaign id %s, got %s", campaignID, gotCampaignID)
+			}
+			if gotInput != "open the door" {
+				t.Fatalf("expected input %q, got %q", "open the door", gotInput)
+			}
+			return &engine.TurnResult{
+				Narrative: "The heavy oak door swings inward.",
+				Choices: []engine.Choice{
+					{ID: "enter", Text: "Step inside"},
+					{ID: "listen", Text: "Listen at the threshold"},
+				},
+			}, nil
+		},
+	}
+
+	app := NewAppWithEngine(testCfg, statedb.Campaign{ID: dbutil.ToPgtype(campaignID)}, context.Background(), mockEngine)
+	sized, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = sized.(App)
+	model, cmd := app.Update(narrative.SubmitMsg{Input: "open the door"})
+	updated := model.(App)
+
+	if !updated.turnBusy {
+		t.Fatal("expected app to remain busy while the turn is in flight")
+	}
+	if !strings.Contains(updated.View(), "Thinking…") {
+		t.Fatal("expected loading indicator while processing")
+	}
+
+	msg := updated.processTurn("open the door")()
+	model, cmd = updated.Update(msg)
+	updated = model.(App)
+	if cmd == nil {
+		t.Fatal("expected narrative streaming command")
+	}
+
+	for updated.turnBusy {
+		msg = cmd()
+		model, cmd = updated.Update(msg)
+		updated = model.(App)
+	}
+
+	if len(mockEngine.inputs) != 1 || mockEngine.inputs[0] != "open the door" {
+		t.Fatalf("expected engine to be called once with player input, got %#v", mockEngine.inputs)
+	}
+	view := updated.View()
+	if !strings.Contains(view, "The heavy oak door swings inward.") {
+		t.Fatal("expected streamed narrative to appear in the view")
+	}
+	if !strings.Contains(view, "Suggested choices") || !strings.Contains(view, "Step inside") {
+		t.Fatal("expected suggested choices to render below the narrative")
+	}
+}
+
+func TestAppTurnErrorAddsSystemMessage(t *testing.T) {
+	mockEngine := &mockGameEngine{
+		processTurnFn: func(context.Context, uuid.UUID, string) (*engine.TurnResult, error) {
+			return nil, errors.New("connection failed")
+		},
+	}
+
+	app := NewAppWithEngine(testCfg, testCampaign, context.Background(), mockEngine)
+	sized, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = sized.(App)
+	model, _ := app.Update(narrative.SubmitMsg{Input: "talk to innkeeper"})
+	updated := model.(App)
+
+	model, _ = updated.Update(updated.processTurn("talk to innkeeper")())
+	updated = model.(App)
+
+	if updated.turnBusy {
+		t.Fatal("expected busy state to clear after error")
+	}
+	if !strings.Contains(updated.View(), "Error: connection failed") {
+		t.Fatal("expected error state to be shown in the narrative viewport")
 	}
 }
