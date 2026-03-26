@@ -62,10 +62,6 @@ func NewRollDiceHandler() *RollDiceHandler {
 
 // Handle executes the roll_dice tool.
 func (h *RollDiceHandler) Handle(_ context.Context, args map[string]any) (*ToolResult, error) {
-	if h == nil {
-		return nil, errors.New("roll_dice handler is nil")
-	}
-
 	dice, err := parseStringArg(args, "dice")
 	if err != nil {
 		return nil, err
@@ -116,6 +112,10 @@ func parseDiceNotation(dice string) (diceExpression, error) {
 	if err != nil {
 		return diceExpression{}, fmt.Errorf("parse dice count: %w", err)
 	}
+	if count > maxRollDiceCount {
+		return diceExpression{}, fmt.Errorf("dice count must be at most %d", maxRollDiceCount)
+	}
+
 	sides, err := strconv.Atoi(matches[2])
 	if err != nil {
 		return diceExpression{}, fmt.Errorf("parse dice sides: %w", err)
@@ -128,10 +128,6 @@ func parseDiceNotation(dice string) (diceExpression, error) {
 			return diceExpression{}, fmt.Errorf("parse dice modifier: %w", err)
 		}
 	}
-	if count > maxRollDiceCount {
-		return diceExpression{}, fmt.Errorf("dice count must be at most %d", maxRollDiceCount)
-	}
-
 	return diceExpression{
 		Count:    count,
 		Sides:    sides,

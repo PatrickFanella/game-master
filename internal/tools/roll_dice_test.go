@@ -60,7 +60,6 @@ func TestParseDiceNotation(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := parseDiceNotation(tt.input)
@@ -89,7 +88,6 @@ func TestParseDiceNotationInvalid(t *testing.T) {
 	}
 
 	for _, dice := range invalid {
-		dice := dice
 		t.Run(dice, func(t *testing.T) {
 			t.Parallel()
 			_, err := parseDiceNotation(dice)
