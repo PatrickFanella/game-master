@@ -19,7 +19,6 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/PatrickFanella/game-master/internal/bootstrap"
 	"github.com/PatrickFanella/game-master/internal/config"
@@ -59,28 +58,28 @@ const (
 
 // Launcher is the root Bubble Tea model during start-up.
 type Launcher struct {
-	cfg      config.Config
-	pool     *pgxpool.Pool
-	queries  statedb.Querier
-	user     statedb.User
-	state    launcherState
-	picker   campaign.Model
-	spinner  spinner.Model
-	errMsg   string
-	width    int
-	height   int
+	cfg     config.Config
+	ctx     context.Context
+	queries statedb.Querier
+	user    statedb.User
+	state   launcherState
+	picker  campaign.Model
+	spinner spinner.Model
+	errMsg  string
+	width   int
+	height  int
 }
 
-// NewLauncher creates the Launcher model.  pool and queries must already be
-// open and ready; they are used throughout the bootstrap and campaign-creation
-// phases.
-func NewLauncher(cfg config.Config, pool *pgxpool.Pool, queries statedb.Querier) Launcher {
+// NewLauncher creates the Launcher model. ctx is used for all DB operations so
+// they can be cancelled on SIGTERM/ctrl+c. queries must already be open and
+// ready.
+func NewLauncher(cfg config.Config, ctx context.Context, queries statedb.Querier) Launcher {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	sp.Style = lipgloss.NewStyle().Foreground(styles.ColorAccent)
 	return Launcher{
 		cfg:     cfg,
-		pool:    pool,
+		ctx:     ctx,
 		queries: queries,
 		state:   launcherLoading,
 		spinner: sp,
@@ -99,7 +98,10 @@ func (l Launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		l.width = msg.Width
 		l.height = msg.Height
-		l.picker.SetSize(msg.Width, msg.Height)
+		// Only resize the picker when it has been initialised.
+		if l.state == launcherSelecting {
+			l.picker.SetSize(msg.Width, msg.Height)
+		}
 
 	case tea.KeyMsg:
 		if msg.Type == tea.KeyCtrlC {
@@ -107,9 +109,15 @@ func (l Launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case spinner.TickMsg:
-		var cmd tea.Cmd
-		l.spinner, cmd = l.spinner.Update(msg)
-		return l, cmd
+		// Only advance the spinner while it is actually visible (loading or
+		// creating states). In the selecting state the spinner is not shown so
+		// we drop the tick to avoid a perpetual background tick loop.
+		if l.state == launcherLoading || l.state == launcherCreating {
+			var cmd tea.Cmd
+			l.spinner, cmd = l.spinner.Update(msg)
+			return l, cmd
+		}
+		return l, nil
 
 	case bootstrapDoneMsg:
 		if msg.err != nil {
@@ -193,17 +201,24 @@ func (l Launcher) transitionToApp(c statedb.Campaign) (tea.Model, tea.Cmd) {
 }
 
 // runBootstrap returns a tea.Cmd that runs the DB bootstrap asynchronously.
+// It uses the launcher's context so the operation is cancelled on shutdown.
 func (l Launcher) runBootstrap() tea.Cmd {
+	ctx := l.ctx
+	queries := l.queries
 	return func() tea.Msg {
-		result, err := bootstrap.Run(context.Background(), l.queries)
+		result, err := bootstrap.Run(ctx, queries)
 		return bootstrapDoneMsg{result: result, err: err}
 	}
 }
 
 // runCreateCampaign returns a tea.Cmd that creates a new campaign in the DB.
+// It uses the launcher's context so the operation is cancelled on shutdown.
 func (l Launcher) runCreateCampaign(name string) tea.Cmd {
+	ctx := l.ctx
+	queries := l.queries
+	userID := l.user.ID
 	return func() tea.Msg {
-		c, err := bootstrap.CreateCampaign(context.Background(), l.queries, l.user.ID, name)
+		c, err := bootstrap.CreateCampaign(ctx, queries, userID, name)
 		return campaignCreatedMsg{c: c, err: err}
 	}
 }

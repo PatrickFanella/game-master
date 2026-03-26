@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/PatrickFanella/game-master/internal/bootstrap"
@@ -14,18 +15,31 @@ import (
 // stubQuerier is a minimal in-memory implementation of statedb.Querier used
 // for unit-testing the bootstrap package without a real database.
 type stubQuerier struct {
-	users        []statedb.User
-	campaigns    []statedb.Campaign
-	locations    []statedb.Location
-	createUserFn func(ctx context.Context, name string) (statedb.User, error)
-	createCampFn func(ctx context.Context, arg statedb.CreateCampaignParams) (statedb.Campaign, error)
-	createLocFn  func(ctx context.Context, arg statedb.CreateLocationParams) (statedb.Location, error)
+	users             []statedb.User
+	campaigns         []statedb.Campaign
+	locations         []statedb.Location
+	createUserFn      func(ctx context.Context, name string) (statedb.User, error)
+	getUserByNameFn   func(ctx context.Context, name string) (statedb.User, error)
+	createCampFn      func(ctx context.Context, arg statedb.CreateCampaignParams) (statedb.Campaign, error)
+	createLocFn       func(ctx context.Context, arg statedb.CreateLocationParams) (statedb.Location, error)
 }
 
 // Minimal implementations of statedb.Querier that the bootstrap package uses.
 
 func (s *stubQuerier) ListUsers(ctx context.Context) ([]statedb.User, error) {
 	return s.users, nil
+}
+
+func (s *stubQuerier) GetUserByName(ctx context.Context, name string) (statedb.User, error) {
+	if s.getUserByNameFn != nil {
+		return s.getUserByNameFn(ctx, name)
+	}
+	for _, u := range s.users {
+		if u.Name == name {
+			return u, nil
+		}
+	}
+	return statedb.User{}, pgx.ErrNoRows
 }
 
 func (s *stubQuerier) CreateUser(ctx context.Context, name string) (statedb.User, error) {
@@ -204,9 +218,6 @@ func (s *stubQuerier) GetSessionLogByID(ctx context.Context, id pgtype.UUID) (st
 	return statedb.SessionLog{}, nil
 }
 func (s *stubQuerier) GetUserByID(ctx context.Context, id pgtype.UUID) (statedb.User, error) {
-	return statedb.User{}, nil
-}
-func (s *stubQuerier) GetUserByName(ctx context.Context, name string) (statedb.User, error) {
 	return statedb.User{}, nil
 }
 func (s *stubQuerier) KillNPC(ctx context.Context, id pgtype.UUID) (statedb.Npc, error) {
@@ -486,6 +497,18 @@ func TestRun_CreateUserError(t *testing.T) {
 	}
 }
 
+func TestRun_GetUserByNameNonNoRowsError(t *testing.T) {
+	q := &stubQuerier{
+		getUserByNameFn: func(_ context.Context, _ string) (statedb.User, error) {
+			return statedb.User{}, errors.New("connection error")
+		},
+	}
+	_, err := bootstrap.Run(context.Background(), q)
+	if err == nil {
+		t.Fatal("expected error when GetUserByName fails with non-NoRows error")
+	}
+}
+
 func TestRun_CreateCampaignError(t *testing.T) {
 	q := &stubQuerier{
 		createCampFn: func(_ context.Context, _ statedb.CreateCampaignParams) (statedb.Campaign, error) {
@@ -502,18 +525,51 @@ func TestCreateCampaign_CreatesLocationForCampaign(t *testing.T) {
 	userID := pgtype.UUID{Bytes: [16]byte{7}, Valid: true}
 	q := &stubQuerier{}
 
-	campaign, err := bootstrap.CreateCampaign(context.Background(), q, userID, "My Campaign")
+	camp, err := bootstrap.CreateCampaign(context.Background(), q, userID, "My Campaign")
 	if err != nil {
 		t.Fatalf("CreateCampaign returned error: %v", err)
 	}
 
-	if campaign.Name != "My Campaign" {
-		t.Errorf("expected campaign name %q, got %q", "My Campaign", campaign.Name)
+	if camp.Name != "My Campaign" {
+		t.Errorf("expected campaign name %q, got %q", "My Campaign", camp.Name)
 	}
 	if len(q.locations) != 1 {
 		t.Fatalf("expected 1 location, got %d", len(q.locations))
 	}
-	if q.locations[0].CampaignID != campaign.ID {
+	if q.locations[0].CampaignID != camp.ID {
 		t.Errorf("expected location to belong to the new campaign")
+	}
+}
+
+func TestCreateCampaign_EmptyNameReturnsError(t *testing.T) {
+	userID := pgtype.UUID{Bytes: [16]byte{8}, Valid: true}
+	q := &stubQuerier{}
+
+	_, err := bootstrap.CreateCampaign(context.Background(), q, userID, "")
+	if err == nil {
+		t.Fatal("expected error for empty campaign name")
+	}
+}
+
+func TestCreateCampaign_WhitespaceOnlyNameReturnsError(t *testing.T) {
+	userID := pgtype.UUID{Bytes: [16]byte{9}, Valid: true}
+	q := &stubQuerier{}
+
+	_, err := bootstrap.CreateCampaign(context.Background(), q, userID, "   ")
+	if err == nil {
+		t.Fatal("expected error for whitespace-only campaign name")
+	}
+}
+
+func TestCreateCampaign_TrimsWhitespace(t *testing.T) {
+	userID := pgtype.UUID{Bytes: [16]byte{10}, Valid: true}
+	q := &stubQuerier{}
+
+	camp, err := bootstrap.CreateCampaign(context.Background(), q, userID, "  My Adventure  ")
+	if err != nil {
+		t.Fatalf("CreateCampaign returned error: %v", err)
+	}
+	if camp.Name != "My Adventure" {
+		t.Errorf("expected trimmed name %q, got %q", "My Adventure", camp.Name)
 	}
 }

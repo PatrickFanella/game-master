@@ -54,7 +54,7 @@ func run(args []string) int {
 	queries := statedb.New(pool)
 
 	p := tea.NewProgram(
-		tui.NewLauncher(cfg, pool, queries),
+		tui.NewLauncher(cfg, ctx, queries),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 		tea.WithContext(ctx),

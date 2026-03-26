@@ -6,6 +6,7 @@ package campaign
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -18,8 +19,8 @@ import (
 
 const newCampaignSentinel = "__new__"
 
-// SelectedMsg is sent when the player has chosen a campaign.  CampaignID is
-// set to the chosen campaign's ID; Name carries the display name.
+// SelectedMsg is sent when the player has chosen a campaign. Campaign
+// carries the full selected campaign record (including its ID, name, etc.).
 type SelectedMsg struct {
 	Campaign statedb.Campaign
 }
@@ -90,7 +91,15 @@ func New(campaigns []statedb.Campaign) Model {
 func (m *Model) SetSize(width, height int) {
 	m.width = width
 	m.height = height
-	m.list.SetSize(width-4, height-4)
+	listWidth := width - 4
+	if listWidth < 0 {
+		listWidth = 0
+	}
+	listHeight := height - 4
+	if listHeight < 0 {
+		listHeight = 0
+	}
+	m.list.SetSize(listWidth, listHeight)
 	if m.form != nil {
 		m.form = m.form.WithWidth(width)
 	}
@@ -150,7 +159,7 @@ func (m Model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.form = f
 	}
 	if m.form.State == huh.StateCompleted {
-		name := m.newName
+		name := strings.TrimSpace(m.newName)
 		m.form = nil
 		return m, func() tea.Msg { return NewCampaignNameMsg{Name: name} }
 	}
@@ -177,12 +186,19 @@ func (m Model) renderForm() string {
 	formView := m.form.View()
 
 	content := styles.JoinVertical(title, "", hint, "", formView)
+
+	// Account for horizontal padding (2 on each side) and clamp to avoid
+	// negative widths in very small terminals.
+	innerWidth := m.width - 4
+	if innerWidth < 0 {
+		innerWidth = 0
+	}
 	return styles.FocusedContainer.
 		Width(m.width).
 		Height(m.height).
 		Render(lipgloss.NewStyle().
 			Padding(1, 2).
-			Width(m.width - 4).
+			Width(innerWidth).
 			Render(content))
 }
 
@@ -195,7 +211,7 @@ func buildNameForm(target *string) *huh.Form {
 				Placeholder("e.g. Shadows of the East").
 				Value(target).
 				Validate(func(s string) error {
-					if len(s) == 0 {
+					if strings.TrimSpace(s) == "" {
 						return errEmptyName
 					}
 					return nil

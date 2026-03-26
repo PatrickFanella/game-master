@@ -6,8 +6,11 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
@@ -65,7 +68,14 @@ func Run(ctx context.Context, q statedb.Querier) (Result, error) {
 // CreateCampaign creates a new campaign with the given name for the user and
 // adds a default starting location. It is used when the player selects "New
 // campaign" from the campaign selection list.
+// The name is trimmed of whitespace; an empty or whitespace-only name returns
+// an error.
 func CreateCampaign(ctx context.Context, q statedb.Querier, userID pgtype.UUID, name string) (statedb.Campaign, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return statedb.Campaign{}, errors.New("campaign name cannot be empty")
+	}
+
 	campaign, err := q.CreateCampaign(ctx, statedb.CreateCampaignParams{
 		Name:      name,
 		Status:    "active",
@@ -88,16 +98,15 @@ func CreateCampaign(ctx context.Context, q statedb.Querier, userID pgtype.UUID, 
 	return campaign, nil
 }
 
-// findOrCreateUser returns the first user matching name, or creates one.
+// findOrCreateUser returns the user matching name, or creates one.
+// It uses GetUserByName for efficiency rather than a full table scan.
 func findOrCreateUser(ctx context.Context, q statedb.Querier, name string) (statedb.User, error) {
-	users, err := q.ListUsers(ctx)
-	if err != nil {
-		return statedb.User{}, fmt.Errorf("list users: %w", err)
+	u, err := q.GetUserByName(ctx, name)
+	if err == nil {
+		return u, nil
 	}
-	for _, u := range users {
-		if u.Name == name {
-			return u, nil
-		}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return statedb.User{}, fmt.Errorf("get user by name: %w", err)
 	}
 	return q.CreateUser(ctx, name)
 }
