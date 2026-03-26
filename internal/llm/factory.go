@@ -15,7 +15,7 @@ import (
 // LLMProvider is an alias for the provider interface used by the game engine.
 type LLMProvider = Provider
 
-const ollamaTagsPath = "/api/tags"
+const ollamaTagsPath = "api/tags"
 const ollamaHealthCheckTimeout = 3 * time.Second
 const ollamaHealthCheckErrorBodyLimit = 512
 
@@ -50,7 +50,12 @@ func validateOllamaEndpoint(baseURL string) error {
 		return fmt.Errorf("ollama provider unavailable: invalid endpoint scheme %q for %q", parsed.Scheme, baseURL)
 	}
 
-	tagsURL := strings.TrimRight(baseURL, "/") + ollamaTagsPath
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	tagsURL, err := url.JoinPath(parsed.String(), ollamaTagsPath)
+	if err != nil {
+		return fmt.Errorf("ollama provider unavailable: failed to build health-check URL from %q: %w", baseURL, err)
+	}
 	client := &http.Client{Timeout: ollamaHealthCheckTimeout}
 
 	req, err := http.NewRequest(http.MethodGet, tagsURL, nil)

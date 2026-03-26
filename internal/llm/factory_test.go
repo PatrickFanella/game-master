@@ -46,6 +46,34 @@ func TestNewLLMProviderOllama(t *testing.T) {
 	}
 }
 
+func TestNewLLMProviderOllamaEndpointBuildsHealthCheckURLFromParsedBase(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/ollama/api/tags" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.URL.RawQuery != "" {
+			t.Fatalf("unexpected query: %s", r.URL.RawQuery)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	cfg := config.Config{
+		LLM: config.LLMConfig{
+			Provider: "ollama",
+			Ollama: config.OllamaConfig{
+				Endpoint: server.URL + "/ollama?x=1#frag",
+				Model:    "llama-test",
+			},
+		},
+	}
+
+	_, err := NewLLMProvider(cfg)
+	if err != nil {
+		t.Fatalf("NewLLMProvider() error = %v", err)
+	}
+}
+
 func TestNewLLMProviderClaude(t *testing.T) {
 	cfg := config.Config{
 		LLM: config.LLMConfig{
@@ -106,6 +134,41 @@ func TestNewLLMProviderRejectsUnreachableOllama(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "cannot reach") {
 		t.Fatalf("error = %q, want reachability message", err)
+	}
+}
+
+func TestNewLLMProviderRejectsOllamaNon2xxWithTrimmedBody(t *testing.T) {
+	body := strings.Repeat("x", ollamaHealthCheckErrorBodyLimit+20)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/tags" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+
+	cfg := config.Config{
+		LLM: config.LLMConfig{
+			Provider: "ollama",
+			Ollama: config.OllamaConfig{
+				Endpoint: server.URL,
+			},
+		},
+	}
+
+	_, err := NewLLMProvider(cfg)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "returned HTTP 500") {
+		t.Fatalf("error = %q, want status message", err)
+	}
+	if !strings.Contains(err.Error(), body[:ollamaHealthCheckErrorBodyLimit]) {
+		t.Fatalf("error = %q, want trimmed body content", err)
+	}
+	if strings.Contains(err.Error(), body) {
+		t.Fatalf("error should not include full response body of length %d", len(body))
 	}
 }
 
