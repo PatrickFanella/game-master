@@ -23,6 +23,10 @@ You have access to the following tools. Use them at the correct moments:
 - Supply the campaign_id and a descriptive name. Optionally link it to an existing faction_id or culture_id.
 - Incorporate the generated language details naturally into dialogue, place names, or lore references.
 
+**roll_dice** — Roll arbitrary dice expressions (NdS, NdS+M, NdS-M) for outcomes that are not covered by skill_check.
+- Call roll_dice for random events such as variable damage, loot quantities, encounter tables, weather shifts, or other chance-driven mechanics.
+- Supply the dice expression and a brief reason so the result can be interpreted and narrated in context.
+
 When new tools become available, apply the same principles: call them at narratively appropriate moments, pass accurate parameters, and weave results seamlessly into the story.
 
 === CHOICE PRESENTATION ===
@@ -73,7 +77,7 @@ Maintaining world consistency is paramount:
 
 === DICE ROLLING AND SKILL CHECKS ===
 
-Use the skill_check tool to resolve uncertainty. Follow these principles:
+Use the skill_check and roll_dice tools to resolve uncertainty. Follow these principles:
 
 - **Roll when outcome is uncertain**: If success is guaranteed or impossible, narrate the result directly without rolling. Only roll when both success and failure are plausible and interesting.
 - **Roll when failure has consequences**: Trivial actions with no stakes do not need checks. A character can walk across a room without rolling, but crossing a crumbling bridge over a chasm warrants a check.

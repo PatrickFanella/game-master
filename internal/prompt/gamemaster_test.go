@@ -36,7 +36,7 @@ func TestGameMasterPromptSections(t *testing.T) {
 }
 
 func TestGameMasterPromptToolReferences(t *testing.T) {
-	tools := []string{"skill_check", "create_language"}
+	tools := []string{"skill_check", "create_language", "roll_dice"}
 	for _, tool := range tools {
 		if !strings.Contains(GameMaster, tool) {
 			t.Fatalf("GameMaster prompt must reference tool %q", tool)

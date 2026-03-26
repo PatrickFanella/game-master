@@ -51,6 +51,10 @@ type mockQuerier struct {
 	getNPCByIDErr            error
 	createSessionLogErr      error
 	listRecentSessionLogsErr error
+	updateNPCErr             error
+
+	lastUpdateNPCParams *statedb.UpdateNPCParams
+	updateNPCResult     statedb.Npc
 }
 
 func newMockQuerier() *mockQuerier {
@@ -465,7 +469,14 @@ func (m *mockQuerier) UpdateLanguage(_ context.Context, _ statedb.UpdateLanguage
 	return statedb.Language{}, pgx.ErrNoRows
 }
 
-func (m *mockQuerier) UpdateNPC(_ context.Context, _ statedb.UpdateNPCParams) (statedb.Npc, error) {
+func (m *mockQuerier) UpdateNPC(_ context.Context, arg statedb.UpdateNPCParams) (statedb.Npc, error) {
+	if m.updateNPCErr != nil {
+		return statedb.Npc{}, m.updateNPCErr
+	}
+	m.lastUpdateNPCParams = &arg
+	if m.updateNPCResult.ID.Valid {
+		return m.updateNPCResult, nil
+	}
 	return statedb.Npc{}, pgx.ErrNoRows
 }
 
