@@ -35,7 +35,6 @@ func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider) *Engin
 	invSvc := game.NewInventoryService(queries)
 	npcSvc := game.NewNPCService(queries)
 	worldSvc := game.NewWorldService(queries)
-	combatSvc := game.NewCombatService(queries)
 	statResolver := game.NewStatModifierResolver(queries)
 
 	var errs []error
@@ -44,7 +43,6 @@ func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider) *Engin
 	errs = appendErr(errs, tools.RegisterRemoveItem(registry, invSvc))
 	errs = appendErr(errs, tools.RegisterRollDice(registry))
 	errs = appendErr(errs, tools.RegisterUpdateNPC(registry, npcSvc))
-	errs = appendErr(errs, tools.RegisterInitiateCombat(registry, combatSvc))
 	errs = appendErr(errs, tools.RegisterCreateLanguage(registry, worldSvc, worldSvc, nil))
 	errs = appendErr(errs, tools.RegisterSkillCheck(registry, statResolver, nil))
 	if err := errors.Join(errs...); err != nil {
