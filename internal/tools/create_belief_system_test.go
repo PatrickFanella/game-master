@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	pgvector "github.com/pgvector/pgvector-go"
 
 	"github.com/PatrickFanella/game-master/internal/domain"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
@@ -97,10 +96,10 @@ func TestCreateBeliefSystemHandleSuccess(t *testing.T) {
 			Name:       "Way of the Dawn",
 		},
 		factions: map[[16]byte]statedb.Faction{
-			factionID: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(campaignID)},
+			uuidToPgtype(factionID).Bytes: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(campaignID)},
 		},
 		cultures: map[[16]byte]statedb.Culture{
-			cultureID: {ID: uuidToPgtype(cultureID), CampaignID: uuidToPgtype(campaignID)},
+			uuidToPgtype(cultureID).Bytes: {ID: uuidToPgtype(cultureID), CampaignID: uuidToPgtype(campaignID)},
 		},
 	}
 	memStore := &stubMemoryStore{}
@@ -189,7 +188,7 @@ func TestCreateBeliefSystemValidationAndErrors(t *testing.T) {
 		h := NewCreateBeliefSystemHandler(
 			&stubBeliefSystemStore{
 				factions: map[[16]byte]statedb.Faction{
-					factionID: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(otherCampaignID)},
+					uuidToPgtype(factionID).Bytes: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(otherCampaignID)},
 				},
 				cultures: map[[16]byte]statedb.Culture{},
 			},
@@ -217,7 +216,7 @@ func TestCreateBeliefSystemValidationAndErrors(t *testing.T) {
 					Name:       "Faith",
 				},
 				factions: map[[16]byte]statedb.Faction{
-					factionID: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(campaignID)},
+					uuidToPgtype(factionID).Bytes: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(campaignID)},
 				},
 				cultures:      map[[16]byte]statedb.Culture{},
 				createFactErr: errors.New("insert fact failed"),
@@ -283,4 +282,3 @@ func TestCreateBeliefSystemStoresMemoryMetadata(t *testing.T) {
 }
 
 var _ BeliefSystemStore = (*stubBeliefSystemStore)(nil)
-var _ = pgvector.NewVector
