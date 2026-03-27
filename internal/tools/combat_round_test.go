@@ -57,6 +57,7 @@ func baseCombatStateArgs(playerID, enemyID uuid.UUID) map[string]any {
 				"conditions":  []any{},
 				"initiative":  12,
 				"status":      "alive",
+				"surprised":   false,
 			},
 			map[string]any{
 				"entity_id":   enemyID.String(),
@@ -68,11 +69,15 @@ func baseCombatStateArgs(playerID, enemyID uuid.UUID) map[string]any {
 				"conditions":  []any{},
 				"initiative":  10,
 				"status":      "alive",
+				"surprised":   false,
 			},
 		},
-		"initiative_order": []any{playerID.String(), enemyID.String()},
-		"environment":      map[string]any{"description": "Dense forest trail"},
-		"status":           "active",
+		"initiative_order":            []any{playerID.String(), enemyID.String()},
+		"environment":                 map[string]any{"description": "Dense forest trail"},
+		"status":                      "active",
+		"initiative_reroll_each_round": false,
+		"track_death_saving_throws":   false,
+		"surprise_round_active":       false,
 	}
 }
 
@@ -379,10 +384,28 @@ func TestCombatantStatModifier(t *testing.T) {
 func TestCombatStateRoundTrip(t *testing.T) {
 	playerID := uuid.New()
 	enemyID := uuid.New()
+	locationID := uuid.New()
 
-	args := map[string]any{
-		"combat_state": baseCombatStateArgs(playerID, enemyID),
+	stateArgs := baseCombatStateArgs(playerID, enemyID)
+	// Set extra fields to verify lossless round-trip.
+	stateArgs["initiative_reroll_each_round"] = true
+	stateArgs["track_death_saving_throws"] = true
+	stateArgs["surprise_round_active"] = true
+	stateArgs["active_effects"] = map[string]any{"fog": true}
+	stateArgs["environment"] = map[string]any{
+		"description": "Dense forest trail",
+		"location_id": locationID.String(),
+		"properties":  map[string]any{"terrain": "forest"},
 	}
+	// Mark first combatant as surprised with death saving throws.
+	combatantsSlice := stateArgs["combatants"].([]any)
+	playerMap := combatantsSlice[0].(map[string]any)
+	playerMap["surprised"] = true
+	playerMap["death_saving_throws"] = map[string]any{"successes": 1, "failures": 2}
+	enemyMap := combatantsSlice[1].(map[string]any)
+	enemyMap["surprised"] = true
+
+	args := map[string]any{"combat_state": stateArgs}
 
 	state, err := parseCombatStateArg(args, "combat_state")
 	if err != nil {
@@ -397,6 +420,39 @@ func TestCombatStateRoundTrip(t *testing.T) {
 	if state.RoundNumber != 0 {
 		t.Fatalf("round_number = %d, want 0", state.RoundNumber)
 	}
+	if !state.InitiativeRerollEachRound {
+		t.Fatal("InitiativeRerollEachRound should be true")
+	}
+	if !state.TrackDeathSavingThrows {
+		t.Fatal("TrackDeathSavingThrows should be true")
+	}
+	if !state.SurpriseRoundActive {
+		t.Fatal("SurpriseRoundActive should be true")
+	}
+	if state.ActiveEffects == nil {
+		t.Fatal("ActiveEffects should not be nil")
+	}
+	if state.Environment.LocationID == nil || *state.Environment.LocationID != locationID {
+		t.Fatalf("Environment.LocationID = %v, want %s", state.Environment.LocationID, locationID)
+	}
+	if state.Environment.Properties == nil {
+		t.Fatal("Environment.Properties should not be nil")
+	}
+	if !state.Combatants[0].Surprised {
+		t.Fatal("player combatant should be surprised")
+	}
+	if state.Combatants[0].DeathSavingThrows == nil {
+		t.Fatal("player DeathSavingThrows should not be nil")
+	}
+	if state.Combatants[0].DeathSavingThrows.Successes != 1 {
+		t.Fatalf("DeathSavingThrows.Successes = %d, want 1", state.Combatants[0].DeathSavingThrows.Successes)
+	}
+	if state.Combatants[0].DeathSavingThrows.Failures != 2 {
+		t.Fatalf("DeathSavingThrows.Failures = %d, want 2", state.Combatants[0].DeathSavingThrows.Failures)
+	}
+	if !state.Combatants[1].Surprised {
+		t.Fatal("enemy combatant should be surprised")
+	}
 
 	// Round-trip to map and back.
 	m := combatStateToMap(state)
@@ -406,6 +462,33 @@ func TestCombatStateRoundTrip(t *testing.T) {
 	}
 	if state2.Combatants[0].EntityID != playerID {
 		t.Fatalf("round-trip player ID mismatch")
+	}
+	if !state2.InitiativeRerollEachRound {
+		t.Fatal("round-trip: InitiativeRerollEachRound lost")
+	}
+	if !state2.TrackDeathSavingThrows {
+		t.Fatal("round-trip: TrackDeathSavingThrows lost")
+	}
+	if !state2.SurpriseRoundActive {
+		t.Fatal("round-trip: SurpriseRoundActive lost")
+	}
+	if state2.ActiveEffects == nil {
+		t.Fatal("round-trip: ActiveEffects lost")
+	}
+	if state2.Environment.LocationID == nil || *state2.Environment.LocationID != locationID {
+		t.Fatal("round-trip: Environment.LocationID lost")
+	}
+	if state2.Environment.Properties == nil {
+		t.Fatal("round-trip: Environment.Properties lost")
+	}
+	if !state2.Combatants[0].Surprised {
+		t.Fatal("round-trip: player surprised lost")
+	}
+	if state2.Combatants[0].DeathSavingThrows == nil || state2.Combatants[0].DeathSavingThrows.Successes != 1 {
+		t.Fatal("round-trip: player DeathSavingThrows lost")
+	}
+	if !state2.Combatants[1].Surprised {
+		t.Fatal("round-trip: enemy surprised lost")
 	}
 }
 
@@ -472,5 +555,114 @@ func TestCombatRoundCriticalSuccessAndFailure(t *testing.T) {
 	}
 	if !strings.Contains(result.Narrative, "Miss!") {
 		t.Fatalf("natural 1 should be a miss, got %q", result.Narrative)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Surprised combatants skip during surprise round
+// ---------------------------------------------------------------------------
+
+func TestCombatRoundSurprisedCombatantSkips(t *testing.T) {
+	playerID := uuid.New()
+	enemyID := uuid.New()
+
+	args := defaultRoundArgs(playerID, enemyID)
+	state := args["combat_state"].(map[string]any)
+	// Mark the enemy as surprised — this is round 0→1.
+	combatantSlice := state["combatants"].([]any)
+	enemyMap := combatantSlice[1].(map[string]any)
+	enemyMap["surprised"] = true
+
+	// Roll: player d20=15 (hit).
+	roller := &stubRoller{rolls: []int{14}}
+	h := NewCombatRoundHandler(roller)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+
+	result, err := h.Handle(ctx, args)
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+
+	if !strings.Contains(result.Narrative, "surprised") {
+		t.Fatalf("narrative should indicate surprised combatant skipped, got %q", result.Narrative)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Damage without target_id validation
+// ---------------------------------------------------------------------------
+
+func TestCombatRoundDamageRequiresTargetID(t *testing.T) {
+	playerID := uuid.New()
+	enemyID := uuid.New()
+
+	roller := &stubRoller{rolls: []int{14}}
+	h := NewCombatRoundHandler(roller)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+
+	// Player damage_on_hit > 0 but no target_id.
+	args := defaultRoundArgs(playerID, enemyID)
+	delete(args, "target_id")
+	args["damage_on_hit"] = 8
+
+	_, err := h.Handle(ctx, args)
+	if err == nil || !strings.Contains(err.Error(), "target_id is required") {
+		t.Fatalf("expected target_id validation error, got %v", err)
+	}
+
+	// Enemy damage_on_hit > 0 but no target_id.
+	args2 := defaultRoundArgs(playerID, enemyID)
+	args2["damage_on_hit"] = 0
+	args2["enemy_actions"] = []any{
+		map[string]any{
+			"enemy_id":     enemyID.String(),
+			"action_type":  "attack",
+			"description":  "swings sword",
+			"skill":        "strength",
+			"difficulty":   12,
+			"damage_on_hit": 5,
+			// no target_id
+		},
+	}
+	_, err = h.Handle(ctx, args2)
+	if err == nil || !strings.Contains(err.Error(), "target_id is required") {
+		t.Fatalf("expected enemy target_id validation error, got %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Round 1 preserves existing initiative order
+// ---------------------------------------------------------------------------
+
+func TestCombatRoundPreservesInitiativeOnRound1(t *testing.T) {
+	playerID := uuid.New()
+	enemyID := uuid.New()
+
+	args := defaultRoundArgs(playerID, enemyID)
+	state := args["combat_state"].(map[string]any)
+	// Set initiative: enemy first, then player.
+	state["initiative_order"] = []any{enemyID.String(), playerID.String()}
+
+	// Rolls: player d20=5 (miss), enemy d20=5 (miss).
+	roller := &stubRoller{rolls: []int{4, 4}}
+	h := NewCombatRoundHandler(roller)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+
+	result, err := h.Handle(ctx, args)
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+
+	updatedState, ok := result.Data["combat_state"].(map[string]any)
+	if !ok {
+		t.Fatalf("combat_state type = %T", result.Data["combat_state"])
+	}
+	initOrder, ok := updatedState["initiative_order"].([]string)
+	if !ok {
+		t.Fatalf("initiative_order type = %T", updatedState["initiative_order"])
+	}
+	// Initiative should be preserved (enemy first, then player).
+	if len(initOrder) != 2 || initOrder[0] != enemyID.String() || initOrder[1] != playerID.String() {
+		t.Fatalf("initiative order should be preserved, got %v", initOrder)
 	}
 }

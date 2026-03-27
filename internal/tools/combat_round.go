@@ -173,6 +173,10 @@ func (h *CombatRoundHandler) Handle(ctx context.Context, args map[string]any) (*
 		}
 	}
 
+	if damageOnHit > 0 && targetID == nil {
+		return nil, errors.New("target_id is required when damage_on_hit is specified")
+	}
+
 	// Parse enemy actions.
 	enemyActions, err := parseCombatRoundEnemyActions(args, "enemy_actions")
 	if err != nil {
@@ -185,8 +189,24 @@ func (h *CombatRoundHandler) Handle(ctx context.Context, args map[string]any) (*
 		return nil, err
 	}
 
-	if err := combat.StartNextRound(state); err != nil {
-		return nil, fmt.Errorf("start next round: %w", err)
+	// Advance the round. Avoid re-rolling initiative when entering round 1
+	// if initiative has already been rolled (e.g., by initiate_combat).
+	// This mirrors the surprise-round activation logic from
+	// combat.StartNextRound but skips the initiative re-roll.
+	if state.RoundNumber == 0 && len(state.InitiativeOrder) > 0 {
+		state.RoundNumber = 1
+		// Activate surprise round for round 1 when any combatant is surprised.
+		for i := range state.Combatants {
+			if state.Combatants[i].Surprised {
+				state.SurpriseRoundActive = true
+				break
+			}
+		}
+		combat.TickAllConditions(state)
+	} else {
+		if err := combat.StartNextRound(state); err != nil {
+			return nil, fmt.Errorf("start next round: %w", err)
+		}
 	}
 
 	var actionsTaken []combat.CombatAction
@@ -206,7 +226,9 @@ func (h *CombatRoundHandler) Handle(ctx context.Context, args map[string]any) (*
 
 	// Resolve the player's action.
 	if playerCombatant != nil && playerCombatant.Status == combat.CombatantStatusAlive {
-		if combat.SkipsTurn(playerCombatant) {
+		if state.SurpriseRoundActive && playerCombatant.Surprised {
+			narrativeParts = append(narrativeParts, fmt.Sprintf("%s is surprised and cannot act this round.", playerCombatant.Name))
+		} else if combat.SkipsTurn(playerCombatant) {
 			narrativeParts = append(narrativeParts, fmt.Sprintf("%s is unable to act this round.", playerCombatant.Name))
 		} else {
 			disadvantage := combat.HasAttackDisadvantage(playerCombatant)
@@ -243,6 +265,10 @@ func (h *CombatRoundHandler) Handle(ctx context.Context, args map[string]any) (*
 	for _, ea := range enemyActions {
 		enemy := combatantByID(state, ea.EnemyID)
 		if enemy == nil || enemy.Status != combat.CombatantStatusAlive {
+			continue
+		}
+		if state.SurpriseRoundActive && enemy.Surprised {
+			narrativeParts = append(narrativeParts, fmt.Sprintf("%s is surprised and cannot act this round.", enemy.Name))
 			continue
 		}
 		if combat.SkipsTurn(enemy) {
@@ -351,32 +377,48 @@ func (h *CombatRoundHandler) resolveCheck(modifier, dc int, disadvantage bool) (
 // ---------------------------------------------------------------------------
 
 type combatStateJSON struct {
-	ID              string            `json:"id"`
-	CampaignID      string            `json:"campaign_id"`
-	Combatants      []combatantJSON   `json:"combatants"`
-	InitiativeOrder []string          `json:"initiative_order"`
-	RoundNumber     int               `json:"round_number"`
-	Environment     json.RawMessage   `json:"environment"`
-	Status          string            `json:"status"`
-	Narrative       string            `json:"narrative"`
+	ID                        string            `json:"id"`
+	CampaignID                string            `json:"campaign_id"`
+	Combatants                []combatantJSON   `json:"combatants"`
+	InitiativeOrder           []string          `json:"initiative_order"`
+	RoundNumber               int               `json:"round_number"`
+	Environment               json.RawMessage   `json:"environment"`
+	Status                    string            `json:"status"`
+	Narrative                 string            `json:"narrative"`
+	InitiativeRerollEachRound bool              `json:"initiative_reroll_each_round"`
+	TrackDeathSavingThrows    bool              `json:"track_death_saving_throws"`
+	SurpriseRoundActive       bool              `json:"surprise_round_active"`
+	ActiveEffects             json.RawMessage   `json:"active_effects,omitempty"`
 }
 
 type combatantJSON struct {
-	EntityID   string          `json:"entity_id"`
-	EntityType string          `json:"entity_type"`
-	Name       string          `json:"name"`
-	HP         int             `json:"hp"`
-	MaxHP      int             `json:"max_hp"`
-	Stats      json.RawMessage `json:"stats"`
-	Conditions []conditionJSON `json:"conditions"`
-	Initiative int             `json:"initiative"`
-	Status     string          `json:"status"`
-	Surprised  bool            `json:"surprised"`
+	EntityID          string              `json:"entity_id"`
+	EntityType        string              `json:"entity_type"`
+	Name              string              `json:"name"`
+	HP                int                 `json:"hp"`
+	MaxHP             int                 `json:"max_hp"`
+	Stats             json.RawMessage     `json:"stats"`
+	Conditions        []conditionJSON     `json:"conditions"`
+	Initiative        int                 `json:"initiative"`
+	Status            string              `json:"status"`
+	Surprised         bool                `json:"surprised"`
+	DeathSavingThrows *deathSavingJSON    `json:"death_saving_throws,omitempty"`
+}
+
+type deathSavingJSON struct {
+	Successes int `json:"successes"`
+	Failures  int `json:"failures"`
 }
 
 type conditionJSON struct {
 	Name           string `json:"name"`
 	DurationRounds int    `json:"duration_rounds"`
+}
+
+type environmentJSON struct {
+	LocationID  string          `json:"location_id,omitempty"`
+	Description string          `json:"description"`
+	Properties  json.RawMessage `json:"properties,omitempty"`
 }
 
 func parseCombatStateArg(args map[string]any, key string) (*combat.CombatState, error) {
@@ -421,7 +463,7 @@ func parseCombatStateArg(args map[string]any, key string) (*combat.CombatState, 
 				DurationRounds: condJ.DurationRounds,
 			}
 		}
-		combatants = append(combatants, combat.Combatant{
+		c := combat.Combatant{
 			EntityID:   entityID,
 			EntityType: combat.CombatantType(cj.EntityType),
 			Name:       cj.Name,
@@ -432,7 +474,14 @@ func parseCombatStateArg(args map[string]any, key string) (*combat.CombatState, 
 			Initiative: cj.Initiative,
 			Status:     combat.CombatantStatus(cj.Status),
 			Surprised:  cj.Surprised,
-		})
+		}
+		if cj.DeathSavingThrows != nil {
+			c.DeathSavingThrows = &combat.DeathSavingThrows{
+				Successes: cj.DeathSavingThrows.Successes,
+				Failures:  cj.DeathSavingThrows.Failures,
+			}
+		}
+		combatants = append(combatants, c)
 	}
 
 	initiativeOrder := make([]uuid.UUID, 0, len(csj.InitiativeOrder))
@@ -446,11 +495,18 @@ func parseCombatStateArg(args map[string]any, key string) (*combat.CombatState, 
 
 	var env combat.Environment
 	if csj.Environment != nil {
-		var envObj map[string]any
-		if err := json.Unmarshal(csj.Environment, &envObj); err == nil {
-			if desc, ok := envObj["description"].(string); ok {
-				env.Description = desc
+		var envObj environmentJSON
+		if err := json.Unmarshal(csj.Environment, &envObj); err != nil {
+			return nil, fmt.Errorf("%s.environment: %w", key, err)
+		}
+		env.Description = envObj.Description
+		env.Properties = envObj.Properties
+		if envObj.LocationID != "" {
+			lid, parseErr := uuid.Parse(envObj.LocationID)
+			if parseErr != nil {
+				return nil, fmt.Errorf("%s.environment.location_id must be a valid UUID", key)
 			}
+			env.LocationID = &lid
 		}
 	}
 
@@ -460,14 +516,18 @@ func parseCombatStateArg(args map[string]any, key string) (*combat.CombatState, 
 	}
 
 	return &combat.CombatState{
-		ID:              id,
-		CampaignID:      campaignID,
-		Combatants:      combatants,
-		InitiativeOrder: initiativeOrder,
-		RoundNumber:     csj.RoundNumber,
-		Environment:     env,
-		Status:          status,
-		Narrative:       csj.Narrative,
+		ID:                        id,
+		CampaignID:                campaignID,
+		Combatants:                combatants,
+		InitiativeOrder:           initiativeOrder,
+		InitiativeRerollEachRound: csj.InitiativeRerollEachRound,
+		TrackDeathSavingThrows:    csj.TrackDeathSavingThrows,
+		SurpriseRoundActive:       csj.SurpriseRoundActive,
+		RoundNumber:               csj.RoundNumber,
+		ActiveEffects:             csj.ActiveEffects,
+		Environment:               env,
+		Status:                    status,
+		Narrative:                 csj.Narrative,
 	}, nil
 }
 
@@ -481,7 +541,7 @@ func combatStateToMap(state *combat.CombatState) map[string]any {
 				"duration_rounds": cond.DurationRounds,
 			})
 		}
-		combatants = append(combatants, map[string]any{
+		cm := map[string]any{
 			"entity_id":   c.EntityID.String(),
 			"entity_type": string(c.EntityType),
 			"name":        c.Name,
@@ -491,7 +551,15 @@ func combatStateToMap(state *combat.CombatState) map[string]any {
 			"conditions":  conditions,
 			"initiative":  c.Initiative,
 			"status":      string(c.Status),
-		})
+			"surprised":   c.Surprised,
+		}
+		if c.DeathSavingThrows != nil {
+			cm["death_saving_throws"] = map[string]any{
+				"successes": c.DeathSavingThrows.Successes,
+				"failures":  c.DeathSavingThrows.Failures,
+			}
+		}
+		combatants = append(combatants, cm)
 	}
 
 	initOrder := make([]string, 0, len(state.InitiativeOrder))
@@ -499,18 +567,33 @@ func combatStateToMap(state *combat.CombatState) map[string]any {
 		initOrder = append(initOrder, id.String())
 	}
 
-	return map[string]any{
-		"id":               state.ID.String(),
-		"campaign_id":      state.CampaignID.String(),
-		"combatants":       combatants,
-		"initiative_order": initOrder,
-		"round_number":     state.RoundNumber,
-		"environment": map[string]any{
-			"description": state.Environment.Description,
-		},
-		"status":    string(state.Status),
-		"narrative": state.Narrative,
+	envMap := map[string]any{
+		"description": state.Environment.Description,
 	}
+	if state.Environment.LocationID != nil {
+		envMap["location_id"] = state.Environment.LocationID.String()
+	}
+	if state.Environment.Properties != nil {
+		envMap["properties"] = state.Environment.Properties
+	}
+
+	m := map[string]any{
+		"id":                          state.ID.String(),
+		"campaign_id":                 state.CampaignID.String(),
+		"combatants":                  combatants,
+		"initiative_order":            initOrder,
+		"round_number":                state.RoundNumber,
+		"environment":                 envMap,
+		"status":                      string(state.Status),
+		"narrative":                   state.Narrative,
+		"initiative_reroll_each_round": state.InitiativeRerollEachRound,
+		"track_death_saving_throws":   state.TrackDeathSavingThrows,
+		"surprise_round_active":       state.SurpriseRoundActive,
+	}
+	if state.ActiveEffects != nil {
+		m["active_effects"] = state.ActiveEffects
+	}
+	return m
 }
 
 // ---------------------------------------------------------------------------
@@ -584,6 +667,10 @@ func parseCombatRoundEnemyActions(args map[string]any, key string) ([]roundEnemy
 				return nil, fmt.Errorf("%s[%d].%w", key, i, parseErr)
 			}
 			dmgOnHit = v
+		}
+
+		if dmgOnHit > 0 && tid == nil {
+			return nil, fmt.Errorf("%s[%d].target_id is required when damage_on_hit is specified", key, i)
 		}
 
 		dmgType := ""
