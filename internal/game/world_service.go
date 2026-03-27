@@ -91,6 +91,20 @@ func (s *worldService) GetCultureByID(ctx context.Context, id pgtype.UUID) (stat
 	return s.queries.GetCultureByID(ctx, id)
 }
 
+// --- tools.CultureStore methods ---
+
+func (s *worldService) CreateCulture(ctx context.Context, arg statedb.CreateCultureParams) (statedb.Culture, error) {
+	return s.queries.CreateCulture(ctx, arg)
+}
+
+func (s *worldService) GetLanguageByID(ctx context.Context, id pgtype.UUID) (statedb.Language, error) {
+	return s.queries.GetLanguageByID(ctx, id)
+}
+
+func (s *worldService) GetBeliefSystemByID(ctx context.Context, id pgtype.UUID) (statedb.BeliefSystem, error) {
+	return s.queries.GetBeliefSystemByID(ctx, id)
+}
+
 // --- tools.EconomicSystemStore methods ---
 
 func (s *worldService) CreateEconomicSystem(ctx context.Context, arg statedb.CreateEconomicSystemParams) (statedb.EconomicSystem, error) {
