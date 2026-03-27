@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	pgvector "github.com/pgvector/pgvector-go"
 
+	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/domain"
 	"github.com/PatrickFanella/game-master/internal/llm"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
@@ -120,12 +120,6 @@ func RegisterCreateBeliefSystem(reg *Registry, beliefStore BeliefSystemStore, me
 	if beliefStore == nil {
 		return errors.New("create_belief_system belief store is required")
 	}
-	if memoryStore == nil {
-		return errors.New("create_belief_system memory store is required")
-	}
-	if embedder == nil {
-		return errors.New("create_belief_system embedder is required")
-	}
 	return reg.Register(CreateBeliefSystemTool(), NewCreateBeliefSystemHandler(beliefStore, memoryStore, embedder).Handle)
 }
 
@@ -146,20 +140,13 @@ func NewCreateBeliefSystemHandler(beliefStore BeliefSystemStore, memoryStore Mem
 }
 
 // Handle executes the create_belief_system tool.
-func (h *CreateBeliefSystemHandler) Handle(ctx context.Context, args map[string]any) (map[string]any, error) {
+func (h *CreateBeliefSystemHandler) Handle(ctx context.Context, args map[string]any) (*ToolResult, error) {
 	if h == nil {
 		return nil, errors.New("create_belief_system handler is nil")
 	}
 	if h.beliefStore == nil {
 		return nil, errors.New("create_belief_system belief store is required")
 	}
-	if h.memoryStore == nil {
-		return nil, errors.New("create_belief_system memory store is required")
-	}
-	if h.embedder == nil {
-		return nil, errors.New("create_belief_system embedder is required")
-	}
-
 	campaignID, err := parseUUIDArg(args, "campaign_id")
 	if err != nil {
 		return nil, err
@@ -205,7 +192,7 @@ func (h *CreateBeliefSystemHandler) Handle(ctx context.Context, args map[string]
 		return nil, err
 	}
 
-	dbCampaignID := uuidToPgtype(campaignID)
+	dbCampaignID := dbutil.ToPgtype(campaignID)
 	if err := h.validateFollowerIDs(ctx, dbCampaignID, followerFactionIDs, followerCultureIDs); err != nil {
 		return nil, err
 	}
@@ -217,8 +204,8 @@ func (h *CreateBeliefSystemHandler) Handle(ctx context.Context, args map[string]
 		"institutions":           institutions,
 		"moral_framework":        moralFramework,
 		"taboos":                 taboos,
-		"follower_faction_ids":   pgUUIDsToStrings(followerFactionIDs),
-		"follower_culture_ids":   pgUUIDsToStrings(followerCultureIDs),
+		"follower_faction_ids":   dbutil.PgUUIDsToStrings(followerFactionIDs),
+		"follower_culture_ids":   dbutil.PgUUIDsToStrings(followerCultureIDs),
 	}
 	detailsJSON, err := json.Marshal(details)
 	if err != nil {
@@ -239,41 +226,45 @@ func (h *CreateBeliefSystemHandler) Handle(ctx context.Context, args map[string]
 			CampaignID: dbCampaignID,
 			Fact:       fact,
 			Category:   "belief_system",
-			Source:     fmt.Sprintf("create_belief_system:%s", uuidFromPgtype(beliefSystem.ID).String()),
+			Source:     fmt.Sprintf("create_belief_system:%s", dbutil.FromPgtype(beliefSystem.ID).String()),
 		}); err != nil {
 			return nil, fmt.Errorf("create belief system world_fact[%d]: %w", i, err)
 		}
 	}
 
-	memoryContent, err := buildBeliefSystemMemoryContent(name, description, deitiesOrPrinciples, practices, institutions, moralFramework, taboos)
-	if err != nil {
-		return nil, fmt.Errorf("build belief system memory content: %w", err)
-	}
-	embedding, err := h.embedder.Embed(ctx, memoryContent)
-	if err != nil {
-		return nil, fmt.Errorf("embed belief system memory: %w", err)
-	}
-	metadata, err := json.Marshal(map[string]any{
-		"belief_system_id":     uuidFromPgtype(beliefSystem.ID).String(),
-		"follower_faction_ids": pgUUIDsToStrings(followerFactionIDs),
-		"follower_culture_ids": pgUUIDsToStrings(followerCultureIDs),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("marshal belief system memory metadata: %w", err)
-	}
-	if _, err := h.memoryStore.CreateMemory(ctx, statedb.CreateMemoryParams{
-		CampaignID: dbCampaignID,
-		Content:    memoryContent,
-		Embedding:  pgvector.NewVector(embedding),
-		MemoryType: string(domain.MemoryTypeWorldFact),
-		Metadata:   metadata,
-	}); err != nil {
-		return nil, fmt.Errorf("create belief system memory: %w", err)
+	if h.embedder != nil && h.memoryStore != nil {
+		memoryContent, err := buildBeliefSystemMemoryContent(name, description, deitiesOrPrinciples, practices, institutions, moralFramework, taboos)
+		if err != nil {
+			return nil, fmt.Errorf("build belief system memory content: %w", err)
+		}
+		embedding, err := h.embedder.Embed(ctx, memoryContent)
+		if err != nil {
+			return nil, fmt.Errorf("embed belief system memory: %w", err)
+		}
+		metadata, err := json.Marshal(map[string]any{
+			"belief_system_id":     dbutil.FromPgtype(beliefSystem.ID).String(),
+			"follower_faction_ids": dbutil.PgUUIDsToStrings(followerFactionIDs),
+			"follower_culture_ids": dbutil.PgUUIDsToStrings(followerCultureIDs),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("marshal belief system memory metadata: %w", err)
+		}
+		if err := h.memoryStore.CreateMemory(ctx, CreateMemoryParams{
+			CampaignID: campaignID,
+			Content:    memoryContent,
+			Embedding:  embedding,
+			MemoryType: string(domain.MemoryTypeWorldFact),
+			Metadata:   metadata,
+		}); err != nil {
+			return nil, fmt.Errorf("create belief system memory: %w", err)
+		}
 	}
 
-	return map[string]any{
-		"id":                    uuidFromPgtype(beliefSystem.ID).String(),
-		"campaign_id":           uuidFromPgtype(beliefSystem.CampaignID).String(),
+	return &ToolResult{
+		Success: true,
+		Data: map[string]any{
+			"id":                    dbutil.FromPgtype(beliefSystem.ID).String(),
+			"campaign_id":           dbutil.FromPgtype(beliefSystem.CampaignID).String(),
 		"name":                  beliefSystem.Name,
 		"description":           description,
 		"deities_or_principles": deitiesOrPrinciples,
@@ -282,31 +273,12 @@ func (h *CreateBeliefSystemHandler) Handle(ctx context.Context, args map[string]
 		"moral_framework":       moralFramework,
 		"taboos":                taboos,
 		"followers": map[string]any{
-			"faction_ids": pgUUIDsToStrings(followerFactionIDs),
-			"culture_ids": pgUUIDsToStrings(followerCultureIDs),
+				"faction_ids": dbutil.PgUUIDsToStrings(followerFactionIDs),
+				"culture_ids": dbutil.PgUUIDsToStrings(followerCultureIDs),
 		},
+		},
+		Narrative: fmt.Sprintf("Belief system %q created successfully.", beliefSystem.Name),
 	}, nil
-}
-
-func parseStringArrayArg(args map[string]any, key string) ([]string, error) {
-	raw, ok := args[key]
-	if !ok {
-		return nil, fmt.Errorf("%s is required", key)
-	}
-	items, ok := raw.([]any)
-	if !ok {
-		return nil, fmt.Errorf("%s must be an array", key)
-	}
-
-	out := make([]string, 0, len(items))
-	for i, item := range items {
-		s, ok := item.(string)
-		if !ok || strings.TrimSpace(s) == "" {
-			return nil, fmt.Errorf("%s[%d] must be a non-empty string", key, i)
-		}
-		out = append(out, s)
-	}
-	return out, nil
 }
 
 func parseUUIDArrayFromObject(obj map[string]any, key string) ([]pgtype.UUID, error) {
@@ -329,7 +301,7 @@ func parseUUIDArrayFromObject(obj map[string]any, key string) ([]pgtype.UUID, er
 		if err != nil {
 			return nil, fmt.Errorf("followers.%s[%d] must be a valid UUID", key, i)
 		}
-		out = append(out, uuidToPgtype(id))
+		out = append(out, dbutil.ToPgtype(id))
 	}
 	return out, nil
 }

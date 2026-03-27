@@ -13,13 +13,13 @@ import (
 	"github.com/PatrickFanella/game-master/internal/tools"
 )
 
-// worldService consolidates world-building persistence for the create_language
-// tool and memory storage.
+// worldService consolidates world-building persistence for expanded world tools
+// and memory storage.
 type worldService struct {
 	queries statedb.Querier
 }
 
-// NewWorldService creates a service that satisfies both tools.LanguageStore
+// NewWorldService creates a service that satisfies world tool store interfaces
 // and tools.MemoryStore.
 func NewWorldService(q statedb.Querier) *worldService {
 	return &worldService{queries: q}
@@ -71,4 +71,32 @@ func (s *worldService) CreateMemory(ctx context.Context, params tools.CreateMemo
 		Metadata:   params.Metadata,
 	})
 	return err
+}
+
+// --- tools.BeliefSystemStore methods ---
+
+func (s *worldService) CreateBeliefSystem(ctx context.Context, arg statedb.CreateBeliefSystemParams) (statedb.BeliefSystem, error) {
+	return s.queries.CreateBeliefSystem(ctx, arg)
+}
+
+func (s *worldService) CreateFact(ctx context.Context, arg statedb.CreateFactParams) (statedb.WorldFact, error) {
+	return s.queries.CreateFact(ctx, arg)
+}
+
+func (s *worldService) GetFactionByID(ctx context.Context, id pgtype.UUID) (statedb.Faction, error) {
+	return s.queries.GetFactionByID(ctx, id)
+}
+
+func (s *worldService) GetCultureByID(ctx context.Context, id pgtype.UUID) (statedb.Culture, error) {
+	return s.queries.GetCultureByID(ctx, id)
+}
+
+// --- tools.EconomicSystemStore methods ---
+
+func (s *worldService) CreateEconomicSystem(ctx context.Context, arg statedb.CreateEconomicSystemParams) (statedb.EconomicSystem, error) {
+	return s.queries.CreateEconomicSystem(ctx, arg)
+}
+
+func (s *worldService) GetLocationByID(ctx context.Context, id pgtype.UUID) (statedb.Location, error) {
+	return s.queries.GetLocationByID(ctx, id)
 }

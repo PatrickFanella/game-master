@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/domain"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
@@ -74,7 +75,7 @@ func TestRegisterCreateBeliefSystem(t *testing.T) {
 		t.Fatalf("register create_belief_system: %v", err)
 	}
 
-	tools := reg.Tools()
+	tools := reg.List()
 	if len(tools) != 1 {
 		t.Fatalf("registered tool count = %d, want 1", len(tools))
 	}
@@ -82,19 +83,16 @@ func TestRegisterCreateBeliefSystem(t *testing.T) {
 		t.Fatalf("tool name = %q, want %q", tools[0].Name, createBeliefSystemToolName)
 	}
 
-	// Verify that the registered tool's JSON schema has the expected required fields.
-	var schema struct {
-		Required []string `json:"required"`
+	required, ok := tools[0].Parameters["required"].([]string)
+	if !ok {
+		t.Fatalf("required schema has unexpected type %T", tools[0].Parameters["required"])
 	}
-	if err := json.Unmarshal(tools[0].Parameters, &schema); err != nil {
-		t.Fatalf("unmarshal tool parameters: %v", err)
-	}
-	if len(schema.Required) == 0 {
+	if len(required) == 0 {
 		t.Fatalf("schema required fields is empty, want at least campaign_id and name")
 	}
 
-	requiredSet := make(map[string]struct{}, len(schema.Required))
-	for _, field := range schema.Required {
+	requiredSet := make(map[string]struct{}, len(required))
+	for _, field := range required {
 		requiredSet[field] = struct{}{}
 	}
 
@@ -114,15 +112,15 @@ func TestCreateBeliefSystemHandleSuccess(t *testing.T) {
 
 	beliefStore := &stubBeliefSystemStore{
 		createdBelief: statedb.BeliefSystem{
-			ID:         uuidToPgtype(beliefID),
-			CampaignID: uuidToPgtype(campaignID),
+			ID:         dbutil.ToPgtype(beliefID),
+			CampaignID: dbutil.ToPgtype(campaignID),
 			Name:       "Way of the Dawn",
 		},
 		factions: map[[16]byte]statedb.Faction{
-			uuidToPgtype(factionID).Bytes: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(campaignID)},
+			dbutil.ToPgtype(factionID).Bytes: {ID: dbutil.ToPgtype(factionID), CampaignID: dbutil.ToPgtype(campaignID)},
 		},
 		cultures: map[[16]byte]statedb.Culture{
-			uuidToPgtype(cultureID).Bytes: {ID: uuidToPgtype(cultureID), CampaignID: uuidToPgtype(campaignID)},
+			dbutil.ToPgtype(cultureID).Bytes: {ID: dbutil.ToPgtype(cultureID), CampaignID: dbutil.ToPgtype(campaignID)},
 		},
 	}
 	memStore := &stubMemoryStore{}
@@ -155,14 +153,14 @@ func TestCreateBeliefSystemHandleSuccess(t *testing.T) {
 	if len(beliefStore.createdFacts) == 0 {
 		t.Fatal("expected world facts to be created")
 	}
-	if memStore.lastArgs.MemoryType != string(domain.MemoryTypeWorldFact) {
-		t.Fatalf("CreateMemory memory_type = %q, want %q", memStore.lastArgs.MemoryType, domain.MemoryTypeWorldFact)
+	if memStore.lastParams.MemoryType != string(domain.MemoryTypeWorldFact) {
+		t.Fatalf("CreateMemory memory_type = %q, want %q", memStore.lastParams.MemoryType, domain.MemoryTypeWorldFact)
 	}
 	if embedder.lastInput == "" {
 		t.Fatal("expected embedder input to be populated")
 	}
-	if got["id"] != beliefID.String() {
-		t.Fatalf("result id = %v, want %s", got["id"], beliefID.String())
+	if got.Data["id"] != beliefID.String() {
+		t.Fatalf("result id = %v, want %s", got.Data["id"], beliefID.String())
 	}
 }
 
@@ -211,7 +209,7 @@ func TestCreateBeliefSystemValidationAndErrors(t *testing.T) {
 		h := NewCreateBeliefSystemHandler(
 			&stubBeliefSystemStore{
 				factions: map[[16]byte]statedb.Faction{
-					uuidToPgtype(factionID).Bytes: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(otherCampaignID)},
+					dbutil.ToPgtype(factionID).Bytes: {ID: dbutil.ToPgtype(factionID), CampaignID: dbutil.ToPgtype(otherCampaignID)},
 				},
 				cultures: map[[16]byte]statedb.Culture{},
 			},
@@ -234,12 +232,12 @@ func TestCreateBeliefSystemValidationAndErrors(t *testing.T) {
 		h := NewCreateBeliefSystemHandler(
 			&stubBeliefSystemStore{
 				createdBelief: statedb.BeliefSystem{
-					ID:         uuidToPgtype(uuid.New()),
-					CampaignID: uuidToPgtype(campaignID),
+					ID:         dbutil.ToPgtype(uuid.New()),
+					CampaignID: dbutil.ToPgtype(campaignID),
 					Name:       "Faith",
 				},
 				factions: map[[16]byte]statedb.Faction{
-					uuidToPgtype(factionID).Bytes: {ID: uuidToPgtype(factionID), CampaignID: uuidToPgtype(campaignID)},
+					dbutil.ToPgtype(factionID).Bytes: {ID: dbutil.ToPgtype(factionID), CampaignID: dbutil.ToPgtype(campaignID)},
 				},
 				cultures:      map[[16]byte]statedb.Culture{},
 				createFactErr: errors.New("insert fact failed"),
@@ -265,8 +263,8 @@ func TestCreateBeliefSystemStoresMemoryMetadata(t *testing.T) {
 
 	beliefStore := &stubBeliefSystemStore{
 		createdBelief: statedb.BeliefSystem{
-			ID:         uuidToPgtype(beliefID),
-			CampaignID: uuidToPgtype(campaignID),
+			ID:         dbutil.ToPgtype(beliefID),
+			CampaignID: dbutil.ToPgtype(campaignID),
 			Name:       "Faith",
 		},
 		factions: map[[16]byte]statedb.Faction{},
@@ -296,7 +294,7 @@ func TestCreateBeliefSystemStoresMemoryMetadata(t *testing.T) {
 	}
 
 	var metadata map[string]any
-	if err := json.Unmarshal(memStore.lastArgs.Metadata, &metadata); err != nil {
+	if err := json.Unmarshal(memStore.lastParams.Metadata, &metadata); err != nil {
 		t.Fatalf("unmarshal metadata: %v", err)
 	}
 	if metadata["belief_system_id"] != beliefID.String() {
