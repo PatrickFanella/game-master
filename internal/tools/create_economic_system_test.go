@@ -249,6 +249,34 @@ func TestCreateEconomicSystemValidationAndErrors(t *testing.T) {
 		}
 	})
 
+	t.Run("trade route to_location campaign mismatch", func(t *testing.T) {
+		fromLocationID := uuid.New()
+		toLocationID := uuid.New()
+		otherCampaignID := uuid.New()
+		h := NewCreateEconomicSystemHandler(
+			&stubEconomicSystemStore{
+				factions: map[[16]byte]statedb.Faction{},
+				locations: map[[16]byte]statedb.Location{
+					dbutil.ToPgtype(fromLocationID).Bytes: {ID: dbutil.ToPgtype(fromLocationID), CampaignID: dbutil.ToPgtype(campaignID)},
+					dbutil.ToPgtype(toLocationID).Bytes:   {ID: dbutil.ToPgtype(toLocationID), CampaignID: dbutil.ToPgtype(otherCampaignID)},
+				},
+			},
+			&stubMemoryStore{},
+			&stubEmbedder{vector: []float32{0.1}},
+		)
+		args := copyArgs(baseArgs)
+		args["trade_routes"] = []any{
+			map[string]any{
+				"from_location_id": fromLocationID.String(),
+				"to_location_id":   toLocationID.String(),
+			},
+		}
+		_, err := h.Handle(context.Background(), args)
+		if err == nil || !strings.Contains(err.Error(), "must belong to campaign_id") {
+			t.Fatalf("error = %v, want campaign validation message", err)
+		}
+	})
+
 	t.Run("create fact error", func(t *testing.T) {
 		fromLocationID := uuid.New()
 		toLocationID := uuid.New()
