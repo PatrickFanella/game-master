@@ -51,6 +51,7 @@ func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider) *Engin
 	errs = appendErr(errs, tools.RegisterCreateEconomicSystem(registry, worldSvc, worldSvc, nil))
 	errs = appendErr(errs, tools.RegisterCreateCulture(registry, worldSvc, worldSvc, nil))
 	errs = appendErr(errs, tools.RegisterCreateCity(registry, worldSvc, worldSvc, nil))
+	errs = appendErr(errs, tools.RegisterGenerateName(registry, worldSvc))
 	errs = appendErr(errs, tools.RegisterSkillCheck(registry, statResolver, nil))
 	errs = appendErr(errs, tools.RegisterCombatRound(registry, nil))
 	errs = appendErr(errs, tools.RegisterApplyDamage(registry))
