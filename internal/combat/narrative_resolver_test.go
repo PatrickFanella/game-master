@@ -126,7 +126,7 @@ func TestNarrativeResolver_ProcessRoundPlayerHits(t *testing.T) {
 	player := makeTestPlayer(20, 20, playerStats)
 	enemy := makeTestNPC("Goblin", 10, 10, enemyStats)
 
-	// Rolls: 2 initiative + 2 tie-break, then 1 player check (hit), 1 enemy check (miss)
+	// Rolls: 2 initiative (RollD20), then 1 player check (hit), 1 enemy check (miss)
 	roller := &fixedInitiativeRoller{rolls: []int{10, 8, 15, 5}}
 	resolver := newNarrativeCombatResolverWithRoller(roller)
 
@@ -372,11 +372,11 @@ func TestNarrativeResolver_ThreeRoundCombat(t *testing.T) {
 	player := makeTestPlayer(20, 20, playerStats)
 	enemy := makeTestNPC("Orc", 15, 15, enemyStats)
 
-	// Dice rolls in order:
+	// Dice rolls in order (RollD20 calls via the rolls array):
 	// InitiateCombat:
 	//   initiative: RollD20 for player=10, RollD20 for enemy=8
-	//   tie-break:  Intn for player, Intn for enemy (not important)
-	// ProcessRound 1 (round 0→1, skips re-roll):
+	//   (tie-break uses Intn which reads from the ties array, defaults to 0)
+	// ProcessRound 1 (round 0→1, skips initiative re-roll):
 	//   player check: RollD20=15 → 15+2=17 >= DC 10 → Hit
 	//   enemy check:  RollD20=5  → 5+1=6   < DC 10 → Miss
 	// ProcessRound 2 (round 1→2, no re-roll):
