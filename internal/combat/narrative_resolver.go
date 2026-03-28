@@ -31,19 +31,21 @@ type actionDetails struct {
 // conditions using the combat package utilities, and produces narrative
 // descriptions of each round.
 type NarrativeCombatResolver struct {
-	roller initiativeRoller
+	roller     initiativeRoller
+	campaignID uuid.UUID
 }
 
 // NewNarrativeCombatResolver creates a NarrativeCombatResolver with the
-// default random dice roller.
-func NewNarrativeCombatResolver() *NarrativeCombatResolver {
-	return &NarrativeCombatResolver{roller: newDefaultInitiativeRoller()}
+// default random dice roller. campaignID associates new encounters with a
+// specific campaign.
+func NewNarrativeCombatResolver(campaignID uuid.UUID) *NarrativeCombatResolver {
+	return &NarrativeCombatResolver{roller: newDefaultInitiativeRoller(), campaignID: campaignID}
 }
 
 // newNarrativeCombatResolverWithRoller creates a resolver with an injected
 // roller for deterministic testing.
-func newNarrativeCombatResolverWithRoller(roller initiativeRoller) *NarrativeCombatResolver {
-	return &NarrativeCombatResolver{roller: roller}
+func newNarrativeCombatResolverWithRoller(campaignID uuid.UUID, roller initiativeRoller) *NarrativeCombatResolver {
+	return &NarrativeCombatResolver{roller: roller, campaignID: campaignID}
 }
 
 // Verify interface compliance at compile time.
@@ -64,7 +66,7 @@ func (r *NarrativeCombatResolver) InitiateCombat(ctx context.Context, combatants
 
 	state := &CombatState{
 		ID:          uuid.New(),
-		CampaignID:  uuid.New(),
+		CampaignID:  r.campaignID,
 		Combatants:  combatants,
 		Environment: environment,
 		Status:      CombatStatusActive,
@@ -91,12 +93,7 @@ func (r *NarrativeCombatResolver) ProcessRound(ctx context.Context, playerAction
 	// initiative was already rolled by InitiateCombat.
 	if combatState.RoundNumber == 0 && len(combatState.InitiativeOrder) > 0 {
 		combatState.RoundNumber = 1
-		for i := range combatState.Combatants {
-			if combatState.Combatants[i].Surprised {
-				combatState.SurpriseRoundActive = true
-				break
-			}
-		}
+		combatState.SurpriseRoundActive = hasSurprisedCombatant(combatState.Combatants)
 		TickAllConditions(combatState)
 	} else {
 		if err := startNextRoundWithRoller(combatState, r.roller); err != nil {

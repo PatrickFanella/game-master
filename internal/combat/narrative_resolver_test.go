@@ -54,8 +54,9 @@ func TestNarrativeResolver_InitiateCombat(t *testing.T) {
 	player := makeTestPlayer(20, 20, stats)
 	enemy := makeTestNPC("Goblin", 10, 10, stats)
 
+	campaignID := uuid.New()
 	roller := &fixedInitiativeRoller{rolls: []int{15, 10}}
-	resolver := newNarrativeCombatResolverWithRoller(roller)
+	resolver := newNarrativeCombatResolverWithRoller(campaignID, roller)
 
 	state, err := resolver.InitiateCombat(context.Background(),
 		[]Combatant{player, enemy},
@@ -67,6 +68,9 @@ func TestNarrativeResolver_InitiateCombat(t *testing.T) {
 
 	if state.ID == uuid.Nil {
 		t.Error("state ID should not be nil")
+	}
+	if state.CampaignID != campaignID {
+		t.Errorf("campaign_id = %v, want %v", state.CampaignID, campaignID)
 	}
 	if state.Status != CombatStatusActive {
 		t.Errorf("status = %q, want active", state.Status)
@@ -83,7 +87,7 @@ func TestNarrativeResolver_InitiateCombat(t *testing.T) {
 }
 
 func TestNarrativeResolver_InitiateCombatNoCombatants(t *testing.T) {
-	resolver := NewNarrativeCombatResolver()
+	resolver := NewNarrativeCombatResolver(uuid.New())
 	_, err := resolver.InitiateCombat(context.Background(), nil, Environment{})
 	if err == nil {
 		t.Fatal("expected error for empty combatants")
@@ -91,7 +95,7 @@ func TestNarrativeResolver_InitiateCombatNoCombatants(t *testing.T) {
 }
 
 func TestNarrativeResolver_InitiateCombatInvalidCombatant(t *testing.T) {
-	resolver := NewNarrativeCombatResolver()
+	resolver := NewNarrativeCombatResolver(uuid.New())
 	invalid := Combatant{EntityID: uuid.Nil}
 	_, err := resolver.InitiateCombat(context.Background(), []Combatant{invalid}, Environment{})
 	if err == nil {
@@ -104,7 +108,7 @@ func TestNarrativeResolver_InitiateCombatInvalidCombatant(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestNarrativeResolver_ProcessRoundNilState(t *testing.T) {
-	resolver := NewNarrativeCombatResolver()
+	resolver := NewNarrativeCombatResolver(uuid.New())
 	_, err := resolver.ProcessRound(context.Background(), PlayerAction{}, nil)
 	if err == nil {
 		t.Fatal("expected error for nil state")
@@ -112,7 +116,7 @@ func TestNarrativeResolver_ProcessRoundNilState(t *testing.T) {
 }
 
 func TestNarrativeResolver_ProcessRoundInactiveState(t *testing.T) {
-	resolver := NewNarrativeCombatResolver()
+	resolver := NewNarrativeCombatResolver(uuid.New())
 	state := &CombatState{Status: CombatStatusCompleted}
 	_, err := resolver.ProcessRound(context.Background(), PlayerAction{}, state)
 	if err == nil {
@@ -128,7 +132,7 @@ func TestNarrativeResolver_ProcessRoundPlayerHits(t *testing.T) {
 
 	// Rolls: 2 initiative (RollD20), then 1 player check (hit), 1 enemy check (miss)
 	roller := &fixedInitiativeRoller{rolls: []int{10, 8, 15, 5}}
-	resolver := newNarrativeCombatResolverWithRoller(roller)
+	resolver := newNarrativeCombatResolverWithRoller(uuid.New(), roller)
 
 	state, err := resolver.InitiateCombat(context.Background(),
 		[]Combatant{player, enemy},
@@ -182,7 +186,7 @@ func TestNarrativeResolver_ProcessRoundSurprise(t *testing.T) {
 	enemy.Surprised = true
 
 	roller := &fixedInitiativeRoller{rolls: []int{10, 8, 15}}
-	resolver := newNarrativeCombatResolverWithRoller(roller)
+	resolver := newNarrativeCombatResolverWithRoller(uuid.New(), roller)
 
 	state, err := resolver.InitiateCombat(context.Background(),
 		[]Combatant{player, enemy},
@@ -215,12 +219,50 @@ func TestNarrativeResolver_ProcessRoundSurprise(t *testing.T) {
 	}
 }
 
+func TestNarrativeResolver_ProcessRoundClearsStaleSurprise(t *testing.T) {
+	stats := mustJSON(t, map[string]int{"strength": 10})
+	player := makeTestPlayer(20, 20, stats)
+	enemy := makeTestNPC("Goblin", 10, 10, stats)
+	// No combatants are surprised.
+
+	roller := &fixedInitiativeRoller{rolls: []int{10, 8, 15, 5}}
+	resolver := newNarrativeCombatResolverWithRoller(uuid.New(), roller)
+
+	state, err := resolver.InitiateCombat(context.Background(),
+		[]Combatant{player, enemy},
+		Environment{Description: "Open field"},
+	)
+	if err != nil {
+		t.Fatalf("InitiateCombat: %v", err)
+	}
+
+	// Simulate a stale SurpriseRoundActive value from deserialization.
+	state.SurpriseRoundActive = true
+
+	action := PlayerAction{
+		CombatantID: player.EntityID,
+		ActionType:  ActionTypeAttack,
+		Description: "Attacks",
+		Details:     mustJSON(t, actionDetails{Skill: "strength", Difficulty: 10}),
+	}
+
+	_, err = resolver.ProcessRound(context.Background(), action, state)
+	if err != nil {
+		t.Fatalf("ProcessRound: %v", err)
+	}
+
+	// SurpriseRoundActive should be cleared since no combatants are surprised.
+	if state.SurpriseRoundActive {
+		t.Error("SurpriseRoundActive should be false when no combatants are surprised")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // ResolveCombat
 // ---------------------------------------------------------------------------
 
 func TestNarrativeResolver_ResolveCombatNilState(t *testing.T) {
-	resolver := NewNarrativeCombatResolver()
+	resolver := NewNarrativeCombatResolver(uuid.New())
 	_, err := resolver.ResolveCombat(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error for nil state")
@@ -235,7 +277,7 @@ func TestNarrativeResolver_ResolveCombatPlayerVictory(t *testing.T) {
 	state := baseCombatState(player, enemy)
 	state.Status = CombatStatusCompleted
 
-	resolver := NewNarrativeCombatResolver()
+	resolver := NewNarrativeCombatResolver(uuid.New())
 	outcome, err := resolver.ResolveCombat(context.Background(), state)
 	if err != nil {
 		t.Fatalf("ResolveCombat: %v", err)
@@ -265,7 +307,7 @@ func TestNarrativeResolver_ResolveCombatPlayerDefeat(t *testing.T) {
 
 	state := baseCombatState(player, enemy)
 
-	resolver := NewNarrativeCombatResolver()
+	resolver := NewNarrativeCombatResolver(uuid.New())
 	outcome, err := resolver.ResolveCombat(context.Background(), state)
 	if err != nil {
 		t.Fatalf("ResolveCombat: %v", err)
@@ -300,7 +342,7 @@ func TestParseActionDetails_Defaults(t *testing.T) {
 }
 
 func TestParseActionDetails_Custom(t *testing.T) {
-	details, _ := json.Marshal(actionDetails{
+	details := mustJSON(t, actionDetails{
 		Skill:       "dexterity",
 		Difficulty:  15,
 		DamageOnHit: 8,
@@ -388,7 +430,7 @@ func TestNarrativeResolver_ThreeRoundCombat(t *testing.T) {
 	roller := &fixedInitiativeRoller{
 		rolls: []int{10, 8, 15, 5, 15, 15, 15},
 	}
-	resolver := newNarrativeCombatResolverWithRoller(roller)
+	resolver := newNarrativeCombatResolverWithRoller(uuid.New(), roller)
 	ctx := context.Background()
 
 	// --- InitiateCombat ---
@@ -521,7 +563,7 @@ func TestNarrativeResolver_ThreeRoundCombat(t *testing.T) {
 func TestNarrativeResolver_ImplementsInterface(t *testing.T) {
 	// Verify that NarrativeCombatResolver can be assigned to a CombatResolver
 	// variable, confirming interface compliance.
-	var resolver CombatResolver = NewNarrativeCombatResolver()
+	var resolver CombatResolver = NewNarrativeCombatResolver(uuid.New())
 	if resolver == nil {
 		t.Fatal("resolver should not be nil")
 	}
