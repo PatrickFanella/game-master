@@ -123,3 +123,110 @@ func (s *combatService) LogCombatStart(ctx context.Context, entry tools.Initiate
 }
 
 var _ tools.InitiateCombatStore = (*combatService)(nil)
+var _ tools.ResolveCombatStore = (*combatService)(nil)
+
+// --- tools.ResolveCombatStore methods ---
+
+func (s *combatService) UpdatePlayerHP(ctx context.Context, playerCharacterID uuid.UUID, hp, maxHP int) error {
+	_, err := s.queries.UpdatePlayerHP(ctx, statedb.UpdatePlayerHPParams{
+		ID:    dbutil.ToPgtype(playerCharacterID),
+		Hp:    int32(hp),
+		MaxHp: int32(maxHP),
+	})
+	return err
+}
+
+func (s *combatService) UpdatePlayerLocation(ctx context.Context, playerCharacterID uuid.UUID, locationID uuid.UUID) error {
+	_, err := s.queries.UpdatePlayerLocation(ctx, statedb.UpdatePlayerLocationParams{
+		ID:                dbutil.ToPgtype(playerCharacterID),
+		CurrentLocationID: dbutil.ToPgtype(locationID),
+	})
+	return err
+}
+
+func (s *combatService) AddPlayerExperience(ctx context.Context, playerCharacterID uuid.UUID, xpAmount int) error {
+	pc, err := s.GetPlayerCharacterByID(ctx, playerCharacterID)
+	if err != nil {
+		return fmt.Errorf("get player character: %w", err)
+	}
+	if pc == nil {
+		return fmt.Errorf("player character %s not found", playerCharacterID)
+	}
+	newExperience := pc.Experience + xpAmount
+	newLevel := levelFromExperience(newExperience)
+	_, err = s.queries.UpdatePlayerExperience(ctx, statedb.UpdatePlayerExperienceParams{
+		ID:         dbutil.ToPgtype(playerCharacterID),
+		Experience: int32(newExperience),
+		Level:      int32(newLevel),
+	})
+	return err
+}
+
+func (s *combatService) CreatePlayerItem(ctx context.Context, playerCharacterID uuid.UUID, name, description, itemType, rarity string, quantity int) (uuid.UUID, error) {
+	pc, err := s.GetPlayerCharacterByID(ctx, playerCharacterID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get player character: %w", err)
+	}
+	if pc == nil {
+		return uuid.Nil, fmt.Errorf("player character %s not found", playerCharacterID)
+	}
+	item, err := s.queries.CreateItem(ctx, statedb.CreateItemParams{
+		CampaignID:        dbutil.ToPgtype(pc.CampaignID),
+		PlayerCharacterID: dbutil.ToPgtype(playerCharacterID),
+		Name:              name,
+		Description:       stringToPgText(description),
+		ItemType:          itemType,
+		Rarity:            rarity,
+		Properties:        []byte("{}"),
+		Equipped:          false,
+		Quantity:          int32(quantity),
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return dbutil.FromPgtype(item.ID), nil
+}
+
+func (s *combatService) MarkNPCDead(ctx context.Context, npcID uuid.UUID) error {
+	_, err := s.queries.KillNPC(ctx, dbutil.ToPgtype(npcID))
+	return err
+}
+
+func (s *combatService) GetNPCByID(ctx context.Context, npcID uuid.UUID) (*domain.NPC, error) {
+	npc, err := s.queries.GetNPCByID(ctx, dbutil.ToPgtype(npcID))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	domainNPC := npcToDomain(npc)
+	return &domainNPC, nil
+}
+
+func (s *combatService) UpdateNPCDisposition(ctx context.Context, npcID uuid.UUID, newDisposition int) error {
+	_, err := s.queries.UpdateNPCDisposition(ctx, statedb.UpdateNPCDispositionParams{
+		ID:          dbutil.ToPgtype(npcID),
+		Disposition: int32(newDisposition),
+	})
+	return err
+}
+
+// levelFromExperience calculates the character level from total experience points.
+// Uses a simple progression where each level n requires n*1000 XP to advance:
+//   - Level 1: 0–999 XP
+//   - Level 2: 1000–2999 XP
+//   - Level 3: 3000–5999 XP (and so on)
+//
+// Maximum level is 20.
+func levelFromExperience(experience int) int {
+	const maxLevel = 20
+	threshold := 0
+	for level := 1; level < maxLevel; level++ {
+		threshold += level * 1000
+		if experience < threshold {
+			return level
+		}
+	}
+	return maxLevel
+}
