@@ -305,7 +305,7 @@ func (h *CreateCityHandler) createDistrictLocations(
 		district, err := h.cityStore.CreateLocation(ctx, statedb.CreateLocationParams{
 			CampaignID:   campaignID,
 			Name:         districtName,
-			Description:  pgtype.Text{String: fmt.Sprintf("District of %s", districtName), Valid: true},
+			Description:  pgtype.Text{String: "A district within the city.", Valid: true},
 			Region:       region,
 			LocationType: pgtype.Text{String: "district", Valid: true},
 			Properties:   propsJSON,
