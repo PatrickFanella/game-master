@@ -227,6 +227,30 @@ func TestCreateBeliefSystemValidationAndErrors(t *testing.T) {
 		}
 	})
 
+	t.Run("follower culture campaign mismatch", func(t *testing.T) {
+		cultureID := uuid.New()
+		otherCampaignID := uuid.New()
+		h := NewCreateBeliefSystemHandler(
+			&stubBeliefSystemStore{
+				factions: map[[16]byte]statedb.Faction{},
+				cultures: map[[16]byte]statedb.Culture{
+					dbutil.ToPgtype(cultureID).Bytes: {ID: dbutil.ToPgtype(cultureID), CampaignID: dbutil.ToPgtype(otherCampaignID)},
+				},
+			},
+			&stubMemoryStore{},
+			&stubEmbedder{vector: []float32{0.1}},
+		)
+		args := copyArgs(baseArgs)
+		args["followers"] = map[string]any{
+			"faction_ids": []any{},
+			"culture_ids": []any{cultureID.String()},
+		}
+		_, err := h.Handle(context.Background(), args)
+		if err == nil || !strings.Contains(err.Error(), "must belong to campaign_id") {
+			t.Fatalf("error = %v, want campaign validation message", err)
+		}
+	})
+
 	t.Run("create fact error", func(t *testing.T) {
 		factionID := uuid.New()
 		h := NewCreateBeliefSystemHandler(
