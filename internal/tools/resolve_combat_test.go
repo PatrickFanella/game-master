@@ -390,19 +390,19 @@ func TestResolveCombatFleeWithoutLocationExitsCombat(t *testing.T) {
 func TestResolveCombatSurrenderUpdatesNPCDispositions(t *testing.T) {
 	playerID := uuid.New()
 	enemyID := uuid.New()
-	npcID := uuid.New()
-	npc := &domain.NPC{ID: npcID, CampaignID: uuid.New(), Name: "Bandit Chief", Disposition: -20, Alive: true}
+	// Use enemyID as the surrender NPC – it must be an NPC combatant in the combat state.
+	npc := &domain.NPC{ID: enemyID, CampaignID: uuid.New(), Name: "Bandit Chief", Disposition: -20, Alive: true}
 	store := &stubResolveCombatStore{
 		player: defaultPlayer(playerID),
-		npcs:   map[uuid.UUID]*domain.NPC{npcID: npc},
+		npcs:   map[uuid.UUID]*domain.NPC{enemyID: npc},
 	}
 	h := NewResolveCombatHandler(store)
 	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
 
 	result, err := h.Handle(ctx, map[string]any{
-		"combat_state":      baseCombatStateArgsForResolve(playerID, enemyID),
-		"outcome_type":      "surrender",
-		"surrender_npc_ids": []any{npcID.String()},
+		"combat_state":       baseCombatStateArgsForResolve(playerID, enemyID),
+		"outcome_type":       "surrender",
+		"surrender_npc_ids":  []any{enemyID.String()},
 		"disposition_change": 30,
 	})
 	if err != nil {
@@ -412,8 +412,8 @@ func TestResolveCombatSurrenderUpdatesNPCDispositions(t *testing.T) {
 		t.Fatal("expected success=true")
 	}
 	// Disposition updated: -20 + 30 = 10.
-	if store.updatedDispositions[npcID] != 10 {
-		t.Fatalf("updated disposition = %d, want 10", store.updatedDispositions[npcID])
+	if store.updatedDispositions[enemyID] != 10 {
+		t.Fatalf("updated disposition = %d, want 10", store.updatedDispositions[enemyID])
 	}
 	if store.updatedStatus != playerStatusActive {
 		t.Fatalf("player status = %q, want %q", store.updatedStatus, playerStatusActive)
@@ -425,19 +425,19 @@ func TestResolveCombatSurrenderUpdatesNPCDispositions(t *testing.T) {
 	if nd, _ := updatedNPCs[0]["new_disposition"].(int); nd != 10 {
 		t.Fatalf("new_disposition = %d, want 10", nd)
 	}
-	if !strings.Contains(result.Narrative, "surrendered") {
-		t.Fatalf("narrative = %q, want surrendered", result.Narrative)
+	if result.Narrative != "The combat has ended in surrender. Terms have been negotiated." {
+		t.Fatalf("narrative = %q, want surrender narrative", result.Narrative)
 	}
 }
 
 func TestResolveCombatSurrenderClampsDispositionAt100(t *testing.T) {
 	playerID := uuid.New()
 	enemyID := uuid.New()
-	npcID := uuid.New()
-	npc := &domain.NPC{ID: npcID, CampaignID: uuid.New(), Name: "Villager", Disposition: 80, Alive: true}
+	// Use enemyID as the surrender NPC – it must be an NPC combatant in the combat state.
+	npc := &domain.NPC{ID: enemyID, CampaignID: uuid.New(), Name: "Villager", Disposition: 80, Alive: true}
 	store := &stubResolveCombatStore{
 		player: defaultPlayer(playerID),
-		npcs:   map[uuid.UUID]*domain.NPC{npcID: npc},
+		npcs:   map[uuid.UUID]*domain.NPC{enemyID: npc},
 	}
 	h := NewResolveCombatHandler(store)
 	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
@@ -445,15 +445,15 @@ func TestResolveCombatSurrenderClampsDispositionAt100(t *testing.T) {
 	_, err := h.Handle(ctx, map[string]any{
 		"combat_state":       baseCombatStateArgsForResolve(playerID, enemyID),
 		"outcome_type":       "surrender",
-		"surrender_npc_ids":  []any{npcID.String()},
+		"surrender_npc_ids":  []any{enemyID.String()},
 		"disposition_change": 50,
 	})
 	if err != nil {
 		t.Fatalf("Handle: %v", err)
 	}
 	// 80 + 50 = 130, clamped to 100.
-	if store.updatedDispositions[npcID] != 100 {
-		t.Fatalf("disposition = %d, want 100", store.updatedDispositions[npcID])
+	if store.updatedDispositions[enemyID] != 100 {
+		t.Fatalf("disposition = %d, want 100", store.updatedDispositions[enemyID])
 	}
 }
 
@@ -547,6 +547,42 @@ func TestResolveCombatVictoryNegativeXPReturnsError(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "xp_earned must be greater than or equal to 0") {
 		t.Fatalf("expected negative XP error, got %v", err)
+	}
+}
+
+func TestResolveCombatVictoryNonCombatantNPCIDReturnsError(t *testing.T) {
+	playerID := uuid.New()
+	enemyID := uuid.New()
+	unknownNPCID := uuid.New()
+	store := &stubResolveCombatStore{player: defaultPlayer(playerID)}
+	h := NewResolveCombatHandler(store)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+
+	_, err := h.Handle(ctx, map[string]any{
+		"combat_state": baseCombatStateArgsForResolve(playerID, enemyID),
+		"outcome_type": "victory",
+		"dead_npc_ids": []any{unknownNPCID.String()},
+	})
+	if err == nil || !strings.Contains(err.Error(), "is not an NPC combatant in this combat") {
+		t.Fatalf("expected non-combatant NPC error, got %v", err)
+	}
+}
+
+func TestResolveCombatSurrenderNonCombatantNPCIDReturnsError(t *testing.T) {
+	playerID := uuid.New()
+	enemyID := uuid.New()
+	unknownNPCID := uuid.New()
+	store := &stubResolveCombatStore{player: defaultPlayer(playerID)}
+	h := NewResolveCombatHandler(store)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+
+	_, err := h.Handle(ctx, map[string]any{
+		"combat_state":      baseCombatStateArgsForResolve(playerID, enemyID),
+		"outcome_type":      "surrender",
+		"surrender_npc_ids": []any{unknownNPCID.String()},
+	})
+	if err == nil || !strings.Contains(err.Error(), "is not an NPC combatant in this combat") {
+		t.Fatalf("expected non-combatant NPC error, got %v", err)
 	}
 }
 

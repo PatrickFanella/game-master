@@ -52,7 +52,7 @@ func ResolveCombatTool() llm.Tool {
 		Name: resolveCombatToolName,
 		Description: "End combat and resolve the outcome: distribute XP and loot on victory, " +
 			"handle player defeat or capture, move the player on flee, or apply NPC disposition changes " +
-			"on surrender. Persists player HP and conditions back to the character record and clears combat mode.",
+			"on surrender. Persists updated player HP back to the character record and clears combat mode.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -176,7 +176,7 @@ func (h *ResolveCombatHandler) Handle(ctx context.Context, args map[string]any) 
 		}
 	}
 
-	summary, err := h.resolveOutcome(ctx, outcomeType, args, playerCharacterID, player.Name)
+	summary, err := h.resolveOutcome(ctx, outcomeType, args, state, playerCharacterID)
 	if err != nil {
 		return nil, err
 	}
@@ -203,18 +203,18 @@ func (h *ResolveCombatHandler) resolveOutcome(
 	ctx context.Context,
 	outcomeType string,
 	args map[string]any,
+	state *combat.CombatState,
 	playerCharacterID uuid.UUID,
-	playerName string,
 ) (map[string]any, error) {
 	switch outcomeType {
 	case outcomeVictory:
-		return h.handleVictory(ctx, args, playerCharacterID)
+		return h.handleVictory(ctx, args, state, playerCharacterID)
 	case outcomeDefeat:
 		return h.handleDefeat(ctx, playerCharacterID)
 	case outcomeFlee:
 		return h.handleFlee(ctx, args, playerCharacterID)
 	case outcomeSurrender:
-		return h.handleSurrender(ctx, args, playerCharacterID)
+		return h.handleSurrender(ctx, args, state, playerCharacterID)
 	}
 	return nil, fmt.Errorf("unknown outcome_type: %s", outcomeType)
 }
@@ -222,6 +222,7 @@ func (h *ResolveCombatHandler) resolveOutcome(
 func (h *ResolveCombatHandler) handleVictory(
 	ctx context.Context,
 	args map[string]any,
+	state *combat.CombatState,
 	playerCharacterID uuid.UUID,
 ) (map[string]any, error) {
 	summary := map[string]any{}
@@ -243,13 +244,17 @@ func (h *ResolveCombatHandler) handleVictory(
 	}
 	summary["xp_earned"] = xpEarned
 
-	// Mark dead NPCs.
+	// Mark dead NPCs — validate each ID belongs to the combat state.
 	deadNPCIDs, err := parseUUIDArrayArg(args, "dead_npc_ids")
 	if err != nil {
 		return nil, err
 	}
+	npcIDs := npcCombatantIDSet(state)
 	killedNPCIDs := make([]string, 0, len(deadNPCIDs))
 	for _, npcID := range deadNPCIDs {
+		if !npcIDs[npcID] {
+			return nil, fmt.Errorf("dead_npc_ids: %s is not an NPC combatant in this combat", npcID)
+		}
 		if err := h.store.MarkNPCDead(ctx, npcID); err != nil {
 			return nil, fmt.Errorf("mark npc %s dead: %w", npcID, err)
 		}
@@ -324,6 +329,7 @@ func (h *ResolveCombatHandler) handleFlee(
 func (h *ResolveCombatHandler) handleSurrender(
 	ctx context.Context,
 	args map[string]any,
+	state *combat.CombatState,
 	playerCharacterID uuid.UUID,
 ) (map[string]any, error) {
 	surrenderNPCIDs, err := parseUUIDArrayArg(args, "surrender_npc_ids")
@@ -334,6 +340,14 @@ func (h *ResolveCombatHandler) handleSurrender(
 	dispositionChange, _, err := parseOptionalIntArg(args, "disposition_change")
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate all surrender_npc_ids are NPC combatants in this combat state.
+	npcIDs := npcCombatantIDSet(state)
+	for _, npcID := range surrenderNPCIDs {
+		if !npcIDs[npcID] {
+			return nil, fmt.Errorf("surrender_npc_ids: %s is not an NPC combatant in this combat", npcID)
+		}
 	}
 
 	updatedNPCs := make([]map[string]any, 0, len(surrenderNPCIDs))
@@ -420,6 +434,17 @@ func combatStatusFromOutcome(outcomeType string) combat.CombatStatus {
 	return combat.CombatStatusCompleted
 }
 
+// npcCombatantIDSet returns the set of entity IDs for all NPC combatants in state.
+func npcCombatantIDSet(state *combat.CombatState) map[uuid.UUID]bool {
+	ids := make(map[uuid.UUID]bool, len(state.Combatants))
+	for _, c := range state.Combatants {
+		if c.EntityType == combat.CombatantTypeNPC {
+			ids[c.EntityID] = true
+		}
+	}
+	return ids
+}
+
 // buildResolveCombatNarrative constructs a narrative string for the combat outcome.
 func buildResolveCombatNarrative(outcomeType, playerName string, summary map[string]any) string {
 	switch outcomeType {
@@ -444,7 +469,7 @@ func buildResolveCombatNarrative(outcomeType, playerName string, summary map[str
 		}
 		return fmt.Sprintf("%s fled from combat.", playerName)
 	case outcomeSurrender:
-		return fmt.Sprintf("%s surrendered. The combat has ended through negotiation.", playerName)
+		return "The combat has ended in surrender. Terms have been negotiated."
 	}
 	return fmt.Sprintf("Combat resolved with outcome: %s.", outcomeType)
 }

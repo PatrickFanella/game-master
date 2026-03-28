@@ -145,11 +145,14 @@ func (s *combatService) UpdatePlayerLocation(ctx context.Context, playerCharacte
 }
 
 func (s *combatService) AddPlayerExperience(ctx context.Context, playerCharacterID uuid.UUID, xpAmount int) error {
-	pc, err := s.queries.GetPlayerCharacterByID(ctx, dbutil.ToPgtype(playerCharacterID))
+	pc, err := s.GetPlayerCharacterByID(ctx, playerCharacterID)
 	if err != nil {
 		return fmt.Errorf("get player character: %w", err)
 	}
-	newExperience := int(pc.Experience) + xpAmount
+	if pc == nil {
+		return fmt.Errorf("player character %s not found", playerCharacterID)
+	}
+	newExperience := pc.Experience + xpAmount
 	newLevel := levelFromExperience(newExperience)
 	_, err = s.queries.UpdatePlayerExperience(ctx, statedb.UpdatePlayerExperienceParams{
 		ID:         dbutil.ToPgtype(playerCharacterID),
@@ -160,12 +163,15 @@ func (s *combatService) AddPlayerExperience(ctx context.Context, playerCharacter
 }
 
 func (s *combatService) CreatePlayerItem(ctx context.Context, playerCharacterID uuid.UUID, name, description, itemType, rarity string, quantity int) (uuid.UUID, error) {
-	pc, err := s.queries.GetPlayerCharacterByID(ctx, dbutil.ToPgtype(playerCharacterID))
+	pc, err := s.GetPlayerCharacterByID(ctx, playerCharacterID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get player character: %w", err)
 	}
+	if pc == nil {
+		return uuid.Nil, fmt.Errorf("player character %s not found", playerCharacterID)
+	}
 	item, err := s.queries.CreateItem(ctx, statedb.CreateItemParams{
-		CampaignID:        pc.CampaignID,
+		CampaignID:        dbutil.ToPgtype(pc.CampaignID),
 		PlayerCharacterID: dbutil.ToPgtype(playerCharacterID),
 		Name:              name,
 		Description:       stringToPgText(description),
