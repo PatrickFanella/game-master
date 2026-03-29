@@ -282,7 +282,7 @@ func TestCreateNPCHandleDuplicateNameAtLocationRejected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected duplicate detection error")
 	}
-	if !strings.Contains(err.Error(), "duplicate npc name detected at location") {
+	if !strings.Contains(err.Error(), "already exists at location") {
 		t.Fatalf("error = %v, want duplicate-name message", err)
 	}
 }

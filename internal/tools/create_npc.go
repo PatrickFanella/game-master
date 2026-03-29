@@ -218,7 +218,7 @@ func (h *CreateNPCHandler) Handle(ctx context.Context, args map[string]any) (*To
 		return nil, fmt.Errorf("list npcs by campaign: %w", err)
 	}
 	if hasDuplicateNPCNameAtLocation(npcs, npc.ID, npc.Name, locationID) {
-		return nil, errors.New("duplicate npc name detected at location")
+		return nil, fmt.Errorf("npc with name %q already exists at location %s", npc.Name, locationID)
 	}
 
 	role := deriveNPCRole(description, propertiesObj)
@@ -334,14 +334,14 @@ func rawJSONToObject(value json.RawMessage, key string) (map[string]any, error) 
 
 func hasDuplicateNPCNameAtLocation(npcs []domain.NPC, createdID uuid.UUID, name string, locationID uuid.UUID) bool {
 	needle := strings.TrimSpace(name)
-	for i := range npcs {
-		if npcs[i].ID == createdID {
+	for _, existing := range npcs {
+		if existing.ID == createdID {
 			continue
 		}
-		if npcs[i].LocationID == nil || *npcs[i].LocationID != locationID {
+		if existing.LocationID == nil || *existing.LocationID != locationID {
 			continue
 		}
-		if strings.EqualFold(strings.TrimSpace(npcs[i].Name), needle) {
+		if strings.EqualFold(strings.TrimSpace(existing.Name), needle) {
 			return true
 		}
 	}
