@@ -124,6 +124,7 @@ func (s *combatService) LogCombatStart(ctx context.Context, entry tools.Initiate
 
 var _ tools.InitiateCombatStore = (*combatService)(nil)
 var _ tools.ResolveCombatStore = (*combatService)(nil)
+var _ tools.UpdatePlayerStatsStore = (*combatService)(nil)
 
 // --- tools.ResolveCombatStore methods ---
 
@@ -140,6 +141,14 @@ func (s *combatService) UpdatePlayerLocation(ctx context.Context, playerCharacte
 	_, err := s.queries.UpdatePlayerLocation(ctx, statedb.UpdatePlayerLocationParams{
 		ID:                dbutil.ToPgtype(playerCharacterID),
 		CurrentLocationID: dbutil.ToPgtype(locationID),
+	})
+	return err
+}
+
+func (s *combatService) UpdatePlayerStats(ctx context.Context, playerCharacterID uuid.UUID, stats json.RawMessage) error {
+	_, err := s.queries.UpdatePlayerStats(ctx, statedb.UpdatePlayerStatsParams{
+		ID:    dbutil.ToPgtype(playerCharacterID),
+		Stats: stats,
 	})
 	return err
 }

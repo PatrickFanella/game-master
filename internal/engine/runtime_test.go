@@ -84,15 +84,21 @@ func (q *testQuerier) UpdateNPC(_ context.Context, arg statedb.UpdateNPCParams) 
 type testProvider struct{}
 
 func (p *testProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.Tool) (*llm.Response, error) {
-	var found bool
+	var foundUpdateNPC bool
+	var foundUpdatePlayerStats bool
 	for _, tool := range tools {
 		if tool.Name == "update_npc" {
-			found = true
-			break
+			foundUpdateNPC = true
+		}
+		if tool.Name == "update_player_stats" {
+			foundUpdatePlayerStats = true
 		}
 	}
-	if !found {
+	if !foundUpdateNPC {
 		return nil, errors.New("update_npc tool not registered")
+	}
+	if !foundUpdatePlayerStats {
+		return nil, errors.New("update_player_stats tool not registered")
 	}
 	return &llm.Response{
 		Content: "",
