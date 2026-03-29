@@ -11,6 +11,7 @@ import (
 
 	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/domain"
+	"github.com/PatrickFanella/game-master/internal/progression"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/internal/tools"
 )
@@ -162,7 +163,7 @@ func (s *combatService) AddPlayerExperience(ctx context.Context, playerCharacter
 		return fmt.Errorf("player character %s not found", playerCharacterID)
 	}
 	newExperience := pc.Experience + xpAmount
-	newLevel := levelFromExperience(newExperience)
+	newLevel := progression.LevelFromExperience(newExperience, progression.DefaultMaxLevel)
 	_, err = s.queries.UpdatePlayerExperience(ctx, statedb.UpdatePlayerExperienceParams{
 		ID:         dbutil.ToPgtype(playerCharacterID),
 		Experience: int32(newExperience),
@@ -219,23 +220,4 @@ func (s *combatService) UpdateNPCDisposition(ctx context.Context, npcID uuid.UUI
 		Disposition: int32(newDisposition),
 	})
 	return err
-}
-
-// levelFromExperience calculates the character level from total experience points.
-// Uses a simple progression where each level n requires n*1000 XP to advance:
-//   - Level 1: 0–999 XP
-//   - Level 2: 1000–2999 XP
-//   - Level 3: 3000–5999 XP (and so on)
-//
-// Maximum level is 20.
-func levelFromExperience(experience int) int {
-	const maxLevel = 20
-	threshold := 0
-	for level := 1; level < maxLevel; level++ {
-		threshold += level * 1000
-		if experience < threshold {
-			return level
-		}
-	}
-	return maxLevel
 }

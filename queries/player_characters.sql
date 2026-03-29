@@ -82,6 +82,22 @@ SET
 WHERE id = sqlc.arg(id)
 RETURNING id, campaign_id, user_id, name, description, stats, hp, max_hp, experience, level, status, abilities, current_location_id, created_at, updated_at;
 
+-- name: UpdatePlayerLevel :one
+UPDATE player_characters
+SET
+  level = sqlc.arg(level),
+  updated_at = now()
+WHERE id = sqlc.arg(id)
+RETURNING id, campaign_id, user_id, name, description, stats, hp, max_hp, experience, level, status, abilities, current_location_id, created_at, updated_at;
+
+-- name: UpdatePlayerAbilities :one
+UPDATE player_characters
+SET
+  abilities = COALESCE(sqlc.narg(abilities)::jsonb, '[]'::jsonb),
+  updated_at = now()
+WHERE id = sqlc.arg(id)
+RETURNING id, campaign_id, user_id, name, description, stats, hp, max_hp, experience, level, status, abilities, current_location_id, created_at, updated_at;
+
 -- name: UpdatePlayerLocation :one
 UPDATE player_characters
 SET

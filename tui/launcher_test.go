@@ -321,6 +321,12 @@ func (n *noopQuerier) UpdatePlayerCharacter(ctx context.Context, arg statedb.Upd
 func (n *noopQuerier) UpdatePlayerExperience(ctx context.Context, arg statedb.UpdatePlayerExperienceParams) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, nil
 }
+func (n *noopQuerier) UpdatePlayerLevel(ctx context.Context, arg statedb.UpdatePlayerLevelParams) (statedb.PlayerCharacter, error) {
+	return statedb.PlayerCharacter{}, nil
+}
+func (n *noopQuerier) UpdatePlayerAbilities(ctx context.Context, arg statedb.UpdatePlayerAbilitiesParams) (statedb.PlayerCharacter, error) {
+	return statedb.PlayerCharacter{}, nil
+}
 func (n *noopQuerier) UpdatePlayerHP(ctx context.Context, arg statedb.UpdatePlayerHPParams) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, nil
 }

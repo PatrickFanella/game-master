@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -196,7 +197,7 @@ func (h *LevelUpHandler) Handle(ctx context.Context, args map[string]any) (*Tool
 			"player_character_id": playerCharacterID.String(),
 			"old_level":           currentLevel,
 			"new_level":           newLevel,
-			"stat_boosts_applied": updatedStats,
+			"updated_stats":       updatedStats,
 			"new_abilities_added": addedAbilities,
 		},
 		Narrative: fmt.Sprintf("You reached level %d.", newLevel),
@@ -214,14 +215,18 @@ func parseOptionalStatBoosts(args map[string]any, key string) (map[string]int, e
 	}
 	boosts := make(map[string]int, len(obj))
 	for statName, rawValue := range obj {
+		normalizedName := strings.ToLower(strings.TrimSpace(statName))
+		if normalizedName == "" {
+			return nil, fmt.Errorf("%s contains an empty stat name", key)
+		}
 		value, err := parseIntArg(map[string]any{"value": rawValue}, "value")
 		if err != nil {
-			return nil, fmt.Errorf("%s.%s must be an integer", key, statName)
+			return nil, fmt.Errorf("%s.%s must be an integer", key, normalizedName)
 		}
 		if value == 0 {
 			continue
 		}
-		boosts[statName] = value
+		boosts[normalizedName] += value
 	}
 	return boosts, nil
 }

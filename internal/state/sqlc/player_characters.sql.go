@@ -165,6 +165,43 @@ func (q *Queries) GetPlayerCharacterByID(ctx context.Context, id pgtype.UUID) (P
 	return i, err
 }
 
+const updatePlayerAbilities = `-- name: UpdatePlayerAbilities :one
+UPDATE player_characters
+SET
+  abilities = COALESCE($1::jsonb, '[]'::jsonb),
+  updated_at = now()
+WHERE id = $2
+RETURNING id, campaign_id, user_id, name, description, stats, hp, max_hp, experience, level, status, abilities, current_location_id, created_at, updated_at
+`
+
+type UpdatePlayerAbilitiesParams struct {
+	Abilities []byte
+	ID        pgtype.UUID
+}
+
+func (q *Queries) UpdatePlayerAbilities(ctx context.Context, arg UpdatePlayerAbilitiesParams) (PlayerCharacter, error) {
+	row := q.db.QueryRow(ctx, updatePlayerAbilities, arg.Abilities, arg.ID)
+	var i PlayerCharacter
+	err := row.Scan(
+		&i.ID,
+		&i.CampaignID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.Stats,
+		&i.Hp,
+		&i.MaxHp,
+		&i.Experience,
+		&i.Level,
+		&i.Status,
+		&i.Abilities,
+		&i.CurrentLocationID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updatePlayerCharacter = `-- name: UpdatePlayerCharacter :one
 UPDATE player_characters
 SET
@@ -289,6 +326,43 @@ type UpdatePlayerHPParams struct {
 
 func (q *Queries) UpdatePlayerHP(ctx context.Context, arg UpdatePlayerHPParams) (PlayerCharacter, error) {
 	row := q.db.QueryRow(ctx, updatePlayerHP, arg.Hp, arg.MaxHp, arg.ID)
+	var i PlayerCharacter
+	err := row.Scan(
+		&i.ID,
+		&i.CampaignID,
+		&i.UserID,
+		&i.Name,
+		&i.Description,
+		&i.Stats,
+		&i.Hp,
+		&i.MaxHp,
+		&i.Experience,
+		&i.Level,
+		&i.Status,
+		&i.Abilities,
+		&i.CurrentLocationID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePlayerLevel = `-- name: UpdatePlayerLevel :one
+UPDATE player_characters
+SET
+  level = $1,
+  updated_at = now()
+WHERE id = $2
+RETURNING id, campaign_id, user_id, name, description, stats, hp, max_hp, experience, level, status, abilities, current_location_id, created_at, updated_at
+`
+
+type UpdatePlayerLevelParams struct {
+	Level int32
+	ID    pgtype.UUID
+}
+
+func (q *Queries) UpdatePlayerLevel(ctx context.Context, arg UpdatePlayerLevelParams) (PlayerCharacter, error) {
+	row := q.db.QueryRow(ctx, updatePlayerLevel, arg.Level, arg.ID)
 	var i PlayerCharacter
 	err := row.Scan(
 		&i.ID,

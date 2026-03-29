@@ -44,17 +44,9 @@ func (s *progressionService) UpdatePlayerExperience(ctx context.Context, playerC
 }
 
 func (s *progressionService) UpdatePlayerLevel(ctx context.Context, playerCharacterID uuid.UUID, level int) error {
-	playerCharacter, err := s.GetPlayerCharacterByID(ctx, playerCharacterID)
-	if err != nil {
-		return err
-	}
-	if playerCharacter == nil {
-		return pgx.ErrNoRows
-	}
-	_, err = s.queries.UpdatePlayerExperience(ctx, statedb.UpdatePlayerExperienceParams{
-		ID:         dbutil.ToPgtype(playerCharacterID),
-		Experience: int32(playerCharacter.Experience),
-		Level:      int32(level),
+	_, err := s.queries.UpdatePlayerLevel(ctx, statedb.UpdatePlayerLevelParams{
+		ID:    dbutil.ToPgtype(playerCharacterID),
+		Level: int32(level),
 	})
 	return err
 }
@@ -68,29 +60,12 @@ func (s *progressionService) UpdatePlayerStats(ctx context.Context, playerCharac
 }
 
 func (s *progressionService) UpdatePlayerAbilities(ctx context.Context, playerCharacterID uuid.UUID, abilities json.RawMessage) error {
-	playerCharacter, err := s.GetPlayerCharacterByID(ctx, playerCharacterID)
-	if err != nil {
-		return err
-	}
-	if playerCharacter == nil {
-		return pgx.ErrNoRows
-	}
-	_, err = s.queries.UpdatePlayerCharacter(ctx, statedb.UpdatePlayerCharacterParams{
-		Name:              playerCharacter.Name,
-		Description:       stringToPgText(playerCharacter.Description),
-		Stats:             playerCharacter.Stats,
-		Hp:                int32(playerCharacter.HP),
-		MaxHp:             int32(playerCharacter.MaxHP),
-		Experience:        int32(playerCharacter.Experience),
-		Level:             int32(playerCharacter.Level),
-		Status:            playerCharacter.Status,
-		Abilities:         abilities,
-		CurrentLocationID: dbutil.ToPgtype(uuidOrNil(playerCharacter.CurrentLocationID)),
-		ID:                dbutil.ToPgtype(playerCharacter.ID),
+	_, err := s.queries.UpdatePlayerAbilities(ctx, statedb.UpdatePlayerAbilitiesParams{
+		ID:        dbutil.ToPgtype(playerCharacterID),
+		Abilities: abilities,
 	})
 	return err
 }
 
 var _ tools.AddExperienceStore = (*progressionService)(nil)
 var _ tools.LevelUpStore = (*progressionService)(nil)
-

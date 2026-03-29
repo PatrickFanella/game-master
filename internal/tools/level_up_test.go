@@ -132,8 +132,50 @@ func TestLevelUpHandleAppliesLevelStatsAndAbilities(t *testing.T) {
 	if got.Data["new_level"] != 2 {
 		t.Fatalf("new_level = %v, want 2", got.Data["new_level"])
 	}
+	if _, ok := got.Data["stat_boosts_applied"]; ok {
+		t.Fatalf("unexpected stat_boosts_applied field in response")
+	}
+	updatedStats, ok := got.Data["updated_stats"].(map[string]int)
+	if !ok {
+		t.Fatalf("updated_stats has unexpected type %T", got.Data["updated_stats"])
+	}
+	if updatedStats["strength"] != 12 {
+		t.Fatalf("updated_stats[strength] = %d, want 12", updatedStats["strength"])
+	}
 	if got.Narrative != "You reached level 2." {
 		t.Fatalf("narrative = %q", got.Narrative)
+	}
+}
+
+func TestLevelUpHandleNormalizesStatBoostKeys(t *testing.T) {
+	playerID := uuid.New()
+	store := &stubLevelUpStore{
+		player: &domain.PlayerCharacter{
+			ID:         playerID,
+			Experience: 1000,
+			Level:      1,
+			Stats:      []byte(`{"strength":10}`),
+		},
+	}
+	h := NewLevelUpHandler(store)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+
+	_, err := h.Handle(ctx, map[string]any{
+		"stat_boosts": map[string]any{
+			" strength ": 2,
+			"STRENGTH":   1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+
+	var stats map[string]any
+	if err := json.Unmarshal(store.lastStats, &stats); err != nil {
+		t.Fatalf("unmarshal stats: %v", err)
+	}
+	if stats["strength"] != float64(13) {
+		t.Fatalf("strength = %v, want 13", stats["strength"])
 	}
 }
 
@@ -203,4 +245,3 @@ func TestLevelUpHandleValidationAndStoreErrors(t *testing.T) {
 }
 
 var _ LevelUpStore = (*stubLevelUpStore)(nil)
-

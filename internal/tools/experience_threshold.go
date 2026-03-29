@@ -1,13 +1,9 @@
 package tools
 
-const defaultExperiencePerLevel = 1000
+import "github.com/PatrickFanella/game-master/internal/progression"
 
 type experienceThresholdFunc func(level int) int
 
 func defaultExperienceThreshold(level int) int {
-	if level < 1 {
-		level = 1
-	}
-	return level * defaultExperiencePerLevel
+	return progression.NextLevelThreshold(level)
 }
-

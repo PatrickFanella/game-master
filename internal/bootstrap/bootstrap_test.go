@@ -377,6 +377,12 @@ func (s *stubQuerier) UpdatePlayerCharacter(ctx context.Context, arg statedb.Upd
 func (s *stubQuerier) UpdatePlayerExperience(ctx context.Context, arg statedb.UpdatePlayerExperienceParams) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, nil
 }
+func (s *stubQuerier) UpdatePlayerLevel(ctx context.Context, arg statedb.UpdatePlayerLevelParams) (statedb.PlayerCharacter, error) {
+	return statedb.PlayerCharacter{}, nil
+}
+func (s *stubQuerier) UpdatePlayerAbilities(ctx context.Context, arg statedb.UpdatePlayerAbilitiesParams) (statedb.PlayerCharacter, error) {
+	return statedb.PlayerCharacter{}, nil
+}
 func (s *stubQuerier) UpdatePlayerHP(ctx context.Context, arg statedb.UpdatePlayerHPParams) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, nil
 }

@@ -112,6 +112,30 @@ func TestAddExperienceHandleUsesConfigurableThreshold(t *testing.T) {
 	}
 }
 
+func TestAddExperienceHandleUsesCumulativeDefaultThreshold(t *testing.T) {
+	playerID := uuid.New()
+	store := &stubAddExperienceStore{
+		player: &domain.PlayerCharacter{
+			ID:         playerID,
+			Experience: 2999,
+			Level:      2,
+		},
+	}
+	h := NewAddExperienceHandler(store)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+
+	got, err := h.Handle(ctx, map[string]any{
+		"amount": 1,
+		"reason": "finishing a battle",
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if got.Data["level_up_available"] != true {
+		t.Fatalf("level_up_available = %v, want true", got.Data["level_up_available"])
+	}
+}
+
 func TestAddExperienceHandleValidationAndStoreErrors(t *testing.T) {
 	playerID := uuid.New()
 	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
@@ -169,4 +193,3 @@ func TestAddExperienceHandleValidationAndStoreErrors(t *testing.T) {
 }
 
 var _ AddExperienceStore = (*stubAddExperienceStore)(nil)
-

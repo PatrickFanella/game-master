@@ -834,6 +834,25 @@ func TestIntegrationPlayerCharacters(t *testing.T) {
 		t.Errorf("UpdatePlayerExperience: expected level 3, got %d", upd.Level)
 	}
 
+	// UpdatePlayerLevel
+	upd, err = q.UpdatePlayerLevel(ctx, statedb.UpdatePlayerLevelParams{ID: pc.ID, Level: 4})
+	if err != nil {
+		t.Fatalf("UpdatePlayerLevel: %v", err)
+	}
+	if upd.Level != 4 {
+		t.Errorf("UpdatePlayerLevel: expected level 4, got %d", upd.Level)
+	}
+
+	// UpdatePlayerAbilities
+	abilities := []byte(`["Second Wind"]`)
+	upd, err = q.UpdatePlayerAbilities(ctx, statedb.UpdatePlayerAbilitiesParams{ID: pc.ID, Abilities: abilities})
+	if err != nil {
+		t.Fatalf("UpdatePlayerAbilities: %v", err)
+	}
+	if string(upd.Abilities) != string(abilities) {
+		t.Errorf("UpdatePlayerAbilities: expected %s, got %s", abilities, upd.Abilities)
+	}
+
 	// UpdatePlayerLocation
 	loc2 := createLocation(t, q, camp.ID, "Dark Dungeon")
 	upd, err = q.UpdatePlayerLocation(ctx, statedb.UpdatePlayerLocationParams{ID: pc.ID, CurrentLocationID: loc2.ID})
