@@ -362,3 +362,37 @@ func (q *Queries) UpdateItemQuantity(ctx context.Context, arg UpdateItemQuantity
 	)
 	return i, err
 }
+
+const updateItemProperties = `-- name: UpdateItemProperties :one
+UPDATE items
+SET
+  properties = COALESCE($1::jsonb, properties),
+  updated_at = now()
+WHERE id = $2
+RETURNING id, campaign_id, player_character_id, name, description, item_type, rarity, properties, equipped, quantity, created_at, updated_at
+`
+
+type UpdateItemPropertiesParams struct {
+	Properties []byte
+	ID         pgtype.UUID
+}
+
+func (q *Queries) UpdateItemProperties(ctx context.Context, arg UpdateItemPropertiesParams) (Item, error) {
+	row := q.db.QueryRow(ctx, updateItemProperties, arg.Properties, arg.ID)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.CampaignID,
+		&i.PlayerCharacterID,
+		&i.Name,
+		&i.Description,
+		&i.ItemType,
+		&i.Rarity,
+		&i.Properties,
+		&i.Equipped,
+		&i.Quantity,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

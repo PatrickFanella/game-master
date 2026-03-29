@@ -15,13 +15,13 @@ import (
 // stubQuerier is a minimal in-memory implementation of statedb.Querier used
 // for unit-testing the bootstrap package without a real database.
 type stubQuerier struct {
-	users             []statedb.User
-	campaigns         []statedb.Campaign
-	locations         []statedb.Location
-	createUserFn      func(ctx context.Context, name string) (statedb.User, error)
-	getUserByNameFn   func(ctx context.Context, name string) (statedb.User, error)
-	createCampFn      func(ctx context.Context, arg statedb.CreateCampaignParams) (statedb.Campaign, error)
-	createLocFn       func(ctx context.Context, arg statedb.CreateLocationParams) (statedb.Location, error)
+	users           []statedb.User
+	campaigns       []statedb.Campaign
+	locations       []statedb.Location
+	createUserFn    func(ctx context.Context, name string) (statedb.User, error)
+	getUserByNameFn func(ctx context.Context, name string) (statedb.User, error)
+	createCampFn    func(ctx context.Context, arg statedb.CreateCampaignParams) (statedb.Campaign, error)
+	createLocFn     func(ctx context.Context, arg statedb.CreateLocationParams) (statedb.Location, error)
 }
 
 // Minimal implementations of statedb.Querier that the bootstrap package uses.
@@ -348,6 +348,9 @@ func (s *stubQuerier) UpdateItem(ctx context.Context, arg statedb.UpdateItemPara
 	return statedb.Item{}, nil
 }
 func (s *stubQuerier) UpdateItemEquipped(ctx context.Context, arg statedb.UpdateItemEquippedParams) (statedb.Item, error) {
+	return statedb.Item{}, nil
+}
+func (s *stubQuerier) UpdateItemProperties(ctx context.Context, arg statedb.UpdateItemPropertiesParams) (statedb.Item, error) {
 	return statedb.Item{}, nil
 }
 func (s *stubQuerier) UpdateItemQuantity(ctx context.Context, arg statedb.UpdateItemQuantityParams) (statedb.Item, error) {

@@ -140,25 +140,14 @@ func (s *inventoryService) DeleteItem(ctx context.Context, itemID uuid.UUID) err
 }
 
 func (s *inventoryService) UpdatePlayerItemProperties(ctx context.Context, itemID uuid.UUID, properties map[string]any) error {
-	existing, err := s.queries.GetItemByID(ctx, dbutil.ToPgtype(itemID))
-	if err != nil {
-		return err
-	}
-
 	propertiesBytes, err := json.Marshal(properties)
 	if err != nil {
 		return fmt.Errorf("marshal properties: %w", err)
 	}
 
-	_, err = s.queries.UpdateItem(ctx, statedb.UpdateItemParams{
-		Name:        existing.Name,
-		Description: existing.Description,
-		ItemType:    existing.ItemType,
-		Rarity:      existing.Rarity,
-		Properties:  propertiesBytes,
-		Equipped:    existing.Equipped,
-		Quantity:    existing.Quantity,
-		ID:          existing.ID,
+	_, err = s.queries.UpdateItemProperties(ctx, statedb.UpdateItemPropertiesParams{
+		Properties: propertiesBytes,
+		ID:         dbutil.ToPgtype(itemID),
 	})
 	return err
 }

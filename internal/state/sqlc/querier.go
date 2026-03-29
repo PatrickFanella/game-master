@@ -108,6 +108,7 @@ type Querier interface {
 	UpdateFactionRelationship(ctx context.Context, arg UpdateFactionRelationshipParams) (FactionRelationship, error)
 	UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, error)
 	UpdateItemEquipped(ctx context.Context, arg UpdateItemEquippedParams) (Item, error)
+	UpdateItemProperties(ctx context.Context, arg UpdateItemPropertiesParams) (Item, error)
 	UpdateItemQuantity(ctx context.Context, arg UpdateItemQuantityParams) (Item, error)
 	UpdateLanguage(ctx context.Context, arg UpdateLanguageParams) (Language, error)
 	UpdateLocation(ctx context.Context, arg UpdateLocationParams) (Location, error)

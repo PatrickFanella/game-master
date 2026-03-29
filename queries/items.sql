@@ -71,6 +71,14 @@ SET
 WHERE id = sqlc.arg(id)
 RETURNING id, campaign_id, player_character_id, name, description, item_type, rarity, properties, equipped, quantity, created_at, updated_at;
 
+-- name: UpdateItemProperties :one
+UPDATE items
+SET
+  properties = COALESCE(sqlc.narg(properties)::jsonb, properties),
+  updated_at = now()
+WHERE id = sqlc.arg(id)
+RETURNING id, campaign_id, player_character_id, name, description, item_type, rarity, properties, equipped, quantity, created_at, updated_at;
+
 -- name: DeleteItem :exec
 DELETE FROM items
 WHERE id = sqlc.arg(id);

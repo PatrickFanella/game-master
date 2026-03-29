@@ -57,22 +57,24 @@ type mockQuerier struct {
 	updateNPCResult     statedb.Npc
 
 	// LocationService fields.
-	lastUpdateLocationParams    *statedb.UpdateLocationParams
-	updateLocationErr           error
-	lastUpdatePlayerLocParams   *statedb.UpdatePlayerLocationParams
-	updatePlayerLocationErr     error
+	lastUpdateLocationParams  *statedb.UpdateLocationParams
+	updateLocationErr         error
+	lastUpdatePlayerLocParams *statedb.UpdatePlayerLocationParams
+	updatePlayerLocationErr   error
 
 	// InventoryService fields.
-	playerCharacter          statedb.PlayerCharacter
+	playerCharacter           statedb.PlayerCharacter
 	getPlayerCharacterByIDErr error
-	createItemResult         statedb.Item
-	createItemErr            error
-	itemByID                 map[pgtype.UUID]statedb.Item
-	getItemByIDErr           error
-	updateItemQuantityErr    error
-	lastUpdateItemQtyParams  *statedb.UpdateItemQuantityParams
-	deleteItemErr            error
-	lastDeletedItemID        *pgtype.UUID
+	createItemResult          statedb.Item
+	createItemErr             error
+	itemByID                  map[pgtype.UUID]statedb.Item
+	getItemByIDErr            error
+	updateItemQuantityErr     error
+	lastUpdateItemQtyParams   *statedb.UpdateItemQuantityParams
+	updateItemPropertiesErr   error
+	lastUpdateItemPropParams  *statedb.UpdateItemPropertiesParams
+	deleteItemErr             error
+	lastDeletedItemID         *pgtype.UUID
 
 	// WorldService fields.
 	faction                  statedb.Faction
@@ -533,6 +535,14 @@ func (m *mockQuerier) UpdateItemQuantity(_ context.Context, arg statedb.UpdateIt
 		return statedb.Item{}, m.updateItemQuantityErr
 	}
 	m.lastUpdateItemQtyParams = &arg
+	return statedb.Item{}, nil
+}
+
+func (m *mockQuerier) UpdateItemProperties(_ context.Context, arg statedb.UpdateItemPropertiesParams) (statedb.Item, error) {
+	if m.updateItemPropertiesErr != nil {
+		return statedb.Item{}, m.updateItemPropertiesErr
+	}
+	m.lastUpdateItemPropParams = &arg
 	return statedb.Item{}, nil
 }
 

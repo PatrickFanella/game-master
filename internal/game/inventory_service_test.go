@@ -158,3 +158,26 @@ func TestInventoryServiceDeleteItem(t *testing.T) {
 		t.Fatalf("deleted ID = %v, want %s", q.lastDeletedItemID, itemID)
 	}
 }
+
+func TestInventoryServiceUpdatePlayerItemProperties(t *testing.T) {
+	q := newMockQuerier()
+	itemID := uuid.New()
+	svc := NewInventoryService(q)
+
+	err := svc.UpdatePlayerItemProperties(context.Background(), itemID, map[string]any{
+		"charges": 2,
+		"damage":  "1d8",
+	})
+	if err != nil {
+		t.Fatalf("UpdatePlayerItemProperties() error = %v", err)
+	}
+	if q.lastUpdateItemPropParams == nil {
+		t.Fatal("expected UpdateItemProperties to be called")
+	}
+	if dbutil.FromPgtype(q.lastUpdateItemPropParams.ID) != itemID {
+		t.Fatalf("updated ID = %v, want %s", q.lastUpdateItemPropParams.ID, itemID)
+	}
+	if len(q.lastUpdateItemPropParams.Properties) == 0 {
+		t.Fatal("expected marshaled properties to be non-empty")
+	}
+}
