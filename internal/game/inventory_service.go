@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -59,6 +60,34 @@ func (s *inventoryService) CreatePlayerItem(ctx context.Context, playerCharacter
 	return dbutil.FromPgtype(item.ID), nil
 }
 
+func (s *inventoryService) CreateGeneratedItem(ctx context.Context, playerCharacterID uuid.UUID, name, description, itemType, rarity string, properties map[string]any) (uuid.UUID, error) {
+	propertiesBytes, err := json.Marshal(properties)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("marshal properties: %w", err)
+	}
+
+	playerCharacter, err := s.queries.GetPlayerCharacterByID(ctx, dbutil.ToPgtype(playerCharacterID))
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get player character: %w", err)
+	}
+
+	item, err := s.queries.CreateItem(ctx, statedb.CreateItemParams{
+		CampaignID:        playerCharacter.CampaignID,
+		PlayerCharacterID: dbutil.ToPgtype(playerCharacterID),
+		Name:              name,
+		Description:       pgtype.Text{String: description, Valid: true},
+		ItemType:          itemType,
+		Rarity:            rarity,
+		Properties:        propertiesBytes,
+		Equipped:          false,
+		Quantity:          1,
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return dbutil.FromPgtype(item.ID), nil
+}
+
 // --- tools.RemoveItemStore methods ---
 
 func (s *inventoryService) GetPlayerItemByID(ctx context.Context, itemID uuid.UUID) (*tools.PlayerItem, error) {
@@ -73,10 +102,22 @@ func (s *inventoryService) GetPlayerItemByID(ctx context.Context, itemID uuid.UU
 		return nil, nil
 	}
 
+	properties := map[string]any{}
+	if len(item.Properties) > 0 {
+		if err := json.Unmarshal(item.Properties, &properties); err != nil {
+			return nil, fmt.Errorf("decode item properties: %w", err)
+		}
+	}
+
 	return &tools.PlayerItem{
 		ID:                dbutil.FromPgtype(item.ID),
 		PlayerCharacterID: dbutil.FromPgtype(item.PlayerCharacterID),
 		Name:              item.Name,
+		Description:       item.Description.String,
+		ItemType:          item.ItemType,
+		Rarity:            item.Rarity,
+		Properties:        properties,
+		Equipped:          item.Equipped,
 		Quantity:          int(item.Quantity),
 	}, nil
 }
@@ -96,6 +137,30 @@ func (s *inventoryService) UpdateItemQuantity(ctx context.Context, itemID uuid.U
 
 func (s *inventoryService) DeleteItem(ctx context.Context, itemID uuid.UUID) error {
 	return s.queries.DeleteItem(ctx, dbutil.ToPgtype(itemID))
+}
+
+func (s *inventoryService) UpdatePlayerItemProperties(ctx context.Context, itemID uuid.UUID, properties map[string]any) error {
+	existing, err := s.queries.GetItemByID(ctx, dbutil.ToPgtype(itemID))
+	if err != nil {
+		return err
+	}
+
+	propertiesBytes, err := json.Marshal(properties)
+	if err != nil {
+		return fmt.Errorf("marshal properties: %w", err)
+	}
+
+	_, err = s.queries.UpdateItem(ctx, statedb.UpdateItemParams{
+		Name:        existing.Name,
+		Description: existing.Description,
+		ItemType:    existing.ItemType,
+		Rarity:      existing.Rarity,
+		Properties:  propertiesBytes,
+		Equipped:    existing.Equipped,
+		Quantity:    existing.Quantity,
+		ID:          existing.ID,
+	})
+	return err
 }
 
 // --- helpers ---

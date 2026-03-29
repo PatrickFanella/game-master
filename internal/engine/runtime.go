@@ -44,6 +44,8 @@ func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider) *Engin
 	errs = appendErr(errs, tools.RegisterMovePlayer(registry, locSvc))
 	errs = appendErr(errs, tools.RegisterAddItem(registry, invSvc))
 	errs = appendErr(errs, tools.RegisterRemoveItem(registry, invSvc))
+	errs = appendErr(errs, tools.RegisterModifyItem(registry, invSvc))
+	errs = appendErr(errs, tools.RegisterCreateItem(registry, invSvc))
 	errs = appendErr(errs, tools.RegisterRollDice(registry))
 	errs = appendErr(errs, tools.RegisterUpdateNPC(registry, npcSvc))
 	errs = appendErr(errs, tools.RegisterInitiateCombat(registry, combatSvc))

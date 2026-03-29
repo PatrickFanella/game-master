@@ -70,6 +70,65 @@ func (s *stubRemoveItemStore) UpdateItemQuantity(_ context.Context, itemID uuid.
 	return nil
 }
 
+type stubCreateItemStore struct {
+	lastPlayerID    uuid.UUID
+	lastName        string
+	lastDescription string
+	lastType        string
+	lastRarity      string
+	lastProperties  map[string]any
+
+	itemID uuid.UUID
+	err    error
+}
+
+func (s *stubCreateItemStore) CreateGeneratedItem(_ context.Context, playerCharacterID uuid.UUID, name, description, itemType, rarity string, properties map[string]any) (uuid.UUID, error) {
+	if s.err != nil {
+		return uuid.Nil, s.err
+	}
+	s.lastPlayerID = playerCharacterID
+	s.lastName = name
+	s.lastDescription = description
+	s.lastType = itemType
+	s.lastRarity = rarity
+	s.lastProperties = properties
+	if s.itemID == uuid.Nil {
+		s.itemID = uuid.New()
+	}
+	return s.itemID, nil
+}
+
+type stubModifyItemStore struct {
+	items map[uuid.UUID]*PlayerItem
+
+	lastUpdatedID         uuid.UUID
+	lastUpdatedProperties map[string]any
+
+	getErr    error
+	updateErr error
+}
+
+func (s *stubModifyItemStore) GetPlayerItemByID(_ context.Context, itemID uuid.UUID) (*PlayerItem, error) {
+	if s.getErr != nil {
+		return nil, s.getErr
+	}
+	item := s.items[itemID]
+	if item == nil {
+		return nil, nil
+	}
+	copied := *item
+	return &copied, nil
+}
+
+func (s *stubModifyItemStore) UpdatePlayerItemProperties(_ context.Context, itemID uuid.UUID, properties map[string]any) error {
+	if s.updateErr != nil {
+		return s.updateErr
+	}
+	s.lastUpdatedID = itemID
+	s.lastUpdatedProperties = properties
+	return nil
+}
+
 func (s *stubRemoveItemStore) DeleteItem(_ context.Context, itemID uuid.UUID) error {
 	if s.deleteErr != nil {
 		return s.deleteErr
@@ -117,6 +176,48 @@ func TestRegisterRemoveItem(t *testing.T) {
 	}
 	if len(required) != 1 || required[0] != "item_id" {
 		t.Fatalf("required schema = %#v, want [item_id]", required)
+	}
+}
+
+func TestRegisterCreateItem(t *testing.T) {
+	reg := NewRegistry()
+	if err := RegisterCreateItem(reg, &stubCreateItemStore{}); err != nil {
+		t.Fatalf("register create_item: %v", err)
+	}
+	registered := reg.List()
+	if len(registered) != 1 {
+		t.Fatalf("registered tool count = %d, want 1", len(registered))
+	}
+	if registered[0].Name != createItemToolName {
+		t.Fatalf("tool name = %q, want %q", registered[0].Name, createItemToolName)
+	}
+	required, ok := registered[0].Parameters["required"].([]string)
+	if !ok {
+		t.Fatalf("required schema has unexpected type %T", registered[0].Parameters["required"])
+	}
+	if len(required) != 5 {
+		t.Fatalf("required schema length = %d, want 5", len(required))
+	}
+}
+
+func TestRegisterModifyItem(t *testing.T) {
+	reg := NewRegistry()
+	if err := RegisterModifyItem(reg, &stubModifyItemStore{}); err != nil {
+		t.Fatalf("register modify_item: %v", err)
+	}
+	registered := reg.List()
+	if len(registered) != 1 {
+		t.Fatalf("registered tool count = %d, want 1", len(registered))
+	}
+	if registered[0].Name != modifyItemToolName {
+		t.Fatalf("tool name = %q, want %q", registered[0].Name, modifyItemToolName)
+	}
+	required, ok := registered[0].Parameters["required"].([]string)
+	if !ok {
+		t.Fatalf("required schema has unexpected type %T", registered[0].Parameters["required"])
+	}
+	if len(required) != 2 {
+		t.Fatalf("required schema length = %d, want 2", len(required))
 	}
 }
 
@@ -352,5 +453,214 @@ func TestRemoveItemHandleInvalidInputs(t *testing.T) {
 	})
 }
 
+func TestCreateItemHandle(t *testing.T) {
+	playerID := uuid.New()
+	store := &stubCreateItemStore{itemID: uuid.New()}
+	h := NewCreateItemHandler(store)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+
+	got, err := h.Handle(ctx, map[string]any{
+		"name":        "Stormbreaker",
+		"description": "A runed war axe humming with thunder.",
+		"item_type":   "weapon",
+		"rarity":      "epic",
+		"properties": map[string]any{
+			"damage":  "2d8+3",
+			"effects": []any{"lightning", "stun"},
+			"weight":  6.5,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if store.lastPlayerID != playerID {
+		t.Fatalf("stored player id = %s, want %s", store.lastPlayerID, playerID)
+	}
+	if store.lastRarity != "epic" {
+		t.Fatalf("stored rarity = %q, want epic", store.lastRarity)
+	}
+	if got.Data["formatted_description"] == "" {
+		t.Fatal("formatted_description should not be empty")
+	}
+}
+
+func TestCreateItemHandleInvalidInputs(t *testing.T) {
+	playerID := uuid.New()
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+
+	t.Run("missing context player id", func(t *testing.T) {
+		h := NewCreateItemHandler(&stubCreateItemStore{})
+		_, err := h.Handle(context.Background(), map[string]any{
+			"name":        "Potion",
+			"description": "Restores health",
+			"item_type":   "consumable",
+			"rarity":      "common",
+			"properties":  map[string]any{"effects": "heal"},
+		})
+		if err == nil || !strings.Contains(err.Error(), "requires current player character id in context") {
+			t.Fatalf("error = %v, want context player id error", err)
+		}
+	})
+
+	t.Run("invalid rarity", func(t *testing.T) {
+		h := NewCreateItemHandler(&stubCreateItemStore{})
+		_, err := h.Handle(ctx, map[string]any{
+			"name":        "Potion",
+			"description": "Restores health",
+			"item_type":   "consumable",
+			"rarity":      "mythic",
+			"properties":  map[string]any{"effects": "heal"},
+		})
+		if err == nil || !strings.Contains(err.Error(), "rarity must be one of") {
+			t.Fatalf("error = %v, want rarity validation error", err)
+		}
+	})
+
+	t.Run("unsupported properties", func(t *testing.T) {
+		h := NewCreateItemHandler(&stubCreateItemStore{})
+		_, err := h.Handle(ctx, map[string]any{
+			"name":        "Potion",
+			"description": "Restores health",
+			"item_type":   "consumable",
+			"rarity":      "common",
+			"properties":  map[string]any{"speed": 10},
+		})
+		if err == nil || !strings.Contains(err.Error(), "supports only") {
+			t.Fatalf("error = %v, want property validation error", err)
+		}
+	})
+
+	t.Run("store error wrapped", func(t *testing.T) {
+		h := NewCreateItemHandler(&stubCreateItemStore{err: errors.New("db down")})
+		_, err := h.Handle(ctx, map[string]any{
+			"name":        "Potion",
+			"description": "Restores health",
+			"item_type":   "consumable",
+			"rarity":      "common",
+			"properties":  map[string]any{"effects": "heal"},
+		})
+		if err == nil || !strings.Contains(err.Error(), "create item: db down") {
+			t.Fatalf("error = %v, want wrapped store error", err)
+		}
+	})
+}
+
+func TestModifyItemHandle(t *testing.T) {
+	playerID := uuid.New()
+	itemID := uuid.New()
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+	store := &stubModifyItemStore{
+		items: map[uuid.UUID]*PlayerItem{
+			itemID: {
+				ID:                itemID,
+				PlayerCharacterID: playerID,
+				Name:              "Wand of Sparks",
+				Description:       "Crackles with energy.",
+				ItemType:          "weapon",
+				Rarity:            "rare",
+				Properties: map[string]any{
+					"charges": 3,
+					"effects": "spark",
+				},
+			},
+		},
+	}
+	h := NewModifyItemHandler(store)
+
+	got, err := h.Handle(ctx, map[string]any{
+		"item_id": itemID.String(),
+		"properties": map[string]any{
+			"charges": 2,
+			"damage":  "1d6",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if store.lastUpdatedID != itemID {
+		t.Fatalf("updated id = %s, want %s", store.lastUpdatedID, itemID)
+	}
+	if store.lastUpdatedProperties["charges"] != 2 {
+		t.Fatalf("updated charges = %v, want 2", store.lastUpdatedProperties["charges"])
+	}
+	if store.lastUpdatedProperties["effects"] != "spark" {
+		t.Fatalf("existing effect should remain merged, got %v", store.lastUpdatedProperties["effects"])
+	}
+	if got.Data["formatted_description"] == "" {
+		t.Fatal("formatted_description should not be empty")
+	}
+}
+
+func TestModifyItemHandleInvalidInputs(t *testing.T) {
+	playerID := uuid.New()
+	otherPlayerID := uuid.New()
+	itemID := uuid.New()
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+
+	t.Run("missing context player id", func(t *testing.T) {
+		h := NewModifyItemHandler(&stubModifyItemStore{})
+		_, err := h.Handle(context.Background(), map[string]any{
+			"item_id":    itemID.String(),
+			"properties": map[string]any{"charges": 2},
+		})
+		if err == nil || !strings.Contains(err.Error(), "requires current player character id in context") {
+			t.Fatalf("error = %v, want context player id error", err)
+		}
+	})
+
+	t.Run("item not found", func(t *testing.T) {
+		h := NewModifyItemHandler(&stubModifyItemStore{items: map[uuid.UUID]*PlayerItem{}})
+		_, err := h.Handle(ctx, map[string]any{"item_id": itemID.String(), "properties": map[string]any{"charges": 2}})
+		if err == nil || !strings.Contains(err.Error(), "does not reference an existing item") {
+			t.Fatalf("error = %v, want missing item error", err)
+		}
+	})
+
+	t.Run("item belongs to other player", func(t *testing.T) {
+		h := NewModifyItemHandler(&stubModifyItemStore{
+			items: map[uuid.UUID]*PlayerItem{
+				itemID: {ID: itemID, PlayerCharacterID: otherPlayerID, Name: "Ring", Quantity: 1},
+			},
+		})
+		_, err := h.Handle(ctx, map[string]any{"item_id": itemID.String(), "properties": map[string]any{"charges": 2}})
+		if err == nil || !strings.Contains(err.Error(), "does not belong to current player") {
+			t.Fatalf("error = %v, want ownership error", err)
+		}
+	})
+
+	t.Run("unsupported properties", func(t *testing.T) {
+		h := NewModifyItemHandler(&stubModifyItemStore{
+			items: map[uuid.UUID]*PlayerItem{
+				itemID: {ID: itemID, PlayerCharacterID: playerID, Name: "Ring"},
+			},
+		})
+		_, err := h.Handle(ctx, map[string]any{"item_id": itemID.String(), "properties": map[string]any{"speed": 3}})
+		if err == nil || !strings.Contains(err.Error(), "supports only") {
+			t.Fatalf("error = %v, want property validation error", err)
+		}
+	})
+
+	t.Run("wrapped store errors", func(t *testing.T) {
+		hGet := NewModifyItemHandler(&stubModifyItemStore{getErr: errors.New("read fail")})
+		_, err := hGet.Handle(ctx, map[string]any{"item_id": itemID.String(), "properties": map[string]any{"charges": 2}})
+		if err == nil || !strings.Contains(err.Error(), "get item: read fail") {
+			t.Fatalf("error = %v, want wrapped get error", err)
+		}
+
+		hUpd := NewModifyItemHandler(&stubModifyItemStore{
+			items: map[uuid.UUID]*PlayerItem{
+				itemID: {ID: itemID, PlayerCharacterID: playerID, Name: "Ring"},
+			},
+			updateErr: errors.New("write fail"),
+		})
+		_, err = hUpd.Handle(ctx, map[string]any{"item_id": itemID.String(), "properties": map[string]any{"charges": 2}})
+		if err == nil || !strings.Contains(err.Error(), "update item properties: write fail") {
+			t.Fatalf("error = %v, want wrapped update error", err)
+		}
+	})
+}
+
 var _ AddItemStore = (*stubAddItemStore)(nil)
 var _ RemoveItemStore = (*stubRemoveItemStore)(nil)
+var _ CreateItemStore = (*stubCreateItemStore)(nil)
+var _ ModifyItemStore = (*stubModifyItemStore)(nil)
