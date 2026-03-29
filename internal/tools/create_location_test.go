@@ -26,6 +26,8 @@ type stubLocationStore struct {
 	createConnErr      error
 }
 
+var _ LocationStore = (*stubLocationStore)(nil)
+
 func (s *stubLocationStore) CreateLocation(_ context.Context, arg statedb.CreateLocationParams) (statedb.Location, error) {
 	if s.createLocationErr != nil {
 		return statedb.Location{}, s.createLocationErr
@@ -295,12 +297,22 @@ func TestCreateLocationValidationAndErrors(t *testing.T) {
 
 	t.Run("missing required field", func(t *testing.T) {
 		h := NewCreateLocationHandler(baseStore, nil, nil)
-		args := copyArgs(baseArgs)
-		delete(args, "region")
+		for _, tc := range []struct {
+			field string
+			want  string
+		}{
+			{field: "name", want: "name is required"},
+			{field: "description", want: "description is required"},
+			{field: "region", want: "region is required"},
+			{field: "location_type", want: "location_type is required"},
+		} {
+			args := copyArgs(baseArgs)
+			delete(args, tc.field)
 
-		_, err := h.Handle(WithCurrentLocationID(context.Background(), currentLocationID), args)
-		if err == nil || !strings.Contains(err.Error(), "region is required") {
-			t.Fatalf("error = %v, want region-required message", err)
+			_, err := h.Handle(WithCurrentLocationID(context.Background(), currentLocationID), args)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("field %s: error = %v, want %q", tc.field, err, tc.want)
+			}
 		}
 	})
 
@@ -438,5 +450,3 @@ func TestCreateLocationMemoryMetadata(t *testing.T) {
 		t.Fatalf("metadata.location_id = %v, want %s", metadata["location_id"], newLocationID)
 	}
 }
-
-var _ LocationStore = (*stubLocationStore)(nil)
