@@ -619,6 +619,10 @@ func (m *mockQuerier) UpdatePlayerStats(_ context.Context, _ statedb.UpdatePlaye
 	return statedb.PlayerCharacter{}, pgx.ErrNoRows
 }
 
+func (m *mockQuerier) UpdatePlayerAbilities(_ context.Context, _ statedb.UpdatePlayerAbilitiesParams) (statedb.PlayerCharacter, error) {
+	return statedb.PlayerCharacter{}, pgx.ErrNoRows
+}
+
 func (m *mockQuerier) UpdatePlayerHP(_ context.Context, _ statedb.UpdatePlayerHPParams) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, pgx.ErrNoRows
 }

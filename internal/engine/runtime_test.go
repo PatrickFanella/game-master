@@ -88,6 +88,8 @@ func (p *testProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.
 	var foundUpdatePlayerStats bool
 	var foundAddExperience bool
 	var foundLevelUp bool
+	var foundAddAbility bool
+	var foundRemoveAbility bool
 	for _, tool := range tools {
 		if tool.Name == "update_npc" {
 			foundUpdateNPC = true
@@ -100,6 +102,11 @@ func (p *testProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.
 		}
 		if tool.Name == "level_up" {
 			foundLevelUp = true
+		if tool.Name == "add_ability" {
+			foundAddAbility = true
+		}
+		if tool.Name == "remove_ability" {
+			foundRemoveAbility = true
 		}
 	}
 	if !foundUpdateNPC {
@@ -113,6 +120,11 @@ func (p *testProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.
 	}
 	if !foundLevelUp {
 		return nil, errors.New("level_up tool not registered")
+	if !foundAddAbility {
+		return nil, errors.New("add_ability tool not registered")
+	}
+	if !foundRemoveAbility {
+		return nil, errors.New("remove_ability tool not registered")
 	}
 	return &llm.Response{
 		Content: "",
