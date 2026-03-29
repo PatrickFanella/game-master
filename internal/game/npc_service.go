@@ -75,6 +75,50 @@ func (s *npcService) UpdateNPC(ctx context.Context, npc domain.NPC) (*domain.NPC
 	return &domainNPC, nil
 }
 
+func (s *npcService) GetPlayerCharacterByID(ctx context.Context, playerCharacterID uuid.UUID) (*domain.PlayerCharacter, error) {
+	playerCharacter, err := s.queries.GetPlayerCharacterByID(ctx, dbutil.ToPgtype(playerCharacterID))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	domainPlayerCharacter := playerCharacterToDomain(playerCharacter)
+	return &domainPlayerCharacter, nil
+}
+
+func (s *npcService) CreateNPC(ctx context.Context, params tools.CreateNPCParams) (*domain.NPC, error) {
+	created, err := s.queries.CreateNPC(ctx, statedb.CreateNPCParams{
+		CampaignID:  dbutil.ToPgtype(params.CampaignID),
+		Name:        params.Name,
+		Description: stringToPgText(params.Description),
+		Personality: stringToPgText(params.Personality),
+		Disposition: int32(params.Disposition),
+		LocationID:  dbutil.ToPgtype(uuidOrNil(params.LocationID)),
+		FactionID:   dbutil.ToPgtype(uuidOrNil(params.FactionID)),
+		Alive:       true,
+		Stats:       params.Stats,
+		Properties:  params.Properties,
+	})
+	if err != nil {
+		return nil, err
+	}
+	domainNPC := npcToDomain(created)
+	return &domainNPC, nil
+}
+
+func (s *npcService) ListNPCsByCampaign(ctx context.Context, campaignID uuid.UUID) ([]domain.NPC, error) {
+	npcs, err := s.queries.ListNPCsByCampaign(ctx, dbutil.ToPgtype(campaignID))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.NPC, 0, len(npcs))
+	for _, npc := range npcs {
+		out = append(out, npcToDomain(npc))
+	}
+	return out, nil
+}
+
 // --- tools.NPCDialogueStore methods ---
 
 func (s *npcService) LogNPCDialogue(ctx context.Context, entry tools.NPCDialogueLogEntry) error {
