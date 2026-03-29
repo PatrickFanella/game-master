@@ -155,6 +155,9 @@ func (h *CreateLocationHandler) Handle(ctx context.Context, args map[string]any)
 	if err != nil {
 		return nil, fmt.Errorf("resolve campaign from current location: %w", err)
 	}
+	if err := h.validateConnectionTargets(ctx, currentLocation.CampaignID, connections); err != nil {
+		return nil, err
+	}
 
 	propertiesJSON, err := json.Marshal(properties)
 	if err != nil {
@@ -171,10 +174,6 @@ func (h *CreateLocationHandler) Handle(ctx context.Context, args map[string]any)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create location: %w", err)
-	}
-
-	if err := h.validateConnectionTargets(ctx, createdLocation.CampaignID, connections); err != nil {
-		return nil, err
 	}
 
 	createdConnections, err := h.createConnections(ctx, createdLocation, connections)
@@ -221,7 +220,6 @@ func (h *CreateLocationHandler) validateConnectionTargets(ctx context.Context, c
 
 func (h *CreateLocationHandler) createConnections(ctx context.Context, location statedb.Location, connections []locationConnectionInput) ([]map[string]any, error) {
 	created := make([]map[string]any, 0, len(connections))
-	fromID := dbutil.FromPgtype(location.ID)
 
 	for i, conn := range connections {
 		primary, err := h.locationStore.CreateConnection(ctx, statedb.CreateConnectionParams{
@@ -235,22 +233,6 @@ func (h *CreateLocationHandler) createConnections(ctx context.Context, location 
 			return nil, fmt.Errorf("create connections[%d]: %w", i, err)
 		}
 		created = append(created, connectionToResult(primary))
-
-		if !conn.Bidirectional {
-			continue
-		}
-
-		reverse, err := h.locationStore.CreateConnection(ctx, statedb.CreateConnectionParams{
-			FromLocationID: dbutil.ToPgtype(conn.LocationID),
-			ToLocationID:   dbutil.ToPgtype(fromID),
-			Description:    pgtype.Text{String: conn.Description, Valid: true},
-			Bidirectional:  conn.Bidirectional,
-			CampaignID:     location.CampaignID,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("create reverse connections[%d]: %w", i, err)
-		}
-		created = append(created, connectionToResult(reverse))
 	}
 
 	return created, nil
