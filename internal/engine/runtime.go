@@ -58,6 +58,7 @@ func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider) *Engin
 	errs = appendErr(errs, tools.RegisterApplyDamage(registry))
 	errs = appendErr(errs, tools.RegisterApplyCondition(registry))
 	errs = appendErr(errs, tools.RegisterUpdatePlayerStats(registry, combatSvc))
+	errs = appendErr(errs, tools.RegisterUpdatePlayerStatus(registry, combatSvc))
 	errs = appendErr(errs, tools.RegisterAddExperience(registry, progressionSvc))
 	errs = appendErr(errs, tools.RegisterLevelUp(registry, progressionSvc))
 	errs = appendErr(errs, tools.RegisterAddAbility(registry, combatSvc))
