@@ -58,6 +58,7 @@ func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider, llmCfg
 	errs = appendErr(errs, tools.RegisterCreateLocation(registry, worldSvc, worldSvc, nil))
 	errs = appendErr(errs, tools.RegisterCreateFaction(registry, worldSvc, worldSvc, nil))
 	errs = appendErr(errs, tools.RegisterCreateQuest(registry, worldSvc))
+	errs = appendErr(errs, tools.RegisterEstablishRelationship(registry, worldSvc))
 	errs = appendErr(errs, tools.RegisterCreateSubquest(registry, worldSvc))
 	errs = appendErr(errs, tools.RegisterCompleteObjective(registry, worldSvc))
 	errs = appendErr(errs, tools.RegisterUpdateQuest(registry, worldSvc))

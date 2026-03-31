@@ -188,3 +188,23 @@ func (s *worldService) ListQuestsByCampaign(ctx context.Context, campaignID pgty
 func (s *worldService) CreateRelationship(ctx context.Context, arg statedb.CreateRelationshipParams) (statedb.EntityRelationship, error) {
 	return s.queries.CreateRelationship(ctx, arg)
 }
+
+func (s *worldService) GetNPCByID(ctx context.Context, id pgtype.UUID) (statedb.Npc, error) {
+	return s.queries.GetNPCByID(ctx, id)
+}
+
+func (s *worldService) GetPlayerCharacterByID(ctx context.Context, id pgtype.UUID) (statedb.PlayerCharacter, error) {
+	return s.queries.GetPlayerCharacterByID(ctx, id)
+}
+
+func (s *worldService) GetItemByID(ctx context.Context, id pgtype.UUID) (statedb.Item, error) {
+	return s.queries.GetItemByID(ctx, id)
+}
+
+func (s *worldService) GetRelationshipsBetween(ctx context.Context, arg statedb.GetRelationshipsBetweenParams) ([]statedb.EntityRelationship, error) {
+	return s.queries.GetRelationshipsBetween(ctx, arg)
+}
+
+func (s *worldService) UpdateRelationship(ctx context.Context, arg statedb.UpdateRelationshipParams) (statedb.EntityRelationship, error) {
+	return s.queries.UpdateRelationship(ctx, arg)
+}
