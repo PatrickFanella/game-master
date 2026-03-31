@@ -146,9 +146,9 @@ func TestCreateQuestHandleSuccess(t *testing.T) {
 		"description": "Reinforce defenses.",
 		"quest_type":  "short_term",
 		"objectives": []any{
-			map[string]any{"description": "Fortify the walls", "order_index": 2},
+			map[string]any{"description": "Fortify the walls", "order_index": 20},
 			map[string]any{"description": "Gather timber", "order_index": 0},
-			map[string]any{"description": "Recruit builders", "order_index": 1},
+			map[string]any{"description": "Recruit builders", "order_index": 10},
 		},
 		"related_entities": []any{
 			map[string]any{"entity_type": "npc", "entity_id": relatedEntityID.String()},
@@ -171,8 +171,11 @@ func TestCreateQuestHandleSuccess(t *testing.T) {
 	if len(store.createObjectiveCalls) != 3 {
 		t.Fatalf("CreateObjective call count = %d, want 3", len(store.createObjectiveCalls))
 	}
-	if store.createObjectiveCalls[0].OrderIndex != 0 || store.createObjectiveCalls[1].OrderIndex != 1 || store.createObjectiveCalls[2].OrderIndex != 2 {
-		t.Fatalf("objective order indexes not sorted: %+v", store.createObjectiveCalls)
+	wantOrder := []int32{0, 10, 20}
+	for i, call := range store.createObjectiveCalls {
+		if call.OrderIndex != wantOrder[i] {
+			t.Fatalf("createObjectiveCalls[%d].OrderIndex = %d, want %d", i, call.OrderIndex, wantOrder[i])
+		}
 	}
 
 	if len(store.createRelationshipCalls) != 1 {

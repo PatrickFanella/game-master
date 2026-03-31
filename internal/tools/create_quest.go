@@ -74,7 +74,7 @@ func CreateQuestTool() llm.Tool {
 						"properties": map[string]any{
 							"entity_type": map[string]any{
 								"type":        "string",
-								"description": "Entity type (npc, location, faction, player_character, item).",
+								"description": "Entity type (npc, location, faction, player_character, player alias, item).",
 							},
 							"entity_id": map[string]any{
 								"type":        "string",
@@ -195,7 +195,7 @@ func (h *CreateQuestHandler) Handle(ctx context.Context, args map[string]any) (*
 	}
 
 	createdRelationships := make([]map[string]any, 0, len(relatedEntities))
-	sourceEntityType := "location"
+	sourceEntityType := string(domain.EntityTypeLocation)
 	sourceEntityID := currentLocationID
 	if currentPlayerID, ok := CurrentPlayerCharacterIDFromContext(ctx); ok {
 		sourceEntityType = string(domain.EntityTypePlayerCharacter)
@@ -209,7 +209,7 @@ func (h *CreateQuestHandler) Handle(ctx context.Context, args map[string]any) (*
 			TargetEntityType: related.EntityType,
 			TargetEntityID:   dbutil.ToPgtype(related.EntityID),
 			RelationshipType: "quest_related",
-			Description:      pgtype.Text{String: fmt.Sprintf("Related to quest %s (%s).", quest.Title, questID.String()), Valid: true},
+			Description:      pgtype.Text{String: fmt.Sprintf("Related to quest %s.", quest.Title), Valid: true},
 		})
 		if err != nil {
 			return nil, fmt.Errorf("create related_entities[%d]: %w", i, err)
