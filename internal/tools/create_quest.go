@@ -21,6 +21,7 @@ const createQuestToolName = "create_quest"
 // QuestStore persists quests, objectives, and related entity links.
 type QuestStore interface {
 	GetLocationByID(ctx context.Context, id pgtype.UUID) (statedb.Location, error)
+	GetQuestByID(ctx context.Context, id pgtype.UUID) (statedb.Quest, error)
 	CreateQuest(ctx context.Context, arg statedb.CreateQuestParams) (statedb.Quest, error)
 	CreateObjective(ctx context.Context, arg statedb.CreateObjectiveParams) (statedb.QuestObjective, error)
 	CreateRelationship(ctx context.Context, arg statedb.CreateRelationshipParams) (statedb.EntityRelationship, error)

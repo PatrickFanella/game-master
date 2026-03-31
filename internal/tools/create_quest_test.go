@@ -16,8 +16,10 @@ import (
 
 type stubQuestStore struct {
 	locationsByID           map[[16]byte]statedb.Location
+	questsByID              map[[16]byte]statedb.Quest
 	createdQuest            statedb.Quest
 	getLocationErr          error
+	getQuestErr             error
 	createQuestErr          error
 	createObjectiveErr      error
 	createRelationshipErr   error
@@ -53,6 +55,17 @@ func (s *stubQuestStore) CreateQuest(_ context.Context, arg statedb.CreateQuestP
 		QuestType:   arg.QuestType,
 		Status:      arg.Status,
 	}, nil
+}
+
+func (s *stubQuestStore) GetQuestByID(_ context.Context, id pgtype.UUID) (statedb.Quest, error) {
+	if s.getQuestErr != nil {
+		return statedb.Quest{}, s.getQuestErr
+	}
+	quest, ok := s.questsByID[id.Bytes]
+	if !ok {
+		return statedb.Quest{}, errors.New("quest not found")
+	}
+	return quest, nil
 }
 
 func (s *stubQuestStore) CreateObjective(_ context.Context, arg statedb.CreateObjectiveParams) (statedb.QuestObjective, error) {

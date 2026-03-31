@@ -139,6 +139,10 @@ func (s *worldService) CreateQuest(ctx context.Context, arg statedb.CreateQuestP
 	return s.queries.CreateQuest(ctx, arg)
 }
 
+func (s *worldService) GetQuestByID(ctx context.Context, id pgtype.UUID) (statedb.Quest, error) {
+	return s.queries.GetQuestByID(ctx, id)
+}
+
 func (s *worldService) CreateObjective(ctx context.Context, arg statedb.CreateObjectiveParams) (statedb.QuestObjective, error) {
 	return s.queries.CreateObjective(ctx, arg)
 }
