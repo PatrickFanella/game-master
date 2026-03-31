@@ -645,10 +645,6 @@ func (m *mockQuerier) UpdatePlayerLevel(_ context.Context, _ statedb.UpdatePlaye
 	return statedb.PlayerCharacter{}, pgx.ErrNoRows
 }
 
-func (m *mockQuerier) UpdatePlayerAbilities(_ context.Context, _ statedb.UpdatePlayerAbilitiesParams) (statedb.PlayerCharacter, error) {
-	return statedb.PlayerCharacter{}, pgx.ErrNoRows
-}
-
 func (m *mockQuerier) UpdatePlayerLocation(_ context.Context, arg statedb.UpdatePlayerLocationParams) (statedb.PlayerCharacter, error) {
 	if m.updatePlayerLocationErr != nil {
 		return statedb.PlayerCharacter{}, m.updatePlayerLocationErr

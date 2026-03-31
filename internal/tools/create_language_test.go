@@ -11,13 +11,13 @@ import (
 )
 
 type stubLanguageStore struct {
-	lastParams          CreateLanguageParams
-	createdID           uuid.UUID
-	factionCampaigns    map[uuid.UUID]uuid.UUID // factionID -> campaignID
-	cultureCampaigns    map[uuid.UUID]uuid.UUID // cultureID -> campaignID
-	getFacErr           error
-	getCulErr           error
-	err                 error
+	lastParams       CreateLanguageParams
+	createdID        uuid.UUID
+	factionCampaigns map[uuid.UUID]uuid.UUID // factionID -> campaignID
+	cultureCampaigns map[uuid.UUID]uuid.UUID // cultureID -> campaignID
+	getFacErr        error
+	getCulErr        error
+	err              error
 }
 
 func (s *stubLanguageStore) CreateLanguage(_ context.Context, params CreateLanguageParams) (uuid.UUID, error) {

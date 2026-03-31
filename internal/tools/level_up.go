@@ -152,20 +152,21 @@ func (h *LevelUpHandler) Handle(ctx context.Context, args map[string]any) (*Tool
 	var updatedAbilitiesJSON json.RawMessage
 	addedAbilities := []string{}
 	if len(newAbilities) > 0 {
-		abilities, parseErr := parsePlayerAbilities(playerCharacter.Abilities)
+		abilities, parseErr := parseLevelUpPlayerAbilities(playerCharacter.Abilities)
 		if parseErr != nil {
 			return nil, parseErr
 		}
 		existing := make(map[string]struct{}, len(abilities))
 		for _, ability := range abilities {
-			existing[ability] = struct{}{}
+			existing[strings.ToLower(strings.TrimSpace(ability))] = struct{}{}
 		}
 		for _, ability := range newAbilities {
-			if _, found := existing[ability]; found {
+			normalizedAbility := strings.ToLower(strings.TrimSpace(ability))
+			if _, found := existing[normalizedAbility]; found {
 				continue
 			}
 			abilities = append(abilities, ability)
-			existing[ability] = struct{}{}
+			existing[normalizedAbility] = struct{}{}
 			addedAbilities = append(addedAbilities, ability)
 		}
 		abilitiesJSON, marshalErr := json.Marshal(abilities)
@@ -251,7 +252,7 @@ func parseOptionalStringArrayArg(args map[string]any, key string) ([]string, err
 	return out, nil
 }
 
-func parsePlayerAbilities(raw json.RawMessage) ([]string, error) {
+func parseLevelUpPlayerAbilities(raw json.RawMessage) ([]string, error) {
 	if len(raw) == 0 {
 		return []string{}, nil
 	}

@@ -395,9 +395,6 @@ func (s *stubQuerier) UpdatePlayerLocation(ctx context.Context, arg statedb.Upda
 func (s *stubQuerier) UpdatePlayerStats(ctx context.Context, arg statedb.UpdatePlayerStatsParams) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, nil
 }
-func (s *stubQuerier) UpdatePlayerAbilities(ctx context.Context, arg statedb.UpdatePlayerAbilitiesParams) (statedb.PlayerCharacter, error) {
-	return statedb.PlayerCharacter{}, nil
-}
 func (s *stubQuerier) UpdatePlayerStatus(ctx context.Context, arg statedb.UpdatePlayerStatusParams) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, nil
 }

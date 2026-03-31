@@ -297,6 +297,9 @@ func (n *noopQuerier) UpdateItemEquipped(ctx context.Context, arg statedb.Update
 func (n *noopQuerier) UpdateItemQuantity(ctx context.Context, arg statedb.UpdateItemQuantityParams) (statedb.Item, error) {
 	return statedb.Item{}, nil
 }
+func (n *noopQuerier) UpdateItemProperties(ctx context.Context, arg statedb.UpdateItemPropertiesParams) (statedb.Item, error) {
+	return statedb.Item{}, nil
+}
 func (n *noopQuerier) UpdateLanguage(ctx context.Context, arg statedb.UpdateLanguageParams) (statedb.Language, error) {
 	return statedb.Language{}, nil
 }
@@ -334,9 +337,6 @@ func (n *noopQuerier) UpdatePlayerLocation(ctx context.Context, arg statedb.Upda
 	return statedb.PlayerCharacter{}, nil
 }
 func (n *noopQuerier) UpdatePlayerStats(ctx context.Context, arg statedb.UpdatePlayerStatsParams) (statedb.PlayerCharacter, error) {
-	return statedb.PlayerCharacter{}, nil
-}
-func (n *noopQuerier) UpdatePlayerAbilities(ctx context.Context, arg statedb.UpdatePlayerAbilitiesParams) (statedb.PlayerCharacter, error) {
 	return statedb.PlayerCharacter{}, nil
 }
 func (n *noopQuerier) UpdatePlayerStatus(ctx context.Context, arg statedb.UpdatePlayerStatusParams) (statedb.PlayerCharacter, error) {

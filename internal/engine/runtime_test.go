@@ -102,6 +102,7 @@ func (p *testProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.
 		}
 		if tool.Name == "level_up" {
 			foundLevelUp = true
+		}
 		if tool.Name == "add_ability" {
 			foundAddAbility = true
 		}
@@ -120,6 +121,7 @@ func (p *testProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.
 	}
 	if !foundLevelUp {
 		return nil, errors.New("level_up tool not registered")
+	}
 	if !foundAddAbility {
 		return nil, errors.New("add_ability tool not registered")
 	}

@@ -179,11 +179,11 @@ func (h *CreateNPCHandler) Handle(ctx context.Context, args map[string]any) (*To
 		factionIDPtr = &factionID
 	}
 
-	statsObj, statsSet, err := parseOptionalJSONObjectArg(args, "stats")
+	statsObj, statsSet, err := parseOptionalJSONObjectArgWithSet(args, "stats")
 	if err != nil {
 		return nil, err
 	}
-	propertiesObj, propertiesSet, err := parseOptionalJSONObjectArg(args, "properties")
+	propertiesObj, propertiesSet, err := parseOptionalJSONObjectArgWithSet(args, "properties")
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +293,7 @@ func (h *CreateNPCHandler) embedNPCMemory(ctx context.Context, npc *domain.NPC, 
 	return nil
 }
 
-func parseOptionalJSONObjectArg(args map[string]any, key string) (map[string]any, bool, error) {
+func parseOptionalJSONObjectArgWithSet(args map[string]any, key string) (map[string]any, bool, error) {
 	raw, ok := args[key]
 	if !ok {
 		return nil, false, nil
