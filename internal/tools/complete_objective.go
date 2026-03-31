@@ -114,6 +114,9 @@ func (h *CompleteObjectiveHandler) Handle(ctx context.Context, args map[string]a
 			return nil, err
 		}
 		objectiveDescription = strings.TrimSpace(objectiveDescription)
+		if objectiveDescription == "" {
+			return nil, errors.New("objective_description must not be empty or whitespace")
+		}
 		descriptionSet = true
 	}
 
@@ -178,6 +181,7 @@ func (h *CompleteObjectiveHandler) Handle(ctx context.Context, args map[string]a
 			questAutoCompleted = true
 		}
 	}
+	questReadyForCompletion := allObjectivesComplete && questStatus != string(domain.QuestStatusCompleted)
 
 	progress := fmt.Sprintf("%d/%d", completedCount, totalObjectives)
 	narrativeParts := []string{
@@ -187,13 +191,12 @@ func (h *CompleteObjectiveHandler) Handle(ctx context.Context, args map[string]a
 	if wasCompleted {
 		narrativeParts[0] = fmt.Sprintf("Objective %q was already complete", targetObjective.Description)
 	}
-	if allObjectivesComplete && !questAutoCompleted {
+	if questReadyForCompletion {
 		narrativeParts = append(narrativeParts, fmt.Sprintf("All objectives are complete; quest %q is ready for completion", quest.Title))
 	}
 	if questAutoCompleted {
 		narrativeParts = append(narrativeParts, fmt.Sprintf("Quest %q has been auto-completed", quest.Title))
 	}
-	questReadyForCompletion := allObjectivesComplete && questStatus != string(domain.QuestStatusCompleted)
 	narrative := strings.Join(narrativeParts, ". ") + "."
 
 	return &ToolResult{
