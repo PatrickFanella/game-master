@@ -136,6 +136,7 @@ func (l Launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			l.errMsg = fmt.Sprintf("Bootstrap failed: %v", msg.err)
 			return l, nil
 		}
+		l.errMsg = ""
 		l.user = msg.result.User
 		campaigns := msg.result.Campaigns
 		l.picker = campaign.New(campaigns)
@@ -144,10 +145,12 @@ func (l Launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return l, nil
 
 	case campaign.SelectedMsg:
+		l.errMsg = ""
 		l.state = launcherLoadingCampaign
 		return l, tea.Batch(l.spinner.Tick, l.runLoadCampaign(msg.Campaign))
 
 	case campaign.NewCampaignNameMsg:
+		l.errMsg = ""
 		l.state = launcherCreating
 		return l, tea.Batch(l.spinner.Tick, l.runCreateCampaign(msg.Name))
 
@@ -157,6 +160,7 @@ func (l Launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			l.state = launcherSelecting
 			return l, nil
 		}
+		l.errMsg = ""
 		l.state = launcherLoadingCampaign
 		return l, tea.Batch(l.spinner.Tick, l.runLoadCampaign(msg.c))
 
@@ -166,6 +170,7 @@ func (l Launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			l.state = launcherSelecting
 			return l, nil
 		}
+		l.errMsg = ""
 		return l.transitionToApp(msg.c)
 	}
 
@@ -185,6 +190,12 @@ func (l Launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (l Launcher) View() string {
 	switch l.state {
 	case launcherSelecting:
+		if l.errMsg != "" {
+			return styles.JoinVertical(
+				styles.StatusError.Render("⚠  "+l.errMsg),
+				l.picker.View(),
+			)
+		}
 		return l.picker.View()
 
 	case launcherCreating:

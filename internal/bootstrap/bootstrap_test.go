@@ -413,7 +413,7 @@ func (s *stubQuerier) UpdateUser(ctx context.Context, arg statedb.UpdateUserPara
 
 // --- Tests ---
 
-func TestRun_FirstBootCreatesUserAndCampaign(t *testing.T) {
+func TestRun_FirstBootCreatesUserOnly(t *testing.T) {
 	q := &stubQuerier{}
 	result, err := bootstrap.Run(context.Background(), q)
 	if err != nil {

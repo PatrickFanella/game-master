@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -16,6 +17,8 @@ import (
 
 // compile-time check: Launcher must implement tea.Model.
 var _ tea.Model = Launcher{}
+
+const loadCampaignCmdBatchIndex = 1
 
 // noopQuerier satisfies statedb.Querier with no-op methods used in launcher
 // unit tests that never actually execute DB operations.
@@ -474,6 +477,24 @@ func TestLauncherBootstrapDone_ErrorRendersErrorMessage(t *testing.T) {
 	}
 }
 
+func TestLauncherSelectingState_RendersErrorBanner(t *testing.T) {
+	l := newTestLauncher()
+	m, _ := l.Update(bootstrapDoneMsg{
+		result: bootstrap.Result{
+			Campaigns: []statedb.Campaign{
+				makeTestCampaign(1, "A"),
+				makeTestCampaign(2, "B"),
+			},
+		},
+	})
+	launcher := m.(Launcher)
+	launcher.errMsg = "Load campaign failed: network timeout"
+	v := launcher.View()
+	if !strings.Contains(v, "Load campaign failed: network timeout") {
+		t.Fatalf("expected selecting view to render error banner, got %q", v)
+	}
+}
+
 func TestLauncherCampaignSelected_TransitionsToApp(t *testing.T) {
 	mockEngine := &mockGameEngine{}
 	l := newTestLauncherWithEngine(mockEngine)
@@ -506,20 +527,14 @@ func TestLauncherCampaignSelected_TransitionsToApp(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected tea.BatchMsg from cmd, got %T", rawMsg)
 	}
-	var loadMsg campaignLoadedMsg
-	found := false
-	for _, innerCmd := range batchMsg {
-		if innerCmd == nil {
-			continue
-		}
-		if msg, ok := innerCmd().(campaignLoadedMsg); ok {
-			loadMsg = msg
-			found = true
-			break
-		}
+	if len(batchMsg) < 2 {
+		t.Fatalf("expected at least 2 commands in batch, got %d", len(batchMsg))
 	}
-	if !found {
-		t.Fatal("expected campaignLoadedMsg in batch command")
+	// Launcher batches spinner tick first, then runLoadCampaign.
+	loadMsgRaw := batchMsg[loadCampaignCmdBatchIndex]()
+	loadMsg, ok := loadMsgRaw.(campaignLoadedMsg)
+	if !ok {
+		t.Fatalf("expected campaignLoadedMsg from batch[1], got %T", loadMsgRaw)
 	}
 	m3, _ := launcherAfterSelect.Update(loadMsg)
 	if len(mockEngine.loadedCampaignIDs) != 1 {
@@ -574,20 +589,14 @@ func TestLauncherCampaignCreated_TransitionsToApp(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected tea.BatchMsg from cmd, got %T", rawMsg)
 	}
-	var loadMsg campaignLoadedMsg
-	found := false
-	for _, innerCmd := range batchMsg {
-		if innerCmd == nil {
-			continue
-		}
-		if msg, ok := innerCmd().(campaignLoadedMsg); ok {
-			loadMsg = msg
-			found = true
-			break
-		}
+	if len(batchMsg) < 2 {
+		t.Fatalf("expected at least 2 commands in batch, got %d", len(batchMsg))
 	}
-	if !found {
-		t.Fatal("expected campaignLoadedMsg in batch command")
+	// Launcher batches spinner tick first, then runLoadCampaign.
+	loadMsgRaw := batchMsg[loadCampaignCmdBatchIndex]()
+	loadMsg, ok := loadMsgRaw.(campaignLoadedMsg)
+	if !ok {
+		t.Fatalf("expected campaignLoadedMsg from batch[1], got %T", loadMsgRaw)
 	}
 	m2, _ := launcher.Update(loadMsg)
 	if len(mockEngine.loadedCampaignIDs) != 1 {

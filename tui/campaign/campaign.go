@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -234,7 +233,7 @@ func formatCampaignDescription(c statedb.Campaign) string {
 
 	lastPlayed := "Never"
 	if c.UpdatedAt.Valid && !c.UpdatedAt.Time.IsZero() {
-		lastPlayed = c.UpdatedAt.Time.In(time.Local).Format("2006-01-02")
+		lastPlayed = c.UpdatedAt.Time.UTC().Format("2006-01-02")
 	}
 
 	status := c.Status
