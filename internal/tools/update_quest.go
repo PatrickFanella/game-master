@@ -242,7 +242,6 @@ func (h *UpdateQuestHandler) cascadeSubquestStatus(ctx context.Context, parentQu
 		return nil, fmt.Errorf("list quests by campaign: %w", err)
 	}
 
-	parentQuestID := dbutil.FromPgtype(parentQuest.ID)
 	cascadeStatus := string(domain.QuestStatusFailed)
 	if parentStatus == string(domain.QuestStatusCompleted) {
 		cascadeStatus = string(domain.QuestStatusAbandoned)
@@ -256,7 +255,7 @@ func (h *UpdateQuestHandler) cascadeSubquestStatus(ctx context.Context, parentQu
 		childrenByParent[quest.ParentQuestID.Bytes] = append(childrenByParent[quest.ParentQuestID.Bytes], quest)
 	}
 
-	queue := append([]statedb.Quest(nil), childrenByParent[dbutil.ToPgtype(parentQuestID).Bytes]...)
+	queue := append([]statedb.Quest(nil), childrenByParent[parentQuest.ID.Bytes]...)
 	cascaded := make([]map[string]any, 0)
 	for len(queue) > 0 {
 		subquest := queue[0]

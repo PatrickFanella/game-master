@@ -288,6 +288,9 @@ func TestUpdateQuestHandleCascadeOnCompletedParent(t *testing.T) {
 	if len(store.listQuestsCalls) != 1 {
 		t.Fatalf("ListQuestsByCampaign call count = %d, want 1", len(store.listQuestsCalls))
 	}
+	if store.listQuestsCalls[0] != campaignPg {
+		t.Fatalf("ListQuestsByCampaign campaign id = %v, want %v", store.listQuestsCalls[0], campaignPg)
+	}
 	if store.updateQuestStatusCalls[0].Status != string(domain.QuestStatusCompleted) {
 		t.Fatalf("parent status update = %q, want completed", store.updateQuestStatusCalls[0].Status)
 	}
@@ -355,6 +358,9 @@ func TestUpdateQuestHandleCascadeOnFailedParent(t *testing.T) {
 	}
 	if len(store.listQuestsCalls) != 1 {
 		t.Fatalf("ListQuestsByCampaign call count = %d, want 1", len(store.listQuestsCalls))
+	}
+	if store.listQuestsCalls[0] != campaignPg {
+		t.Fatalf("ListQuestsByCampaign campaign id = %v, want %v", store.listQuestsCalls[0], campaignPg)
 	}
 	if store.updateQuestStatusCalls[1].Status != string(domain.QuestStatusFailed) {
 		t.Fatalf("child cascade status = %q, want failed", store.updateQuestStatusCalls[1].Status)
