@@ -169,6 +169,14 @@ func (s *worldService) UpdateQuestStatus(ctx context.Context, arg statedb.Update
 	return s.queries.UpdateQuestStatus(ctx, arg)
 }
 
+func (s *worldService) UpdateQuest(ctx context.Context, arg statedb.UpdateQuestParams) (statedb.Quest, error) {
+	return s.queries.UpdateQuest(ctx, arg)
+}
+
+func (s *worldService) ListQuestsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]statedb.Quest, error) {
+	return s.queries.ListQuestsByCampaign(ctx, campaignID)
+}
+
 func (s *worldService) CreateRelationship(ctx context.Context, arg statedb.CreateRelationshipParams) (statedb.EntityRelationship, error) {
 	return s.queries.CreateRelationship(ctx, arg)
 }
