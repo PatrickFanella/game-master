@@ -90,6 +90,7 @@ func (p *testProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.
 	var foundLevelUp bool
 	var foundAddAbility bool
 	var foundRemoveAbility bool
+	var foundUpdateQuest bool
 	for _, tool := range tools {
 		if tool.Name == "update_npc" {
 			foundUpdateNPC = true
@@ -109,6 +110,9 @@ func (p *testProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.
 		if tool.Name == "remove_ability" {
 			foundRemoveAbility = true
 		}
+		if tool.Name == "update_quest" {
+			foundUpdateQuest = true
+		}
 	}
 	if !foundUpdateNPC {
 		return nil, errors.New("update_npc tool not registered")
@@ -127,6 +131,9 @@ func (p *testProvider) Complete(_ context.Context, _ []llm.Message, tools []llm.
 	}
 	if !foundRemoveAbility {
 		return nil, errors.New("remove_ability tool not registered")
+	}
+	if !foundUpdateQuest {
+		return nil, errors.New("update_quest tool not registered")
 	}
 	return &llm.Response{
 		Content: "",
