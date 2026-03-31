@@ -357,7 +357,12 @@ func TestInterviewer_Step_IgnoresUnknownToolCalls(t *testing.T) {
 
 func TestInterviewer_History_ReturnsCopy(t *testing.T) {
 	provider := newScriptedProvider(t,
-		scriptedResponse{resp: &llm.Response{Content: "Hello!"}},
+		scriptedResponse{resp: &llm.Response{
+			Content: "Hello!",
+			ToolCalls: []llm.ToolCall{
+				{ID: "tc_1", Name: "unknown_tool", Arguments: map[string]any{"k": "v"}},
+			},
+		}},
 	)
 
 	iv := NewInterviewer(provider)
@@ -366,15 +371,49 @@ func TestInterviewer_History_ReturnsCopy(t *testing.T) {
 	h1 := iv.History()
 	h2 := iv.History()
 
-	// Mutate h1 and verify h2 is unaffected.
-	h1[0].Content = "MUTATED"
-	if h2[0].Content == "MUTATED" {
-		t.Error("History() should return independent copies")
+	// Mutate Content and verify h2 is unaffected.
+	h1[1].Content = "MUTATED"
+	if h2[1].Content == "MUTATED" {
+		t.Error("History() should return independent copies (Content)")
+	}
+
+	// Mutate ToolCalls and verify h2 is unaffected.
+	h1[1].ToolCalls[0].Name = "MUTATED"
+	if h2[1].ToolCalls[0].Name == "MUTATED" {
+		t.Error("History() should return independent copies (ToolCalls)")
 	}
 }
 
 func TestInterviewPromptIsLoaded(t *testing.T) {
 	if interviewPrompt == "" {
 		t.Fatal("interviewPrompt embed should not be empty")
+	}
+}
+
+func TestInterviewer_Step_RejectsIncompleteProfile(t *testing.T) {
+	provider := newScriptedProvider(t,
+		scriptedResponse{resp: &llm.Response{
+			Content: "Let me summarize...",
+			ToolCalls: []llm.ToolCall{
+				{
+					ID:   "call_1",
+					Name: extractToolName,
+					Arguments: map[string]any{
+						"genre": "fantasy",
+						"tone":  "dark",
+						// missing themes, world_type, danger_level, political_complexity
+					},
+				},
+			},
+		}},
+	)
+
+	iv := NewInterviewer(provider)
+	_, err := iv.Start(context.Background())
+	if err == nil {
+		t.Fatal("expected error for incomplete profile")
+	}
+	if iv.Done() {
+		t.Error("interview should not be marked done for incomplete profile")
 	}
 }

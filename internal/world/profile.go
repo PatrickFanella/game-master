@@ -9,8 +9,8 @@ type CampaignProfile struct {
 	// Genre is the high-level genre of the campaign (e.g. "dark fantasy",
 	// "sci-fi", "steampunk").
 	Genre string `json:"genre"`
-	// Tone describes the overall mood (e.g. "gritty and dark", "light-
-	// hearted and humorous").
+	// Tone describes the overall mood (e.g. "gritty and dark", "light-hearted and
+	// humorous").
 	Tone string `json:"tone"`
 	// Themes lists narrative themes the player wants to explore (e.g.
 	// "redemption", "survival", "political intrigue").

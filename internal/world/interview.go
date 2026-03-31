@@ -64,9 +64,8 @@ type Interviewer struct {
 	done     bool
 }
 
-// NewInterviewer creates an Interviewer backed by the given LLM provider.
-// The system prompt is injected automatically on the first call to
-// [Interviewer.Step].
+// NewInterviewer creates an Interviewer backed by the given LLM provider and
+// seeds the conversation history with the system prompt.
 func NewInterviewer(provider llm.Provider) *Interviewer {
 	return &Interviewer{
 		provider: provider,
@@ -132,6 +131,11 @@ func (iv *Interviewer) Step(ctx context.Context, playerInput string) (*Interview
 		if parseErr != nil {
 			return nil, fmt.Errorf("parse campaign profile from tool call: %w", parseErr)
 		}
+		// Ensure the extracted profile is actually complete before
+		// marking the interview as done.
+		if !profile.Complete() {
+			return nil, fmt.Errorf("incomplete campaign profile extracted from tool call")
+		}
 		iv.profile = profile
 		iv.done = true
 
@@ -150,10 +154,11 @@ func (iv *Interviewer) Step(ctx context.Context, playerInput string) (*Interview
 		}, nil
 	}
 
-	// No tool call — ordinary interview turn.
+	// No profile-extraction tool call — ordinary interview turn.
 	iv.history = append(iv.history, llm.Message{
-		Role:    llm.RoleAssistant,
-		Content: resp.Content,
+		Role:      llm.RoleAssistant,
+		Content:   resp.Content,
+		ToolCalls: resp.ToolCalls,
 	})
 
 	return &InterviewResult{
@@ -162,10 +167,20 @@ func (iv *Interviewer) Step(ctx context.Context, playerInput string) (*Interview
 	}, nil
 }
 
-// History returns a copy of the accumulated conversation history.
+// History returns a deep copy of the accumulated conversation history.
 func (iv *Interviewer) History() []llm.Message {
 	out := make([]llm.Message, len(iv.history))
-	copy(out, iv.history)
+	for i, msg := range iv.history {
+		msgCopy := msg
+
+		if msg.ToolCalls != nil {
+			tcCopy := make([]llm.ToolCall, len(msg.ToolCalls))
+			copy(tcCopy, msg.ToolCalls)
+			msgCopy.ToolCalls = tcCopy
+		}
+
+		out[i] = msgCopy
+	}
 	return out
 }
 
