@@ -243,7 +243,7 @@ func TestCompleteObjectiveValidationErrors(t *testing.T) {
 		questsByID: map[[16]byte]statedb.Quest{
 			dbutil.ToPgtype(questID).Bytes: {
 				ID:     dbutil.ToPgtype(questID),
-				Title:  "Quest",
+				Title:  "Validation Test Quest",
 				Status: string(domain.QuestStatusActive),
 			},
 		},

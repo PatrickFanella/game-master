@@ -165,29 +165,36 @@ func (h *CompleteObjectiveHandler) Handle(ctx context.Context, args map[string]a
 
 	questStatus := quest.Status
 	questAutoCompleted := false
-	if allObjectivesComplete && autoCompleteQuest && quest.Status != string(domain.QuestStatusCompleted) {
-		updatedQuest, err := h.store.UpdateQuestStatus(ctx, statedb.UpdateQuestStatusParams{
-			Status: string(domain.QuestStatusCompleted),
-			ID:     dbutil.ToPgtype(questID),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("auto-complete quest: %w", err)
+	if allObjectivesComplete && autoCompleteQuest {
+		if questStatus != string(domain.QuestStatusCompleted) {
+			updatedQuest, err := h.store.UpdateQuestStatus(ctx, statedb.UpdateQuestStatusParams{
+				Status: string(domain.QuestStatusCompleted),
+				ID:     dbutil.ToPgtype(questID),
+			})
+			if err != nil {
+				return nil, fmt.Errorf("auto-complete quest: %w", err)
+			}
+			questStatus = updatedQuest.Status
+			questAutoCompleted = true
 		}
-		questStatus = updatedQuest.Status
-		questAutoCompleted = true
 	}
 
 	progress := fmt.Sprintf("%d/%d", completedCount, totalObjectives)
-	narrative := fmt.Sprintf("Objective %q completed. Progress: %s objectives complete.", targetObjective.Description, progress)
+	narrativeParts := []string{
+		fmt.Sprintf("Objective %q completed", targetObjective.Description),
+		fmt.Sprintf("Progress: %s complete", progress),
+	}
 	if wasCompleted {
-		narrative = fmt.Sprintf("Objective %q was already complete. Progress: %s objectives complete.", targetObjective.Description, progress)
+		narrativeParts[0] = fmt.Sprintf("Objective %q was already complete", targetObjective.Description)
 	}
 	if allObjectivesComplete && !questAutoCompleted {
-		narrative = fmt.Sprintf("%s All objectives are complete; quest %q is ready for completion.", strings.TrimSuffix(narrative, "."), quest.Title)
+		narrativeParts = append(narrativeParts, fmt.Sprintf("All objectives are complete; quest %q is ready for completion", quest.Title))
 	}
 	if questAutoCompleted {
-		narrative = fmt.Sprintf("%s Quest %q has been auto-completed.", strings.TrimSuffix(narrative, "."), quest.Title)
+		narrativeParts = append(narrativeParts, fmt.Sprintf("Quest %q has been auto-completed", quest.Title))
 	}
+	questReadyForCompletion := allObjectivesComplete && questStatus != string(domain.QuestStatusCompleted)
+	narrative := strings.Join(narrativeParts, ". ") + "."
 
 	return &ToolResult{
 		Success: true,
@@ -202,9 +209,8 @@ func (h *CompleteObjectiveHandler) Handle(ctx context.Context, args map[string]a
 			"objectives_total":        totalObjectives,
 			"progress":                progress,
 			"all_objectives_complete": allObjectivesComplete,
-			"quest_ready_for_completion": allObjectivesComplete &&
-				questStatus != string(domain.QuestStatusCompleted),
-			"quest_auto_completed": questAutoCompleted,
+			"quest_ready_for_completion": questReadyForCompletion,
+			"quest_auto_completed":       questAutoCompleted,
 		},
 		Narrative: narrative,
 	}, nil
@@ -225,12 +231,12 @@ func selectObjectiveToComplete(
 		return statedb.QuestObjective{}, errors.New("objective_id does not belong to the specified quest")
 	}
 
-	descriptionNeedle := strings.ToLower(strings.TrimSpace(objectiveDescription))
+	descriptionNeedle := normalizeObjectiveText(objectiveDescription)
 	exactMatches := make([]statedb.QuestObjective, 0, 1)
 	containsMatches := make([]statedb.QuestObjective, 0, 1)
 
 	for _, objective := range objectives {
-		candidate := strings.ToLower(strings.TrimSpace(objective.Description))
+		candidate := normalizeObjectiveText(objective.Description)
 		if candidate == descriptionNeedle {
 			exactMatches = append(exactMatches, objective)
 			continue
@@ -254,4 +260,8 @@ func selectObjectiveToComplete(
 	}
 
 	return statedb.QuestObjective{}, errors.New("objective_description did not match any objective in the quest")
+}
+
+func normalizeObjectiveText(text string) string {
+	return strings.ToLower(strings.TrimSpace(text))
 }
