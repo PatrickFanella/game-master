@@ -247,3 +247,33 @@ func TestEstablishFactHandleEmbedError(t *testing.T) {
 		t.Fatal("expected error when Embed fails")
 	}
 }
+
+func TestRegisterEstablishFactNilStore(t *testing.T) {
+	reg := NewRegistry()
+	if err := RegisterEstablishFact(reg, nil, nil, nil); err == nil {
+		t.Fatal("expected error when registering with nil factStore")
+	}
+}
+
+func TestEstablishFactHandleNilHandler(t *testing.T) {
+	var h *EstablishFactHandler
+	_, err := h.Handle(context.Background(), map[string]any{
+		"fact":     "Some fact.",
+		"category": "history",
+	})
+	if err == nil {
+		t.Fatal("expected error for nil handler")
+	}
+}
+
+func TestEstablishFactHandleNilFactStore(t *testing.T) {
+	h := &EstablishFactHandler{}
+	ctx := WithCurrentLocationID(context.Background(), uuid.New())
+	_, err := h.Handle(ctx, map[string]any{
+		"fact":     "Some fact.",
+		"category": "history",
+	})
+	if err == nil {
+		t.Fatal("expected error for nil factStore")
+	}
+}

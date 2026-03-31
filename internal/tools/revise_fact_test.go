@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/PatrickFanella/game-master/internal/dbutil"
@@ -124,8 +125,8 @@ func TestReviseFactHandleSuccess(t *testing.T) {
 	if store.lastSupersede.Category != "history" {
 		t.Fatalf("SupersedeFact.Category = %q, want %q inherited from old fact", store.lastSupersede.Category, "history")
 	}
-	if store.lastSupersede.Source != establishedSource {
-		t.Fatalf("SupersedeFact.Source = %q, want %q", store.lastSupersede.Source, establishedSource)
+	if store.lastSupersede.Source != reviseFactToolName {
+		t.Fatalf("SupersedeFact.Source = %q, want %q", store.lastSupersede.Source, reviseFactToolName)
 	}
 	if store.lastSupersede.OldFactID != dbutil.ToPgtype(oldFactID) {
 		t.Fatal("SupersedeFact.OldFactID mismatch")
@@ -349,5 +350,109 @@ func TestReviseFactRevisionChain(t *testing.T) {
 	}
 	if result.Data["old_fact_id"] != fact2ID.String() {
 		t.Fatalf("old_fact_id = %v, want %s", result.Data["old_fact_id"], fact2ID)
+	}
+}
+
+func TestRegisterReviseFactNilStore(t *testing.T) {
+	reg := NewRegistry()
+	if err := RegisterReviseFact(reg, nil, nil, nil); err == nil {
+		t.Fatal("expected error when registering with nil factStore")
+	}
+}
+
+func TestReviseFactHandleNilHandler(t *testing.T) {
+	var h *ReviseFactHandler
+	_, err := h.Handle(context.Background(), map[string]any{
+		"fact_id":  uuid.New().String(),
+		"new_fact": "some text",
+	})
+	if err == nil {
+		t.Fatal("expected error for nil handler")
+	}
+}
+
+func TestReviseFactHandleNilFactStore(t *testing.T) {
+	h := &ReviseFactHandler{}
+	_, err := h.Handle(context.Background(), map[string]any{
+		"fact_id":  uuid.New().String(),
+		"new_fact": "some text",
+	})
+	if err == nil {
+		t.Fatal("expected error for nil factStore")
+	}
+}
+
+func TestReviseFactHandleFactNotFound(t *testing.T) {
+	store := &stubReviseFactStore{getFactErr: pgx.ErrNoRows}
+	h := NewReviseFactHandler(store, nil, nil)
+	_, err := h.Handle(context.Background(), map[string]any{
+		"fact_id":  uuid.New().String(),
+		"new_fact": "revised text",
+	})
+	if err == nil {
+		t.Fatal("expected error when fact does not exist")
+	}
+	if err.Error() != "fact_id does not reference an existing world fact" {
+		t.Fatalf("error = %q, want user-facing not-found message", err.Error())
+	}
+}
+
+func TestReviseFactHandleSupersedeNoRows(t *testing.T) {
+	// SupersedeFact returning ErrNoRows means the fact was superseded concurrently.
+	oldFactID := uuid.New()
+	store := &stubReviseFactStore{
+		factsByID: map[[16]byte]statedb.WorldFact{
+			dbutil.ToPgtype(oldFactID).Bytes: {
+				ID:       dbutil.ToPgtype(oldFactID),
+				Fact:     "some fact",
+				Category: "history",
+				Source:   establishedSource,
+			},
+		},
+		supersedeErr: pgx.ErrNoRows,
+	}
+
+	h := NewReviseFactHandler(store, nil, nil)
+	_, err := h.Handle(context.Background(), map[string]any{
+		"fact_id":  oldFactID.String(),
+		"new_fact": "revised text",
+	})
+	if err == nil {
+		t.Fatal("expected error when SupersedeFact returns no rows")
+	}
+	if err.Error() == pgx.ErrNoRows.Error() {
+		t.Fatalf("error message should be user-facing, got raw pgx error: %v", err)
+	}
+}
+
+func TestReviseFactSourceIsReviseFactTool(t *testing.T) {
+	// Verify that revise_fact uses reviseFactToolName as source, not "established".
+	campaignID := uuid.New()
+	oldFactID := uuid.New()
+	store := &stubReviseFactStore{
+		factsByID: map[[16]byte]statedb.WorldFact{
+			dbutil.ToPgtype(oldFactID).Bytes: {
+				ID:         dbutil.ToPgtype(oldFactID),
+				CampaignID: dbutil.ToPgtype(campaignID),
+				Fact:       "Old fact.",
+				Category:   "politics",
+				Source:     establishedSource,
+			},
+		},
+	}
+
+	h := NewReviseFactHandler(store, nil, nil)
+	result, err := h.Handle(context.Background(), map[string]any{
+		"fact_id":  oldFactID.String(),
+		"new_fact": "New fact.",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if store.lastSupersede.Source != reviseFactToolName {
+		t.Fatalf("SupersedeFact.Source = %q, want %q", store.lastSupersede.Source, reviseFactToolName)
+	}
+	if result.Data["source"] != reviseFactToolName {
+		t.Fatalf("result.Data[source] = %v, want %q", result.Data["source"], reviseFactToolName)
 	}
 }

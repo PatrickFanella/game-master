@@ -51,6 +51,9 @@ func EstablishFactTool() llm.Tool {
 
 // RegisterEstablishFact registers the establish_fact tool in the registry.
 func RegisterEstablishFact(reg *Registry, factStore EstablishFactStore, memoryStore MemoryStore, embedder Embedder) error {
+	if factStore == nil {
+		return errors.New("establish_fact fact store is required")
+	}
 	tool := EstablishFactTool()
 	handler := NewEstablishFactHandler(factStore, memoryStore, embedder)
 	return reg.Register(tool, func(ctx context.Context, args map[string]any) (*ToolResult, error) {
@@ -76,6 +79,13 @@ func NewEstablishFactHandler(factStore EstablishFactStore, memoryStore MemorySto
 
 // Handle executes the establish_fact tool.
 func (h *EstablishFactHandler) Handle(ctx context.Context, args map[string]any) (*ToolResult, error) {
+	if h == nil {
+		return nil, errors.New("establish_fact handler is nil")
+	}
+	if h.factStore == nil {
+		return nil, errors.New("establish_fact fact store is required")
+	}
+
 	fact, err := parseStringArg(args, "fact")
 	if err != nil {
 		return nil, err

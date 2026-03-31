@@ -3,9 +3,11 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/PatrickFanella/game-master/internal/dbutil"
@@ -47,6 +49,9 @@ func ReviseFactTool() llm.Tool {
 
 // RegisterReviseFact registers the revise_fact tool in the registry.
 func RegisterReviseFact(reg *Registry, factStore ReviseFactStore, memoryStore MemoryStore, embedder Embedder) error {
+	if factStore == nil {
+		return errors.New("revise_fact fact store is required")
+	}
 	tool := ReviseFactTool()
 	handler := NewReviseFactHandler(factStore, memoryStore, embedder)
 	return reg.Register(tool, func(ctx context.Context, args map[string]any) (*ToolResult, error) {
@@ -72,6 +77,13 @@ func NewReviseFactHandler(factStore ReviseFactStore, memoryStore MemoryStore, em
 
 // Handle executes the revise_fact tool.
 func (h *ReviseFactHandler) Handle(ctx context.Context, args map[string]any) (*ToolResult, error) {
+	if h == nil {
+		return nil, errors.New("revise_fact handler is nil")
+	}
+	if h.factStore == nil {
+		return nil, errors.New("revise_fact fact store is required")
+	}
+
 	factID, err := parseUUIDArg(args, "fact_id")
 	if err != nil {
 		return nil, err
@@ -83,6 +95,9 @@ func (h *ReviseFactHandler) Handle(ctx context.Context, args map[string]any) (*T
 
 	oldFact, err := h.factStore.GetFactByID(ctx, dbutil.ToPgtype(factID))
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("fact_id does not reference an existing world fact")
+		}
 		return nil, fmt.Errorf("get existing fact: %w", err)
 	}
 	if oldFact.SupersededBy.Valid {
@@ -93,9 +108,12 @@ func (h *ReviseFactHandler) Handle(ctx context.Context, args map[string]any) (*T
 		OldFactID: dbutil.ToPgtype(factID),
 		Fact:      newFactText,
 		Category:  oldFact.Category,
-		Source:    establishedSource,
+		Source:    reviseFactToolName,
 	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("fact %s was superseded concurrently; fetch the current fact and retry", factID)
+		}
 		return nil, fmt.Errorf("supersede fact: %w", err)
 	}
 
@@ -116,7 +134,7 @@ func (h *ReviseFactHandler) Handle(ctx context.Context, args map[string]any) (*T
 			"campaign_id":    campaignID.String(),
 			"new_fact":       newFactText,
 			"category":       oldFact.Category,
-			"source":         establishedSource,
+			"source":         reviseFactToolName,
 			"supersedes":     factID.String(),
 		},
 		Narrative: fmt.Sprintf("World fact revised: %q supersedes fact %s.", newFactText, factID),
@@ -140,7 +158,7 @@ func (h *ReviseFactHandler) embedRevisedFactMemory(
 		"fact_id":      newFactID.String(),
 		"old_fact_id":  oldFactID.String(),
 		"category":     category,
-		"source":       establishedSource,
+		"source":       reviseFactToolName,
 		"supersedes":   oldFactID.String(),
 	})
 	if err != nil {
