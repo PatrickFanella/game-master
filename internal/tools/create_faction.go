@@ -149,7 +149,7 @@ func (h *CreateFactionHandler) Handle(ctx context.Context, args map[string]any) 
 	if err != nil {
 		return nil, err
 	}
-	properties, err := parseOptionalFactionPropertiesArg(args, "properties")
+	properties, err := parseJSONObjectArg(args, "properties")
 	if err != nil {
 		return nil, err
 	}
@@ -172,6 +172,10 @@ func (h *CreateFactionHandler) Handle(ctx context.Context, args map[string]any) 
 		return nil, fmt.Errorf("marshal faction properties: %w", err)
 	}
 
+	if err := h.validateRelatedFactionIDs(ctx, currentLocation.CampaignID, relationships); err != nil {
+		return nil, err
+	}
+
 	faction, err := h.factionStore.CreateFaction(ctx, statedb.CreateFactionParams{
 		CampaignID:  currentLocation.CampaignID,
 		Name:        name,
@@ -182,10 +186,6 @@ func (h *CreateFactionHandler) Handle(ctx context.Context, args map[string]any) 
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create faction: %w", err)
-	}
-
-	if err := h.validateRelatedFactionIDs(ctx, faction.CampaignID, relationships); err != nil {
-		return nil, err
 	}
 
 	createdRelationships, err := h.createFactionRelationships(ctx, faction.ID, relationships)
@@ -347,16 +347,4 @@ func parseFactionRelationshipsArg(args map[string]any, key string) ([]factionRel
 	}
 
 	return out, nil
-}
-
-func parseOptionalFactionPropertiesArg(args map[string]any, key string) (map[string]any, error) {
-	raw, ok := args[key]
-	if !ok || raw == nil {
-		return map[string]any{}, nil
-	}
-	obj, ok := raw.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("%s must be an object", key)
-	}
-	return obj, nil
 }

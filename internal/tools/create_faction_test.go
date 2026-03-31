@@ -19,6 +19,7 @@ type stubFactionStore struct {
 	currentLocation        statedb.Location
 	factionsByID           map[[16]byte]statedb.Faction
 	lastCreateFaction      statedb.CreateFactionParams
+	createFactionCalls     int
 	createFactionResult    statedb.Faction
 	lastRelationships      []statedb.CreateFactionRelationshipParams
 	relationshipResults    []statedb.FactionRelationship
@@ -32,6 +33,7 @@ func (s *stubFactionStore) CreateFaction(_ context.Context, arg statedb.CreateFa
 	if s.createFactionErr != nil {
 		return statedb.Faction{}, s.createFactionErr
 	}
+	s.createFactionCalls++
 	s.lastCreateFaction = arg
 	if s.createFactionResult.ID.Valid {
 		return s.createFactionResult, nil
@@ -260,6 +262,19 @@ func TestCreateFactionValidationAndErrors(t *testing.T) {
 		_, err := h.Handle(WithCurrentLocationID(context.Background(), currentLocationID), copyArgs(baseArgs))
 		if err == nil || !strings.Contains(err.Error(), "must belong to active campaign") {
 			t.Fatalf("error = %v, want campaign validation", err)
+		}
+		if store.createFactionCalls != 0 {
+			t.Fatalf("CreateFaction calls = %d, want 0", store.createFactionCalls)
+		}
+	})
+
+	t.Run("properties is required", func(t *testing.T) {
+		h := NewCreateFactionHandler(baseStore, nil, nil)
+		args := copyArgs(baseArgs)
+		delete(args, "properties")
+		_, err := h.Handle(WithCurrentLocationID(context.Background(), currentLocationID), args)
+		if err == nil || !strings.Contains(err.Error(), "properties is required") {
+			t.Fatalf("error = %v, want properties required error", err)
 		}
 	})
 }
