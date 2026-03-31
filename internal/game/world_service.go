@@ -128,3 +128,7 @@ func (s *worldService) UpdateLocation(ctx context.Context, arg statedb.UpdateLoc
 func (s *worldService) ListLocationsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]statedb.Location, error) {
 	return s.queries.ListLocationsByCampaign(ctx, campaignID)
 }
+
+func (s *worldService) CreateConnection(ctx context.Context, arg statedb.CreateConnectionParams) (statedb.LocationConnection, error) {
+	return s.queries.CreateConnection(ctx, arg)
+}

@@ -144,3 +144,31 @@ func parseStringArrayArg(args map[string]any, key string) ([]string, error) {
 	}
 	return out, nil
 }
+
+func parseObjectStringArg(obj map[string]any, key, prefix string) (string, error) {
+	raw, ok := obj[key]
+	if !ok {
+		return "", fmt.Errorf("%s.%s is required", prefix, key)
+	}
+	value, ok := raw.(string)
+	if !ok || strings.TrimSpace(value) == "" {
+		return "", fmt.Errorf("%s.%s must be a non-empty string", prefix, key)
+	}
+	return value, nil
+}
+
+func parseUUIDFromNestedObject(obj map[string]any, key, prefix string) (uuid.UUID, error) {
+	raw, ok := obj[key]
+	if !ok {
+		return uuid.Nil, fmt.Errorf("%s.%s is required", prefix, key)
+	}
+	value, ok := raw.(string)
+	if !ok || strings.TrimSpace(value) == "" {
+		return uuid.Nil, fmt.Errorf("%s.%s must be a non-empty string UUID", prefix, key)
+	}
+	id, err := uuid.Parse(value)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("%s.%s must be a valid UUID", prefix, key)
+	}
+	return id, nil
+}
