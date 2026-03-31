@@ -24,19 +24,26 @@ func (e *ErrEmbeddingFailed) Unwrap() error { return e.Err }
 type ErrDimensionMismatch struct {
 	Expected int
 	Actual   int
+	Err      error
 }
 
 func (e *ErrDimensionMismatch) Error() string {
 	return fmt.Sprintf("embedding dimension mismatch: expected %d, got %d", e.Expected, e.Actual)
 }
 
+func (e *ErrDimensionMismatch) Unwrap() error { return e.Err }
+
 // ErrEmptyInput indicates that an empty string (or an empty slice of strings
 // for batch operations) was supplied to the embedder.
-type ErrEmptyInput struct{}
+type ErrEmptyInput struct {
+	Err error
+}
 
 func (e *ErrEmptyInput) Error() string {
 	return "embedding input must not be empty"
 }
+
+func (e *ErrEmptyInput) Unwrap() error { return e.Err }
 
 // ErrBatchPartialFailure indicates that some, but not all, texts in a
 // BatchEmbed call failed to produce embeddings.

@@ -148,10 +148,10 @@ func TestErrorsAs(t *testing.T) {
 
 func TestEmbeddingResult_Fields(t *testing.T) {
 	r := memory.EmbeddingResult{
-		Vector:    make([]float32, 768),
+		Vector:    make([]float32, memory.DefaultVectorDimension),
 		Text:      "sample text",
 		Model:     "nomic-embed-text",
-		Dimension: 768,
+		Dimension: memory.DefaultVectorDimension,
 		Duration:  42 * time.Millisecond,
 	}
 
