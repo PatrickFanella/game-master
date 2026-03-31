@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/PatrickFanella/game-master/internal/config"
 	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/llm"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
@@ -156,7 +157,7 @@ func (p *testProvider) Stream(_ context.Context, _ []llm.Message, _ []llm.Tool) 
 
 func TestNewRegistersUpdateNPCTool(t *testing.T) {
 	queries := &testQuerier{}
-	e := New(nil, queries, &testProvider{})
+	e := New(nil, queries, &testProvider{}, config.LLMConfig{Provider: "ollama", Ollama: config.OllamaConfig{ContextTokenBudget: 8000}})
 
 	_, applied, err := e.processor.ProcessWithRecovery(context.Background(), nil, e.assembler.Tools())
 	if err != nil {

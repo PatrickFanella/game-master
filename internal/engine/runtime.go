@@ -11,6 +11,7 @@ import (
 
 	"github.com/PatrickFanella/game-master/internal/assembly"
 	"github.com/PatrickFanella/game-master/internal/bootstrap"
+	"github.com/PatrickFanella/game-master/internal/config"
 	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/domain"
 	"github.com/PatrickFanella/game-master/internal/game"
@@ -30,7 +31,7 @@ type Engine struct {
 const recentTurnLimit = 10
 
 // New creates a concrete GameEngine backed by the shared game and llm packages.
-func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider) *Engine {
+func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider, llmCfg config.LLMConfig) *Engine {
 	registry := tools.NewRegistry()
 	locSvc := game.NewLocationService(queries)
 	invSvc := game.NewInventoryService(queries)
@@ -79,7 +80,7 @@ func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider) *Engin
 	return &Engine{
 		queries:   queries,
 		state:     game.NewStateManager(db),
-		assembler: assembly.NewContextAssembler(registry),
+		assembler: assembly.NewContextAssembler(registry, assembly.WithTokenBudget(llmCfg.ContextTokenBudget())),
 		processor: NewTurnProcessor(provider, registry, tools.NewValidator(registry)),
 	}
 }
