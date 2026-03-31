@@ -157,6 +157,18 @@ func (s *worldService) CreateObjective(ctx context.Context, arg statedb.CreateOb
 	return s.queries.CreateObjective(ctx, arg)
 }
 
+func (s *worldService) ListObjectivesByQuest(ctx context.Context, questID pgtype.UUID) ([]statedb.QuestObjective, error) {
+	return s.queries.ListObjectivesByQuest(ctx, questID)
+}
+
+func (s *worldService) CompleteObjective(ctx context.Context, id pgtype.UUID) (statedb.QuestObjective, error) {
+	return s.queries.CompleteObjective(ctx, id)
+}
+
+func (s *worldService) UpdateQuestStatus(ctx context.Context, arg statedb.UpdateQuestStatusParams) (statedb.Quest, error) {
+	return s.queries.UpdateQuestStatus(ctx, arg)
+}
+
 func (s *worldService) CreateRelationship(ctx context.Context, arg statedb.CreateRelationshipParams) (statedb.EntityRelationship, error) {
 	return s.queries.CreateRelationship(ctx, arg)
 }

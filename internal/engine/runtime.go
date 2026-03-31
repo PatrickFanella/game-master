@@ -58,6 +58,7 @@ func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider) *Engin
 	errs = appendErr(errs, tools.RegisterCreateFaction(registry, worldSvc, worldSvc, nil))
 	errs = appendErr(errs, tools.RegisterCreateQuest(registry, worldSvc))
 	errs = appendErr(errs, tools.RegisterCreateSubquest(registry, worldSvc))
+	errs = appendErr(errs, tools.RegisterCompleteObjective(registry, worldSvc))
 	errs = appendErr(errs, tools.RegisterCreateNPC(registry, npcSvc, worldSvc, nil))
 	errs = appendErr(errs, tools.RegisterGenerateName(registry, worldSvc))
 	errs = appendErr(errs, tools.RegisterSkillCheck(registry, statResolver, nil))
