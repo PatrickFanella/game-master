@@ -1,6 +1,5 @@
 // Package bootstrap handles first-boot setup for the Game Master TUI.
-// On first run it creates a default local user and a starter campaign so
-// the player can begin immediately. On subsequent runs it returns the
+// On first run it creates a default local user. On subsequent runs it returns
 // existing campaigns for the user so the TUI can show a selection list.
 package bootstrap
 
@@ -20,7 +19,8 @@ const (
 	// DefaultUserName is the name given to the auto-created local user.
 	DefaultUserName = "Player"
 
-	// DefaultCampaignName is the name of the auto-created starter campaign.
+	// DefaultCampaignName is the default name used when creating a campaign
+	// through engine-level flows.
 	DefaultCampaignName = "The Beginning"
 
 	// DefaultLocationName is the name of the starter campaign's first location.
@@ -39,10 +39,9 @@ type Result struct {
 	Campaigns []statedb.Campaign
 }
 
-// Run ensures a default user and at least one campaign exist in the database.
-// If no user named DefaultUserName is found, it creates one. If the user has
-// no campaigns, a starter campaign with a default starting location is created.
-// The returned Result always contains at least one campaign.
+// Run ensures a default user exists in the database and returns all campaigns
+// currently owned by that user. If no user named DefaultUserName is found, it
+// creates one.
 func Run(ctx context.Context, q statedb.Querier) (Result, error) {
 	user, err := findOrCreateUser(ctx, q, DefaultUserName)
 	if err != nil {
@@ -52,14 +51,6 @@ func Run(ctx context.Context, q statedb.Querier) (Result, error) {
 	campaigns, err := q.ListCampaignsByUser(ctx, user.ID)
 	if err != nil {
 		return Result{}, fmt.Errorf("list campaigns: %w", err)
-	}
-
-	if len(campaigns) == 0 {
-		campaign, err := createStarterCampaign(ctx, q, user.ID)
-		if err != nil {
-			return Result{}, fmt.Errorf("create starter campaign: %w", err)
-		}
-		campaigns = []statedb.Campaign{campaign}
 	}
 
 	return Result{User: user, Campaigns: campaigns}, nil
@@ -109,10 +100,4 @@ func findOrCreateUser(ctx context.Context, q statedb.Querier, name string) (stat
 		return statedb.User{}, fmt.Errorf("get user by name: %w", err)
 	}
 	return q.CreateUser(ctx, name)
-}
-
-// createStarterCampaign creates a new campaign named DefaultCampaignName with
-// a default starting location for the given user.
-func createStarterCampaign(ctx context.Context, q statedb.Querier, userID pgtype.UUID) (statedb.Campaign, error) {
-	return CreateCampaign(ctx, q, userID, DefaultCampaignName)
 }

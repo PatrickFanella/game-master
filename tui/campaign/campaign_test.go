@@ -3,12 +3,13 @@ package campaign_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/PatrickFanella/game-master/tui/campaign"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
+	"github.com/PatrickFanella/game-master/tui/campaign"
 )
 
 // makeUUID builds a deterministic pgtype.UUID for tests.
@@ -21,6 +22,11 @@ func makeCampaign(id byte, name, status string) statedb.Campaign {
 		ID:     makeUUID(id),
 		Name:   name,
 		Status: status,
+		Genre:  pgtype.Text{String: "Fantasy", Valid: true},
+		UpdatedAt: pgtype.Timestamptz{
+			Time:  time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC),
+			Valid: true,
+		},
 		CreatedBy: makeUUID(99),
 	}
 }
@@ -41,7 +47,7 @@ func TestNew_ListContainsAllCampaignsPlusNewOption(t *testing.T) {
 		t.Fatal("View() should return non-empty string")
 	}
 	// The model must include both campaign names and the new-campaign option.
-	for _, name := range []string{"Alpha", "Beta", "New campaign"} {
+	for _, name := range []string{"Alpha", "Beta", "New Campaign"} {
 		if !containsSubstr(view, name) {
 			t.Errorf("expected %q to appear in the view", name)
 		}
@@ -52,8 +58,21 @@ func TestNew_EmptyListShowsNewCampaignOnly(t *testing.T) {
 	m := campaign.New(nil)
 	m.SetSize(120, 40)
 	view := m.View()
-	if !containsSubstr(view, "New campaign") {
-		t.Error("expected 'New campaign' in view with empty campaign list")
+	if !containsSubstr(view, "New Campaign") {
+		t.Error("expected 'New Campaign' in view with empty campaign list")
+	}
+}
+
+func TestNew_ListDescriptionIncludesGenreLastPlayedAndStatus(t *testing.T) {
+	m := campaign.New([]statedb.Campaign{
+		makeCampaign(1, "Alpha", "active"),
+	})
+	m.SetSize(120, 40)
+	view := m.View()
+	for _, sub := range []string{"Genre: Fantasy", "Last played: 2026-03-30", "Status: active"} {
+		if !containsSubstr(view, sub) {
+			t.Errorf("expected %q in campaign description", sub)
+		}
 	}
 }
 

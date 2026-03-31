@@ -2,14 +2,10 @@
 //
 // Launcher is the initial Bubble Tea model. It:
 //  1. Connects to the database and runs the bootstrap sequence
-//     (creates the default "Player" user and a starter campaign when
-//     none exist).
-//  2. If exactly one campaign is available, it auto-selects it and
-//     transitions to the main App immediately.
-//  3. If multiple campaigns exist it displays the campaign-selection view
-//     and waits for the player to choose.
-//  4. After the player chooses (or creates) a campaign it transitions to
-//     the main App, passing in the selected Campaign.
+//     (creates the default "Player" user if missing).
+//  2. Displays the campaign-selection view.
+//  3. After the player chooses (or creates) a campaign it loads the campaign
+//     in the engine and transitions to the main App.
 package tui
 
 import (
@@ -22,6 +18,7 @@ import (
 
 	"github.com/PatrickFanella/game-master/internal/bootstrap"
 	"github.com/PatrickFanella/game-master/internal/config"
+	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/engine"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/tui/campaign"
@@ -44,6 +41,12 @@ type campaignCreatedMsg struct {
 	err error
 }
 
+// campaignLoadedMsg is sent after a campaign has been loaded in the engine.
+type campaignLoadedMsg struct {
+	c   statedb.Campaign
+	err error
+}
+
 // ---------------------------------------------------------------------------
 // Launcher
 // ---------------------------------------------------------------------------
@@ -52,9 +55,10 @@ type campaignCreatedMsg struct {
 type launcherState int
 
 const (
-	launcherLoading   launcherState = iota // running DB bootstrap
-	launcherSelecting                      // showing campaign-selection list
-	launcherCreating                       // creating a new campaign in the DB
+	launcherLoading         launcherState = iota // running DB bootstrap
+	launcherSelecting                            // showing campaign-selection list
+	launcherCreating                             // creating a new campaign in the DB
+	launcherLoadingCampaign                      // loading selected campaign into engine
 )
 
 // Launcher is the root Bubble Tea model during start-up.
@@ -118,9 +122,9 @@ func (l Launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case spinner.TickMsg:
 		// Only advance the spinner while it is actually visible (loading or
-		// creating states). In the selecting state the spinner is not shown so
+		// creating/loading-campaign states). In the selecting state the spinner is not shown so
 		// we drop the tick to avoid a perpetual background tick loop.
-		if l.state == launcherLoading || l.state == launcherCreating {
+		if l.state == launcherLoading || l.state == launcherCreating || l.state == launcherLoadingCampaign {
 			var cmd tea.Cmd
 			l.spinner, cmd = l.spinner.Update(msg)
 			return l, cmd
@@ -134,18 +138,14 @@ func (l Launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		l.user = msg.result.User
 		campaigns := msg.result.Campaigns
-		// Single campaign (first boot or only one) → auto-select.
-		if len(campaigns) == 1 {
-			return l.transitionToApp(campaigns[0])
-		}
-		// Multiple campaigns → show selection.
 		l.picker = campaign.New(campaigns)
 		l.picker.SetSize(l.width, l.height)
 		l.state = launcherSelecting
 		return l, nil
 
 	case campaign.SelectedMsg:
-		return l.transitionToApp(msg.Campaign)
+		l.state = launcherLoadingCampaign
+		return l, tea.Batch(l.spinner.Tick, l.runLoadCampaign(msg.Campaign))
 
 	case campaign.NewCampaignNameMsg:
 		l.state = launcherCreating
@@ -154,6 +154,15 @@ func (l Launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case campaignCreatedMsg:
 		if msg.err != nil {
 			l.errMsg = fmt.Sprintf("Create campaign failed: %v", msg.err)
+			l.state = launcherSelecting
+			return l, nil
+		}
+		l.state = launcherLoadingCampaign
+		return l, tea.Batch(l.spinner.Tick, l.runLoadCampaign(msg.c))
+
+	case campaignLoadedMsg:
+		if msg.err != nil {
+			l.errMsg = fmt.Sprintf("Load campaign failed: %v", msg.err)
 			l.state = launcherSelecting
 			return l, nil
 		}
@@ -180,6 +189,9 @@ func (l Launcher) View() string {
 
 	case launcherCreating:
 		return l.loadingView("Creating campaign…")
+
+	case launcherLoadingCampaign:
+		return l.loadingView("Loading campaign…")
 
 	default: // launcherLoading
 		if l.errMsg != "" {
@@ -228,5 +240,19 @@ func (l Launcher) runCreateCampaign(name string) tea.Cmd {
 	return func() tea.Msg {
 		c, err := bootstrap.CreateCampaign(ctx, queries, userID, name)
 		return campaignCreatedMsg{c: c, err: err}
+	}
+}
+
+// runLoadCampaign returns a tea.Cmd that loads a campaign in the game engine
+// before transitioning to the main app.
+func (l Launcher) runLoadCampaign(c statedb.Campaign) tea.Cmd {
+	ctx := l.ctx
+	gameEngine := l.engine
+	return func() tea.Msg {
+		if gameEngine == nil {
+			return campaignLoadedMsg{c: c, err: nil}
+		}
+		err := gameEngine.LoadCampaign(ctx, dbutil.FromPgtype(c.ID))
+		return campaignLoadedMsg{c: c, err: err}
 	}
 }

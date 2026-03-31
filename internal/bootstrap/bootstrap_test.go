@@ -423,19 +423,8 @@ func TestRun_FirstBootCreatesUserAndCampaign(t *testing.T) {
 	if result.User.Name != bootstrap.DefaultUserName {
 		t.Errorf("expected user %q, got %q", bootstrap.DefaultUserName, result.User.Name)
 	}
-	if len(result.Campaigns) != 1 {
-		t.Fatalf("expected 1 campaign, got %d", len(result.Campaigns))
-	}
-	if result.Campaigns[0].Name != bootstrap.DefaultCampaignName {
-		t.Errorf("expected campaign %q, got %q", bootstrap.DefaultCampaignName, result.Campaigns[0].Name)
-	}
-
-	// Verify the starting location was created.
-	if len(q.locations) != 1 {
-		t.Fatalf("expected 1 location, got %d", len(q.locations))
-	}
-	if q.locations[0].Name != bootstrap.DefaultLocationName {
-		t.Errorf("expected location %q, got %q", bootstrap.DefaultLocationName, q.locations[0].Name)
+	if len(result.Campaigns) != 0 {
+		t.Fatalf("expected 0 campaigns for first boot, got %d", len(result.Campaigns))
 	}
 }
 
@@ -518,15 +507,18 @@ func TestRun_GetUserByNameNonNoRowsError(t *testing.T) {
 	}
 }
 
-func TestRun_CreateCampaignError(t *testing.T) {
+func TestRun_DoesNotCreateCampaignForNewUser(t *testing.T) {
 	q := &stubQuerier{
 		createCampFn: func(_ context.Context, _ statedb.CreateCampaignParams) (statedb.Campaign, error) {
 			return statedb.Campaign{}, errors.New("db error")
 		},
 	}
-	_, err := bootstrap.Run(context.Background(), q)
-	if err == nil {
-		t.Fatal("expected error when CreateCampaign fails")
+	result, err := bootstrap.Run(context.Background(), q)
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if len(result.Campaigns) != 0 {
+		t.Fatalf("expected no campaigns for new user, got %d", len(result.Campaigns))
 	}
 }
 
