@@ -20,14 +20,16 @@ type DBConfig struct {
 
 // OllamaConfig holds Ollama-specific LLM settings.
 type OllamaConfig struct {
-	Endpoint string `koanf:"endpoint"`
-	Model    string `koanf:"model"`
+	Endpoint           string `koanf:"endpoint"`
+	Model              string `koanf:"model"`
+	ContextTokenBudget int    `koanf:"contexttokenbudget"`
 }
 
 // ClaudeConfig holds Claude-specific LLM settings.
 type ClaudeConfig struct {
-	APIKey string `koanf:"apikey"`
-	Model  string `koanf:"model"`
+	APIKey             string `koanf:"apikey"`
+	Model              string `koanf:"model"`
+	ContextTokenBudget int    `koanf:"contexttokenbudget"`
 }
 
 // LLMConfig holds provider selection and per-provider settings.
@@ -35,6 +37,16 @@ type LLMConfig struct {
 	Provider string       `koanf:"provider"`
 	Ollama   OllamaConfig `koanf:"ollama"`
 	Claude   ClaudeConfig `koanf:"claude"`
+}
+
+// ContextTokenBudget returns the configured context token budget for the active provider.
+func (c LLMConfig) ContextTokenBudget() int {
+	switch c.Provider {
+	case "claude":
+		return c.Claude.ContextTokenBudget
+	default:
+		return c.Ollama.ContextTokenBudget
+	}
 }
 
 // ServerConfig holds HTTP server settings.
@@ -66,12 +78,14 @@ func Load(path string) (Config, error) {
 	k := koanf.New(".")
 
 	defaults := map[string]any{
-		"db.url":              "postgres://game_master:game_master@localhost:5432/game_master?sslmode=disable",
-		"llm.provider":        "ollama",
-		"llm.ollama.endpoint": "http://localhost:11434",
-		"llm.ollama.model":    "llama3.2",
-		"llm.claude.model":    "claude-sonnet-4-6",
-		"server.port":         8080,
+		"db.url":                        "postgres://game_master:game_master@localhost:5432/game_master?sslmode=disable",
+		"llm.provider":                  "ollama",
+		"llm.ollama.endpoint":           "http://localhost:11434",
+		"llm.ollama.model":              "llama3.2",
+		"llm.ollama.contexttokenbudget": 8000,
+		"llm.claude.model":              "claude-sonnet-4-6",
+		"llm.claude.contexttokenbudget": 8000,
+		"server.port":                   8080,
 	}
 
 	if err := k.Load(confmap.Provider(defaults, "."), nil); err != nil {

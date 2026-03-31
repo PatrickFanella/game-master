@@ -63,7 +63,7 @@ func run(args []string) int {
 		logger.Errorf("create llm provider: %v", err)
 		return 1
 	}
-	gameEngine := engine.New(pool, queries, provider)
+	gameEngine := engine.New(pool, queries, provider, cfg.LLM)
 
 	p := tea.NewProgram(
 		tui.NewLauncherWithEngine(cfg, ctx, queries, gameEngine),

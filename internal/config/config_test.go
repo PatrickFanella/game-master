@@ -22,6 +22,9 @@ func TestLoadUsesDefaultsWhenFileIsMissing(t *testing.T) {
 	if cfg.LLM.Ollama.Endpoint != "http://localhost:11434" {
 		t.Fatalf("unexpected default ollama endpoint: %q", cfg.LLM.Ollama.Endpoint)
 	}
+	if cfg.LLM.Ollama.ContextTokenBudget != 8000 {
+		t.Fatalf("unexpected default ollama context token budget: %d", cfg.LLM.Ollama.ContextTokenBudget)
+	}
 }
 
 func TestLoadMergesFileAndEnvironment(t *testing.T) {
@@ -100,6 +103,23 @@ func TestLoadClaudeModelDefault(t *testing.T) {
 	}
 	if cfg.LLM.Claude.Model != "claude-sonnet-4-6" {
 		t.Fatalf("expected default claude model, got %q", cfg.LLM.Claude.Model)
+	}
+	if cfg.LLM.Claude.ContextTokenBudget != 8000 {
+		t.Fatalf("expected default claude context token budget, got %d", cfg.LLM.Claude.ContextTokenBudget)
+	}
+}
+
+func TestLoadContextTokenBudgetFromEnv(t *testing.T) {
+	t.Setenv("GM_LLM_PROVIDER", "claude")
+	t.Setenv("GM_LLM_CLAUDE_APIKEY", "sk-ant-test-key")
+	t.Setenv("GM_LLM_CLAUDE_CONTEXTTOKENBUDGET", "6400")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.LLM.ContextTokenBudget() != 6400 {
+		t.Fatalf("expected active provider context token budget from env, got %d", cfg.LLM.ContextTokenBudget())
 	}
 }
 

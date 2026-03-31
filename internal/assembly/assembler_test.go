@@ -292,6 +292,71 @@ func TestAssembleContext_HistoryContentPreserved(t *testing.T) {
 	}
 }
 
+func TestAssembleContext_EnforcesTokenBudgetByReducingHistoryThenMemories(t *testing.T) {
+	state := makeState()
+	playerInput := "Decide whether to press onward."
+	memories := []string{
+		strings.Repeat("first memory ", 40),
+		strings.Repeat("second memory ", 40),
+	}
+	logs := []domain.SessionLog{
+		{
+			ID:          uuid.New(),
+			CampaignID:  uuid.New(),
+			TurnNumber:  1,
+			PlayerInput: strings.Repeat("history player one ", 40),
+			LLMResponse: strings.Repeat("history response one ", 40),
+		},
+		{
+			ID:          uuid.New(),
+			CampaignID:  uuid.New(),
+			TurnNumber:  2,
+			PlayerInput: strings.Repeat("history player two ", 40),
+			LLMResponse: strings.Repeat("history response two ", 40),
+		},
+	}
+
+	baseSystem := llm.Message{Role: llm.RoleSystem, Content: buildSystemContent(state)}
+	trimmedMemories := trimRetrievedMemories(buildMemoryMessage(memories))
+	playerMessage := llm.Message{Role: llm.RoleUser, Content: playerInput}
+	budget := estimateMessagesTokens(baseSystem, trimmedMemories, playerMessage)
+
+	a := NewContextAssembler(nil, WithTokenBudget(budget))
+	msgs := a.AssembleContext(state, logs, playerInput, memories...)
+
+	if got := msgs[0]; got.Role != llm.RoleSystem || got.Content != baseSystem.Content {
+		t.Fatalf("tier 1 system message changed unexpectedly: %+v", got)
+	}
+	if estimateMessagesTokens(msgs) > budget {
+		t.Fatalf("assembled context exceeded budget: got %d, budget %d", estimateMessagesTokens(msgs), budget)
+	}
+	if last := msgs[len(msgs)-1]; last.Role != llm.RoleUser || last.Content != playerInput {
+		t.Fatalf("last message = %+v, want final player input", last)
+	}
+
+	for _, msg := range msgs {
+		if strings.Contains(msg.Content, "history player one") ||
+			strings.Contains(msg.Content, "history response one") ||
+			strings.Contains(msg.Content, "history player two") ||
+			strings.Contains(msg.Content, "history response two") {
+			t.Fatalf("expected history to be removed before trimming memories, but found %q", msg.Content)
+		}
+	}
+
+	if len(msgs) != 3 {
+		t.Fatalf("expected base system + trimmed memories + player input, got %d messages", len(msgs))
+	}
+	if msgs[1].Role != llm.RoleSystem {
+		t.Fatalf("expected retrieved memories as second system message, got %+v", msgs[1])
+	}
+	if !strings.Contains(msgs[1].Content, strings.TrimSpace(memories[0])) {
+		t.Fatalf("expected first memory to remain, got %q", msgs[1].Content)
+	}
+	if strings.Contains(msgs[1].Content, strings.TrimSpace(memories[1])) {
+		t.Fatalf("expected second memory to be trimmed, got %q", msgs[1].Content)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // serializeState – content checks
 // ---------------------------------------------------------------------------

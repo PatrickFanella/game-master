@@ -5,8 +5,10 @@ llm:
   ollama:
     endpoint: http://localhost:11434
     model: llama3.2
+    contexttokenbudget: 8000
   claude:
     # apikey: sk-ant-...
     model: claude-sonnet-4-6
+    contexttokenbudget: 8000
 server:
   port: 8080
