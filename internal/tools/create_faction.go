@@ -81,7 +81,7 @@ func CreateFactionTool() llm.Tool {
 							},
 							"type": map[string]any{
 								"type":        "string",
-								"description": "Relationship type: allied, hostile, neutral, vassal, rival, trade_partner.",
+								"description": "Relationship type between the new faction and the referenced faction (case-insensitive input; stored as lowercase canonical value).",
 								"enum":        []string{"allied", "hostile", "neutral", "vassal", "rival", "trade_partner"},
 							},
 							"description": map[string]any{
