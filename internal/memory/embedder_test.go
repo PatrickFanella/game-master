@@ -103,19 +103,41 @@ func TestErrEmbeddingFailed_EmptyText(t *testing.T) {
 	}
 }
 
-func TestErrDimensionMismatch_Error(t *testing.T) {
-	err := &memory.ErrDimensionMismatch{Expected: 768, Actual: 1536}
+func TestErrDimensionMismatch_ErrorAndUnwrap(t *testing.T) {
+	inner := errors.New("model mismatch")
+	err := &memory.ErrDimensionMismatch{Expected: 768, Actual: 1536, Err: inner}
 	want := "embedding dimension mismatch: expected 768, got 1536"
 	if err.Error() != want {
 		t.Fatalf("expected %q, got %q", want, err.Error())
 	}
+	if !errors.Is(err, inner) {
+		t.Fatal("expected Unwrap to return inner error")
+	}
 }
 
-func TestErrEmptyInput_Error(t *testing.T) {
-	err := &memory.ErrEmptyInput{}
+func TestErrDimensionMismatch_NilUnwrap(t *testing.T) {
+	err := &memory.ErrDimensionMismatch{Expected: 768, Actual: 1536}
+	if err.Unwrap() != nil {
+		t.Fatal("expected Unwrap to return nil when Err is not set")
+	}
+}
+
+func TestErrEmptyInput_ErrorAndUnwrap(t *testing.T) {
+	inner := errors.New("validation failed")
+	err := &memory.ErrEmptyInput{Err: inner}
 	want := "embedding input must not be empty"
 	if err.Error() != want {
 		t.Fatalf("expected %q, got %q", want, err.Error())
+	}
+	if !errors.Is(err, inner) {
+		t.Fatal("expected Unwrap to return inner error")
+	}
+}
+
+func TestErrEmptyInput_NilUnwrap(t *testing.T) {
+	err := &memory.ErrEmptyInput{}
+	if err.Unwrap() != nil {
+		t.Fatal("expected Unwrap to return nil when Err is not set")
 	}
 }
 
