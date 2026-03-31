@@ -111,6 +111,16 @@ func (s *worldService) CreateEconomicSystem(ctx context.Context, arg statedb.Cre
 	return s.queries.CreateEconomicSystem(ctx, arg)
 }
 
+// --- tools.FactionStore methods ---
+
+func (s *worldService) CreateFaction(ctx context.Context, arg statedb.CreateFactionParams) (statedb.Faction, error) {
+	return s.queries.CreateFaction(ctx, arg)
+}
+
+func (s *worldService) CreateFactionRelationship(ctx context.Context, arg statedb.CreateFactionRelationshipParams) (statedb.FactionRelationship, error) {
+	return s.queries.CreateFactionRelationship(ctx, arg)
+}
+
 func (s *worldService) GetLocationByID(ctx context.Context, id pgtype.UUID) (statedb.Location, error) {
 	return s.queries.GetLocationByID(ctx, id)
 }
