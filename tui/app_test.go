@@ -29,9 +29,11 @@ var testCfg = config.Config{
 var testCampaign = statedb.Campaign{}
 
 type mockGameEngine struct {
-	processTurnFn func(context.Context, uuid.UUID, string) (*engine.TurnResult, error)
-	inputs        []string
-	campaignIDs   []uuid.UUID
+	processTurnFn     func(context.Context, uuid.UUID, string) (*engine.TurnResult, error)
+	loadCampaignFn    func(context.Context, uuid.UUID) error
+	inputs            []string
+	campaignIDs       []uuid.UUID
+	loadedCampaignIDs []uuid.UUID
 }
 
 func (m *mockGameEngine) ProcessTurn(ctx context.Context, campaignID uuid.UUID, input string) (*engine.TurnResult, error) {
@@ -51,7 +53,11 @@ func (m *mockGameEngine) NewCampaign(context.Context, uuid.UUID) (*domain.Campai
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGameEngine) LoadCampaign(context.Context, uuid.UUID) error {
+func (m *mockGameEngine) LoadCampaign(ctx context.Context, campaignID uuid.UUID) error {
+	m.loadedCampaignIDs = append(m.loadedCampaignIDs, campaignID)
+	if m.loadCampaignFn != nil {
+		return m.loadCampaignFn(ctx, campaignID)
+	}
 	return nil
 }
 

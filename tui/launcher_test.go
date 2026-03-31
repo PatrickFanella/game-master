@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -16,6 +17,8 @@ import (
 
 // compile-time check: Launcher must implement tea.Model.
 var _ tea.Model = Launcher{}
+
+const loadCampaignCmdBatchIndex = 1
 
 // noopQuerier satisfies statedb.Querier with no-op methods used in launcher
 // unit tests that never actually execute DB operations.
@@ -367,6 +370,15 @@ func newTestLauncher() Launcher {
 	)
 }
 
+func newTestLauncherWithEngine(engine *mockGameEngine) Launcher {
+	return NewLauncherWithEngine(
+		config.Config{LLM: config.LLMConfig{Provider: "ollama"}},
+		context.Background(),
+		&noopQuerier{},
+		engine,
+	)
+}
+
 func makeTestCampaign(id byte, name string) statedb.Campaign {
 	return statedb.Campaign{
 		ID:     pgtype.UUID{Bytes: [16]byte{id}, Valid: true},
@@ -402,7 +414,7 @@ func TestLauncherViewLoadingState(t *testing.T) {
 	}
 }
 
-func TestLauncherBootstrapDone_SingleCampaignTransitionsToApp(t *testing.T) {
+func TestLauncherBootstrapDone_SingleCampaignShowsPicker(t *testing.T) {
 	l := newTestLauncher()
 	c := makeTestCampaign(1, "Solo Campaign")
 	m, _ := l.Update(bootstrapDoneMsg{
@@ -411,8 +423,12 @@ func TestLauncherBootstrapDone_SingleCampaignTransitionsToApp(t *testing.T) {
 			Campaigns: []statedb.Campaign{c},
 		},
 	})
-	if _, ok := m.(App); !ok {
-		t.Fatalf("expected App after single-campaign bootstrap, got %T", m)
+	launcher, ok := m.(Launcher)
+	if !ok {
+		t.Fatalf("expected Launcher after single-campaign bootstrap, got %T", m)
+	}
+	if launcher.state != launcherSelecting {
+		t.Fatalf("expected launcherSelecting, got %d", launcher.state)
 	}
 }
 
@@ -461,8 +477,27 @@ func TestLauncherBootstrapDone_ErrorRendersErrorMessage(t *testing.T) {
 	}
 }
 
-func TestLauncherCampaignSelected_TransitionsToApp(t *testing.T) {
+func TestLauncherSelectingState_RendersErrorBanner(t *testing.T) {
 	l := newTestLauncher()
+	m, _ := l.Update(bootstrapDoneMsg{
+		result: bootstrap.Result{
+			Campaigns: []statedb.Campaign{
+				makeTestCampaign(1, "A"),
+				makeTestCampaign(2, "B"),
+			},
+		},
+	})
+	launcher := m.(Launcher)
+	launcher.errMsg = "Load campaign failed: network timeout"
+	v := launcher.View()
+	if !strings.Contains(v, "Load campaign failed: network timeout") {
+		t.Fatalf("expected selecting view to render error banner, got %q", v)
+	}
+}
+
+func TestLauncherCampaignSelected_TransitionsToApp(t *testing.T) {
+	mockEngine := &mockGameEngine{}
+	l := newTestLauncherWithEngine(mockEngine)
 	// Put launcher in selecting state first.
 	m, _ := l.Update(bootstrapDoneMsg{
 		result: bootstrap.Result{
@@ -476,9 +511,151 @@ func TestLauncherCampaignSelected_TransitionsToApp(t *testing.T) {
 
 	// Now emit a SelectedMsg.
 	c := makeTestCampaign(1, "A")
+	m2, cmd := launcher.Update(campaign.SelectedMsg{Campaign: c})
+	if cmd == nil {
+		t.Fatal("expected load campaign cmd after SelectedMsg")
+	}
+	launcherAfterSelect, ok := m2.(Launcher)
+	if !ok {
+		t.Fatalf("expected Launcher while loading campaign, got %T", m2)
+	}
+	if launcherAfterSelect.state != launcherLoadingCampaign {
+		t.Fatalf("expected launcherLoadingCampaign, got %d", launcherAfterSelect.state)
+	}
+	rawMsg := cmd()
+	batchMsg, ok := rawMsg.(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("expected tea.BatchMsg from cmd, got %T", rawMsg)
+	}
+	if len(batchMsg) < 2 {
+		t.Fatalf("expected at least 2 commands in batch, got %d", len(batchMsg))
+	}
+	// Launcher batches spinner tick first, then runLoadCampaign.
+	loadMsgRaw := batchMsg[loadCampaignCmdBatchIndex]()
+	loadMsg, ok := loadMsgRaw.(campaignLoadedMsg)
+	if !ok {
+		t.Fatalf("expected campaignLoadedMsg from batch[1], got %T", loadMsgRaw)
+	}
+	m3, _ := launcherAfterSelect.Update(loadMsg)
+	if len(mockEngine.loadedCampaignIDs) != 1 {
+		t.Fatalf("expected engine.LoadCampaign to be called once, got %d", len(mockEngine.loadedCampaignIDs))
+	}
+	if _, ok := m3.(App); !ok {
+		t.Fatalf("expected App after campaignLoadedMsg, got %T", m3)
+	}
+}
+
+func TestLauncherCampaignSelected_LoadCampaignErrorReturnsToSelecting(t *testing.T) {
+	l := newTestLauncher()
+	m, _ := l.Update(bootstrapDoneMsg{
+		result: bootstrap.Result{
+			Campaigns: []statedb.Campaign{
+				makeTestCampaign(1, "A"),
+				makeTestCampaign(2, "B"),
+			},
+		},
+	})
+	launcher := m.(Launcher)
+	c := makeTestCampaign(1, "A")
 	m2, _ := launcher.Update(campaign.SelectedMsg{Campaign: c})
+	launcher2 := m2.(Launcher)
+	m3, _ := launcher2.Update(campaignLoadedMsg{c: c, err: errForTest("load failed")})
+	launcher3 := m3.(Launcher)
+	if launcher3.state != launcherSelecting {
+		t.Fatalf("expected launcherSelecting after load error, got %d", launcher3.state)
+	}
+	if launcher3.errMsg == "" {
+		t.Fatal("expected errMsg after load error")
+	}
+}
+
+func TestLauncherCampaignCreated_TransitionsToApp(t *testing.T) {
+	mockEngine := &mockGameEngine{}
+	l := newTestLauncherWithEngine(mockEngine)
+	c := makeTestCampaign(3, "New World")
+	m, cmd := l.Update(campaignCreatedMsg{c: c})
+	if cmd == nil {
+		t.Fatal("expected load campaign cmd after campaignCreatedMsg")
+	}
+	launcher, ok := m.(Launcher)
+	if !ok {
+		t.Fatalf("expected Launcher while loading created campaign, got %T", m)
+	}
+	if launcher.state != launcherLoadingCampaign {
+		t.Fatalf("expected launcherLoadingCampaign, got %d", launcher.state)
+	}
+	rawMsg := cmd()
+	batchMsg, ok := rawMsg.(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("expected tea.BatchMsg from cmd, got %T", rawMsg)
+	}
+	if len(batchMsg) < 2 {
+		t.Fatalf("expected at least 2 commands in batch, got %d", len(batchMsg))
+	}
+	// Launcher batches spinner tick first, then runLoadCampaign.
+	loadMsgRaw := batchMsg[loadCampaignCmdBatchIndex]()
+	loadMsg, ok := loadMsgRaw.(campaignLoadedMsg)
+	if !ok {
+		t.Fatalf("expected campaignLoadedMsg from batch[1], got %T", loadMsgRaw)
+	}
+	m2, _ := launcher.Update(loadMsg)
+	if len(mockEngine.loadedCampaignIDs) != 1 {
+		t.Fatalf("expected engine.LoadCampaign to be called once, got %d", len(mockEngine.loadedCampaignIDs))
+	}
 	if _, ok := m2.(App); !ok {
-		t.Fatalf("expected App after SelectedMsg, got %T", m2)
+		t.Fatalf("expected App after campaignLoadedMsg, got %T", m2)
+	}
+}
+
+func TestLauncherCampaignCreated_LoadErrorReturnsToSelecting(t *testing.T) {
+	l := newTestLauncher()
+	c := makeTestCampaign(3, "New World")
+	m, _ := l.Update(campaignCreatedMsg{c: c})
+	launcher := m.(Launcher)
+	m2, _ := launcher.Update(campaignLoadedMsg{c: c, err: errForTest("load failed")})
+	launcher2 := m2.(Launcher)
+	if launcher2.state != launcherSelecting {
+		t.Fatalf("expected launcherSelecting after load error, got %d", launcher2.state)
+	}
+	if launcher2.errMsg == "" {
+		t.Fatal("expected errMsg after load error")
+	}
+}
+
+func TestLauncherBootstrapDone_EmptyCampaignsShowsPicker(t *testing.T) {
+	l := newTestLauncher()
+	m, _ := l.Update(bootstrapDoneMsg{
+		result: bootstrap.Result{
+			User:      statedb.User{Name: "Player"},
+			Campaigns: nil,
+		},
+	})
+	launcher, ok := m.(Launcher)
+	if !ok {
+		t.Fatalf("expected Launcher after empty-campaign bootstrap, got %T", m)
+	}
+	if launcher.state != launcherSelecting {
+		t.Fatalf("expected launcherSelecting, got %d", launcher.state)
+	}
+}
+
+func TestLauncherCampaignSelected_NoEngineStillTransitionsToApp(t *testing.T) {
+	l := newTestLauncher()
+	m, _ := l.Update(bootstrapDoneMsg{
+		result: bootstrap.Result{
+			Campaigns: []statedb.Campaign{
+				makeTestCampaign(1, "A"),
+				makeTestCampaign(2, "B"),
+			},
+		},
+	})
+	launcher := m.(Launcher)
+	c := makeTestCampaign(1, "A")
+	m2, _ := launcher.Update(campaign.SelectedMsg{Campaign: c})
+	launcher2 := m2.(Launcher)
+	m3, _ := launcher2.Update(campaignLoadedMsg{c: c})
+	if _, ok := m3.(App); !ok {
+		t.Fatalf("expected App after campaignLoadedMsg, got %T", m3)
 	}
 }
 
@@ -494,15 +671,6 @@ func TestLauncherNewCampaignNameMsg_TransitionsToCreating(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Fatal("expected a DB command to be issued")
-	}
-}
-
-func TestLauncherCampaignCreated_TransitionsToApp(t *testing.T) {
-	l := newTestLauncher()
-	c := makeTestCampaign(3, "New World")
-	m, _ := l.Update(campaignCreatedMsg{c: c})
-	if _, ok := m.(App); !ok {
-		t.Fatalf("expected App after campaignCreatedMsg, got %T", m)
 	}
 }
 
@@ -557,6 +725,13 @@ func TestLauncherSpinnerTick_OnlyAdvancesInLoadingOrCreating(t *testing.T) {
 	_, cmd3 := launcher.Update(tickMsg)
 	if cmd3 == nil {
 		t.Fatal("expected tick cmd in creating state")
+	}
+
+	// In loading-campaign state: should return a cmd.
+	launcher.state = launcherLoadingCampaign
+	_, cmd4 := launcher.Update(tickMsg)
+	if cmd4 == nil {
+		t.Fatal("expected tick cmd in loading-campaign state")
 	}
 }
 

@@ -6,6 +6,7 @@ package campaign
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -40,8 +41,8 @@ func (i item) FilterValue() string { return i.name }
 type Model struct {
 	campaigns []statedb.Campaign
 	list      list.Model
-	form      *huh.Form   // non-nil when "New campaign" is being named
-	newName   string      // value entered by the player
+	form      *huh.Form // non-nil when "New campaign" is being named
+	newName   string    // value entered by the player
 	width     int
 	height    int
 }
@@ -51,10 +52,7 @@ type Model struct {
 func New(campaigns []statedb.Campaign) Model {
 	items := make([]list.Item, 0, len(campaigns)+1)
 	for _, c := range campaigns {
-		desc := c.Description.String
-		if !c.Description.Valid || desc == "" {
-			desc = c.Status
-		}
+		desc := formatCampaignDescription(c)
 		items = append(items, item{
 			id:   c.ID.String(),
 			name: c.Name,
@@ -63,7 +61,7 @@ func New(campaigns []statedb.Campaign) Model {
 	}
 	items = append(items, item{
 		id:   newCampaignSentinel,
-		name: "✦ New campaign",
+		name: "✦ New Campaign",
 		desc: "Create a fresh adventure",
 	})
 
@@ -226,3 +224,22 @@ type NewCampaignNameMsg struct {
 }
 
 var errEmptyName = errors.New("campaign name cannot be empty")
+
+func formatCampaignDescription(c statedb.Campaign) string {
+	genre := "Unknown genre"
+	if c.Genre.Valid && strings.TrimSpace(c.Genre.String) != "" {
+		genre = strings.TrimSpace(c.Genre.String)
+	}
+
+	lastPlayed := "Never"
+	if c.UpdatedAt.Valid && !c.UpdatedAt.Time.IsZero() {
+		lastPlayed = c.UpdatedAt.Time.UTC().Format("2006-01-02")
+	}
+
+	status := c.Status
+	if strings.TrimSpace(status) == "" {
+		status = "unknown"
+	}
+
+	return fmt.Sprintf("Genre: %s · Last played: %s · Status: %s", genre, lastPlayed, status)
+}
