@@ -95,6 +95,16 @@ func (s *stubCreateNPCStore) ListNPCsByCampaign(_ context.Context, campaignID uu
 	return out, nil
 }
 
+type attemptedMemoryStore struct {
+	called bool
+	err    error
+}
+
+func (s *attemptedMemoryStore) CreateMemory(_ context.Context, _ CreateMemoryParams) error {
+	s.called = true
+	return s.err
+}
+
 func TestRegisterCreateNPC(t *testing.T) {
 	reg := NewRegistry()
 	store := &stubCreateNPCStore{}
@@ -450,7 +460,7 @@ func TestCreateNPCHandleEmbeddingFailuresAreBestEffort(t *testing.T) {
 		store.npcsByCampaign = map[uuid.UUID][]domain.NPC{
 			campaignID: {},
 		}
-		memStore := &stubMemoryStore{err: errors.New("memory write failed")}
+		memStore := &attemptedMemoryStore{err: errors.New("memory write failed")}
 		h := NewCreateNPCHandler(&store, memStore, &stubEmbedder{vector: []float32{0.1}})
 
 		got, err := h.Handle(ctx, args)
