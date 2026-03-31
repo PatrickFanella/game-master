@@ -235,6 +235,8 @@ func estimateTokens(content string) int {
 	if strings.TrimSpace(content) == "" {
 		return 0
 	}
+	// Use a lightweight chars/4 approximation so budget enforcement stays fast
+	// and provider-agnostic without pulling in model-specific tokenizers.
 	return (len(content) + 3) / 4
 }
 

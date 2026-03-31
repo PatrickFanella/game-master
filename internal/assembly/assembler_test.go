@@ -15,6 +15,8 @@ import (
 	"github.com/PatrickFanella/game-master/internal/tools"
 )
 
+const repeatCountForBudgetTest = 40
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -296,23 +298,23 @@ func TestAssembleContext_EnforcesTokenBudgetByReducingHistoryThenMemories(t *tes
 	state := makeState()
 	playerInput := "Decide whether to press onward."
 	memories := []string{
-		strings.Repeat("first memory ", 40),
-		strings.Repeat("second memory ", 40),
+		strings.Repeat("first memory ", repeatCountForBudgetTest),
+		strings.Repeat("second memory ", repeatCountForBudgetTest),
 	}
 	logs := []domain.SessionLog{
 		{
 			ID:          uuid.New(),
 			CampaignID:  uuid.New(),
 			TurnNumber:  1,
-			PlayerInput: strings.Repeat("history player one ", 40),
-			LLMResponse: strings.Repeat("history response one ", 40),
+			PlayerInput: strings.Repeat("history player one ", repeatCountForBudgetTest),
+			LLMResponse: strings.Repeat("history response one ", repeatCountForBudgetTest),
 		},
 		{
 			ID:          uuid.New(),
 			CampaignID:  uuid.New(),
 			TurnNumber:  2,
-			PlayerInput: strings.Repeat("history player two ", 40),
-			LLMResponse: strings.Repeat("history response two ", 40),
+			PlayerInput: strings.Repeat("history player two ", repeatCountForBudgetTest),
+			LLMResponse: strings.Repeat("history response two ", repeatCountForBudgetTest),
 		},
 	}
 
