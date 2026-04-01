@@ -9,9 +9,11 @@ func GameStateFromFull(gs *game.GameState) *GameState {
 		return nil
 	}
 	return &GameState{
-		CurrentLocation: gs.CurrentLocation,
-		PlayerCharacter: gs.Player,
-		NPCsPresent:     gs.NearbyNPCs,
-		ActiveQuests:     gs.ActiveQuests,
+		CurrentLocation:       gs.CurrentLocation,
+		PlayerCharacter:       gs.Player,
+		NPCsPresent:           gs.NearbyNPCs,
+		ActiveQuests:          gs.ActiveQuests,
+		ActiveQuestObjectives: gs.ActiveQuestObjectives,
+		PlayerInventory:       gs.PlayerInventory,
 	}
 }

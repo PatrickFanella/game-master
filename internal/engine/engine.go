@@ -124,4 +124,8 @@ type GameState struct {
 	NPCsPresent []domain.NPC
 	// ActiveQuests lists the quests the player is currently pursuing.
 	ActiveQuests []domain.Quest
+	// ActiveQuestObjectives maps quest IDs to their ordered objectives.
+	ActiveQuestObjectives map[uuid.UUID][]domain.QuestObjective
+	// PlayerInventory lists the items the player is carrying.
+	PlayerInventory []domain.Item
 }

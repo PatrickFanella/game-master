@@ -29,11 +29,13 @@ var testCfg = config.Config{
 var testCampaign = statedb.Campaign{}
 
 type mockGameEngine struct {
-	processTurnFn     func(context.Context, uuid.UUID, string) (*engine.TurnResult, error)
-	loadCampaignFn    func(context.Context, uuid.UUID) error
-	inputs            []string
-	campaignIDs       []uuid.UUID
-	loadedCampaignIDs []uuid.UUID
+	processTurnFn      func(context.Context, uuid.UUID, string) (*engine.TurnResult, error)
+	getGameStateFn     func(context.Context, uuid.UUID) (*engine.GameState, error)
+	loadCampaignFn     func(context.Context, uuid.UUID) error
+	inputs             []string
+	campaignIDs        []uuid.UUID
+	stateCampaignIDs   []uuid.UUID
+	loadedCampaignIDs  []uuid.UUID
 }
 
 func (m *mockGameEngine) ProcessTurn(ctx context.Context, campaignID uuid.UUID, input string) (*engine.TurnResult, error) {
@@ -45,7 +47,11 @@ func (m *mockGameEngine) ProcessTurn(ctx context.Context, campaignID uuid.UUID, 
 	return &engine.TurnResult{}, nil
 }
 
-func (m *mockGameEngine) GetGameState(context.Context, uuid.UUID) (*engine.GameState, error) {
+func (m *mockGameEngine) GetGameState(ctx context.Context, campaignID uuid.UUID) (*engine.GameState, error) {
+	m.stateCampaignIDs = append(m.stateCampaignIDs, campaignID)
+	if m.getGameStateFn != nil {
+		return m.getGameStateFn(ctx, campaignID)
+	}
 	return &engine.GameState{}, nil
 }
 
@@ -59,6 +65,53 @@ func (m *mockGameEngine) LoadCampaign(ctx context.Context, campaignID uuid.UUID)
 		return m.loadCampaignFn(ctx, campaignID)
 	}
 	return nil
+}
+
+func sampleGameState() *engine.GameState {
+	questID := uuid.New()
+	return &engine.GameState{
+		PlayerCharacter: domain.PlayerCharacter{
+			ID:         uuid.New(),
+			CampaignID: uuid.New(),
+			UserID:     uuid.New(),
+			Name:       "Aric the Bold",
+			Level:      5,
+			HP:         18,
+			MaxHP:      25,
+			Experience: 1200,
+			Status:     "healthy",
+		},
+		PlayerInventory: []domain.Item{
+			{
+				ID:          uuid.New(),
+				CampaignID:  uuid.New(),
+				Name:        "Health Potion",
+				ItemType:    domain.ItemTypeConsumable,
+				Quantity:    3,
+				Description: "Restores health.",
+				Rarity:      "common",
+			},
+		},
+		ActiveQuests: []domain.Quest{
+			{
+				ID:        questID,
+				Title:     "The Missing Merchant",
+				QuestType: domain.QuestTypeShortTerm,
+				Status:    domain.QuestStatusActive,
+			},
+		},
+		ActiveQuestObjectives: map[uuid.UUID][]domain.QuestObjective{
+			questID: {
+				{
+					ID:          uuid.New(),
+					QuestID:     questID,
+					Description: "Speak to the innkeeper",
+					Completed:   true,
+					OrderIndex:  0,
+				},
+			},
+		},
+	}
 }
 
 func keyForView(view ViewState) rune {
@@ -399,5 +452,127 @@ func TestNextNarrativeChunkPreservesUTF8Runes(t *testing.T) {
 	}
 	if remaining != "🙂" {
 		t.Fatalf("unexpected remaining chunk: %q", remaining)
+	}
+}
+
+
+
+func TestAppInitWithEngineFetchesInitialStateAndPopulatesViews(t *testing.T) {
+	campaignID := uuid.New()
+	state := sampleGameState()
+	mockEngine := &mockGameEngine{
+		getGameStateFn: func(_ context.Context, gotCampaignID uuid.UUID) (*engine.GameState, error) {
+			if gotCampaignID != campaignID {
+				t.Fatalf("expected campaign id %s, got %s", campaignID, gotCampaignID)
+			}
+			return state, nil
+		},
+	}
+
+	app := NewAppWithEngine(testCfg, statedb.Campaign{ID: dbutil.ToPgtype(campaignID)}, context.Background(), mockEngine)
+	sized, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = sized.(App)
+
+	cmd := app.Init()
+	if cmd == nil {
+		t.Fatal("expected Init to return a fetchGameState command when engine is present")
+	}
+
+	model, followup := app.Update(cmd())
+	updated := model.(App)
+	if followup != nil {
+		t.Fatal("expected no follow-up command when distributing initial state")
+	}
+	if len(mockEngine.stateCampaignIDs) != 1 || mockEngine.stateCampaignIDs[0] != campaignID {
+		t.Fatalf("expected one initial state fetch for campaign %s, got %#v", campaignID, mockEngine.stateCampaignIDs)
+	}
+
+	characterView := updated.router.tabs[int(ViewCharacterSheet)].View.View()
+	if !strings.Contains(characterView, "Aric the Bold") {
+		t.Fatalf("expected character view to contain fetched player name, got:\n%s", characterView)
+	}
+	inventoryView := updated.router.tabs[int(ViewInventory)].View.View()
+	if !strings.Contains(inventoryView, "Health Potion") {
+		t.Fatalf("expected inventory view to contain fetched item, got:\n%s", inventoryView)
+	}
+	questView := updated.router.tabs[int(ViewQuestLog)].View.View()
+	if !strings.Contains(questView, "The Missing Merchant") {
+		t.Fatalf("expected quest view to contain fetched quest, got:\n%s", questView)
+	}
+}
+
+func TestAppNarrativeStreamDoneFetchesUpdatedState(t *testing.T) {
+	campaignID := uuid.New()
+	state := sampleGameState()
+	mockEngine := &mockGameEngine{
+		processTurnFn: func(context.Context, uuid.UUID, string) (*engine.TurnResult, error) {
+			return &engine.TurnResult{
+				Narrative: "A hidden passage opens behind the tapestry.",
+			}, nil
+		},
+		getGameStateFn: func(_ context.Context, gotCampaignID uuid.UUID) (*engine.GameState, error) {
+			if gotCampaignID != campaignID {
+				t.Fatalf("expected campaign id %s, got %s", campaignID, gotCampaignID)
+			}
+			return state, nil
+		},
+	}
+
+	app := NewAppWithEngine(testCfg, statedb.Campaign{ID: dbutil.ToPgtype(campaignID)}, context.Background(), mockEngine)
+	sized, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = sized.(App)
+
+	model, cmd := app.Update(narrative.SubmitMsg{Input: "inspect the tapestry"})
+	updated := model.(App)
+	if cmd == nil {
+		t.Fatal("expected submit to return a command")
+	}
+
+	model, cmd = updated.Update(updated.processTurn("inspect the tapestry")())
+	updated = model.(App)
+	if cmd == nil {
+		t.Fatal("expected narrative streaming command after processing turn")
+	}
+
+	for updated.turnBusy {
+		msg := cmd()
+		model, cmd = updated.Update(msg)
+		updated = model.(App)
+	}
+
+	if cmd == nil {
+		t.Fatal("expected state refresh command after narrative stream completes")
+	}
+
+	model, _ = updated.Update(cmd())
+	updated = model.(App)
+	if len(mockEngine.stateCampaignIDs) != 1 || mockEngine.stateCampaignIDs[0] != campaignID {
+		t.Fatalf("expected one state refresh fetch for campaign %s, got %#v", campaignID, mockEngine.stateCampaignIDs)
+	}
+
+	characterView := updated.router.tabs[int(ViewCharacterSheet)].View.View()
+	if !strings.Contains(characterView, "Aric the Bold") {
+		t.Fatalf("expected character view to update after turn, got:\n%s", characterView)
+	}
+	inventoryView := updated.router.tabs[int(ViewInventory)].View.View()
+	if !strings.Contains(inventoryView, "Health Potion") {
+		t.Fatalf("expected inventory view to update after turn, got:\n%s", inventoryView)
+	}
+	questView := updated.router.tabs[int(ViewQuestLog)].View.View()
+	if !strings.Contains(questView, "Speak to the innkeeper") {
+		t.Fatalf("expected quest objectives to update after turn, got:\n%s", questView)
+	}
+}
+
+func TestAppStateFetchErrorAddsSystemMessage(t *testing.T) {
+	app := NewAppWithEngine(testCfg, testCampaign, context.Background(), &mockGameEngine{})
+	sized, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	app = sized.(App)
+
+	model, _ := app.Update(gameStateUpdatedMsg{err: errors.New("state db unavailable")})
+	updated := model.(App)
+
+	if !strings.Contains(updated.View(), "State refresh error: state db unavailable") {
+		t.Fatalf("expected state fetch error to be shown in narrative view, got:\n%s", updated.View())
 	}
 }

@@ -54,6 +54,12 @@ type narrativeStreamDoneMsg struct {
 	choices []engine.Choice
 }
 
+// gameStateUpdatedMsg carries refreshed game state to be forwarded to sub-views.
+type gameStateUpdatedMsg struct {
+	state *engine.GameState
+	err   error
+}
+
 // App is the root Bubble Tea model for Game Master. It tracks the active
 // ViewState and delegates Init/Update/View to the appropriate sub-model via
 // the embedded Router. Global key bindings (quit, view-switching) are handled
@@ -124,8 +130,14 @@ func (a App) ActiveViewState() ViewState {
 	return a.viewState
 }
 
-// Init implements tea.Model. No start-up commands are needed.
-func (a App) Init() tea.Cmd { return nil }
+// Init implements tea.Model. When an engine is present, it fetches the
+// initial game state so sub-views are populated on boot.
+func (a App) Init() tea.Cmd {
+	if a.engine != nil {
+		return a.fetchGameState()
+	}
+	return nil
+}
 
 // Update implements tea.Model. It handles global key bindings (quit and view
 // switching) and forwards all other messages to the active sub-model.
@@ -233,6 +245,25 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.turnBusy = false
 		if nv := a.narrativeView(); nv != nil {
 			nv.SetChoices(msg.choices)
+		}
+		// After a turn completes, refresh sub-views with latest game state.
+		if a.engine != nil {
+			return a, a.fetchGameState()
+		}
+		return a, nil
+
+	case gameStateUpdatedMsg:
+		if msg.err != nil {
+			if nv := a.narrativeView(); nv != nil {
+				nv.AddEntry(narrative.Entry{
+					Kind: narrative.KindSystem,
+					Text: fmt.Sprintf("State refresh error: %v", msg.err),
+				})
+			}
+			return a, nil
+		}
+		if msg.state != nil {
+			return a, a.distributeState(msg.state)
 		}
 		return a, nil
 
@@ -353,4 +384,57 @@ func nextNarrativeChunk(text string) (chunk, remaining string) {
 		return text, ""
 	}
 	return string(runes[:narrativeChunkSize]), string(runes[narrativeChunkSize:])
+}
+
+
+// fetchGameState returns a tea.Cmd that queries the engine for current state.
+func (a App) fetchGameState() tea.Cmd {
+	ctx := a.ctx
+	eng := a.engine
+	campaignID := dbutil.FromPgtype(a.campaign.ID)
+	return func() tea.Msg {
+		if eng == nil {
+			return gameStateUpdatedMsg{}
+		}
+		state, err := eng.GetGameState(ctx, campaignID)
+		return gameStateUpdatedMsg{state: state, err: err}
+	}
+}
+
+// distributeState forwards the refreshed game state to each sub-view,
+// regardless of which view is currently active.
+func (a *App) distributeState(state *engine.GameState) tea.Cmd {
+	var cmds []tea.Cmd
+
+	// Character view.
+	cmds = append(cmds, a.forwardToView(int(ViewCharacterSheet), character.UpdateMsg{
+		Player: state.PlayerCharacter,
+	}))
+
+	// Inventory view.
+	cmds = append(cmds, a.forwardToView(int(ViewInventory), inventory.UpdateMsg{
+		Items: state.PlayerInventory,
+	}))
+
+	// Quest log view.
+	cmds = append(cmds, a.forwardToView(int(ViewQuestLog), quest.UpdateMsg{
+		Quests:     state.ActiveQuests,
+		Objectives: state.ActiveQuestObjectives,
+	}))
+
+	return tea.Batch(cmds...)
+}
+
+// forwardToView sends a message to a specific view by index and captures any
+// command it returns. This allows updating non-active views without switching tabs.
+func (a *App) forwardToView(idx int, msg tea.Msg) tea.Cmd {
+	if idx < 0 || idx >= len(a.router.tabs) {
+		return nil
+	}
+	view := a.router.tabs[idx].View
+	updated, cmd := view.Update(msg)
+	if v, ok := updated.(View); ok {
+		a.router.tabs[idx].View = v
+	}
+	return cmd
 }
