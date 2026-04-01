@@ -52,6 +52,20 @@ func (s *stubMemorySearchStore) SearchMemoriesBySimilarity(_ context.Context, ar
 	return s.rows, nil
 }
 
+type stubFilteredMemorySearchStore struct {
+	params statedb.SearchMemoriesWithFiltersParams
+	rows   []statedb.SearchMemoriesWithFiltersRow
+	err    error
+}
+
+func (s *stubFilteredMemorySearchStore) SearchMemoriesWithFilters(_ context.Context, arg statedb.SearchMemoriesWithFiltersParams) ([]statedb.SearchMemoriesWithFiltersRow, error) {
+	s.params = arg
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.rows, nil
+}
+
 // --- helpers ---
 
 func makeRow(id, campID uuid.UUID, content, mtype string, dist float64, ts time.Time) statedb.SearchMemoriesBySimilarityRow {
@@ -63,6 +77,18 @@ func makeRow(id, campID uuid.UUID, content, mtype string, dist float64, ts time.
 		Embedding:  pgvector_go.NewVector(make([]float32, DefaultVectorDimension)),
 		LocationID: pgtype.UUID{},
 		InGameTime: pgtype.Text{},
+		CreatedAt:  pgtype.Timestamptz{Time: ts, Valid: true},
+		Distance:   dist,
+	}
+}
+
+func makeFilteredRow(id, campID uuid.UUID, content, mtype string, dist float64, ts time.Time) statedb.SearchMemoriesWithFiltersRow {
+	return statedb.SearchMemoriesWithFiltersRow{
+		ID:         dbutil.ToPgtype(id),
+		CampaignID: dbutil.ToPgtype(campID),
+		Content:    content,
+		MemoryType: mtype,
+		Embedding:  pgvector_go.NewVector(make([]float32, DefaultVectorDimension)),
 		CreatedAt:  pgtype.Timestamptz{Time: ts, Valid: true},
 		Distance:   dist,
 	}
@@ -186,5 +212,221 @@ func TestSearchSimilar_EmptyResults(t *testing.T) {
 	}
 	if len(results) != 0 {
 		t.Errorf("expected 0 results, got %d", len(results))
+	}
+}
+
+
+func TestSearchWithFilters_AllFilters(t *testing.T) {
+	campID := uuid.New()
+	id1 := uuid.New()
+	now := time.Now().Truncate(time.Microsecond)
+	locID := uuid.New()
+	npcID := uuid.New()
+	start := now.Add(-24 * time.Hour)
+	end := now
+
+	fStore := &stubFilteredMemorySearchStore{
+		rows: []statedb.SearchMemoriesWithFiltersRow{
+			makeFilteredRow(id1, campID, "ambush in forest", "event", 0.2, now),
+		},
+	}
+	s := NewSearcherWithFilters(&stubSearchEmbedder{}, &stubMemorySearchStore{}, fStore)
+
+	results, err := s.SearchWithFilters(context.Background(), campID, "forest battle", SearchFilters{
+		MemoryType: "event",
+		LocationID: &locID,
+		NPCID:      &npcID,
+		StartTime:  &start,
+		EndTime:    &end,
+	}, 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].ID != id1 {
+		t.Errorf("result ID = %v, want %v", results[0].ID, id1)
+	}
+	// Verify all filter params were passed.
+	if !fStore.params.MemoryType.Valid || fStore.params.MemoryType.String != "event" {
+		t.Errorf("MemoryType = %v, want valid 'event'", fStore.params.MemoryType)
+	}
+	if !fStore.params.LocationID.Valid {
+		t.Error("LocationID should be valid")
+	}
+	if dbutil.FromPgtype(fStore.params.LocationID) != locID {
+		t.Errorf("LocationID = %v, want %v", dbutil.FromPgtype(fStore.params.LocationID), locID)
+	}
+	if !fStore.params.NpcID.Valid {
+		t.Error("NpcID should be valid")
+	}
+	if dbutil.FromPgtype(fStore.params.NpcID) != npcID {
+		t.Errorf("NpcID = %v, want %v", dbutil.FromPgtype(fStore.params.NpcID), npcID)
+	}
+	if !fStore.params.StartTime.Valid || !fStore.params.StartTime.Time.Equal(start) {
+		t.Errorf("StartTime = %v, want %v", fStore.params.StartTime, start)
+	}
+	if !fStore.params.EndTime.Valid || !fStore.params.EndTime.Time.Equal(end) {
+		t.Errorf("EndTime = %v, want %v", fStore.params.EndTime, end)
+	}
+	if fStore.params.LimitCount != 10 {
+		t.Errorf("LimitCount = %d, want 10", fStore.params.LimitCount)
+	}
+}
+
+func TestSearchWithFilters_NoFilters(t *testing.T) {
+	fStore := &stubFilteredMemorySearchStore{}
+	s := NewSearcherWithFilters(&stubSearchEmbedder{}, &stubMemorySearchStore{}, fStore)
+
+	_, err := s.SearchWithFilters(context.Background(), uuid.New(), "query", SearchFilters{}, 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fStore.params.MemoryType.Valid {
+		t.Error("MemoryType should be invalid (NULL)")
+	}
+	if fStore.params.LocationID.Valid {
+		t.Error("LocationID should be invalid (NULL)")
+	}
+	if fStore.params.NpcID.Valid {
+		t.Error("NpcID should be invalid (NULL)")
+	}
+	if fStore.params.StartTime.Valid {
+		t.Error("StartTime should be invalid (NULL)")
+	}
+	if fStore.params.EndTime.Valid {
+		t.Error("EndTime should be invalid (NULL)")
+	}
+}
+
+func TestSearchWithFilters_MemoryTypeOnly(t *testing.T) {
+	fStore := &stubFilteredMemorySearchStore{}
+	s := NewSearcherWithFilters(&stubSearchEmbedder{}, &stubMemorySearchStore{}, fStore)
+
+	_, err := s.SearchWithFilters(context.Background(), uuid.New(), "query", SearchFilters{
+		MemoryType: "dialogue",
+	}, 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !fStore.params.MemoryType.Valid || fStore.params.MemoryType.String != "dialogue" {
+		t.Errorf("MemoryType = %v, want valid 'dialogue'", fStore.params.MemoryType)
+	}
+	if fStore.params.LocationID.Valid {
+		t.Error("LocationID should be invalid (NULL)")
+	}
+	if fStore.params.NpcID.Valid {
+		t.Error("NpcID should be invalid (NULL)")
+	}
+}
+
+func TestSearchWithFilters_CombinedFilters(t *testing.T) {
+	locID := uuid.New()
+	start := time.Now().Add(-48 * time.Hour).Truncate(time.Microsecond)
+	end := time.Now().Truncate(time.Microsecond)
+
+	fStore := &stubFilteredMemorySearchStore{}
+	s := NewSearcherWithFilters(&stubSearchEmbedder{}, &stubMemorySearchStore{}, fStore)
+
+	_, err := s.SearchWithFilters(context.Background(), uuid.New(), "query", SearchFilters{
+		LocationID: &locID,
+		StartTime:  &start,
+		EndTime:    &end,
+	}, 3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !fStore.params.LocationID.Valid {
+		t.Error("LocationID should be valid")
+	}
+	if dbutil.FromPgtype(fStore.params.LocationID) != locID {
+		t.Errorf("LocationID = %v, want %v", dbutil.FromPgtype(fStore.params.LocationID), locID)
+	}
+	if fStore.params.MemoryType.Valid {
+		t.Error("MemoryType should be invalid (NULL)")
+	}
+	if fStore.params.NpcID.Valid {
+		t.Error("NpcID should be invalid (NULL)")
+	}
+	if !fStore.params.StartTime.Valid || !fStore.params.StartTime.Time.Equal(start) {
+		t.Errorf("StartTime = %v, want %v", fStore.params.StartTime, start)
+	}
+	if !fStore.params.EndTime.Valid || !fStore.params.EndTime.Time.Equal(end) {
+		t.Errorf("EndTime = %v, want %v", fStore.params.EndTime, end)
+	}
+	if fStore.params.LimitCount != 3 {
+		t.Errorf("LimitCount = %d, want 3", fStore.params.LimitCount)
+	}
+}
+
+func TestSearchWithFilters_EmptyQuery(t *testing.T) {
+	fStore := &stubFilteredMemorySearchStore{}
+	s := NewSearcherWithFilters(&stubSearchEmbedder{}, &stubMemorySearchStore{}, fStore)
+
+	_, err := s.SearchWithFilters(context.Background(), uuid.New(), "", SearchFilters{}, 5)
+	if err == nil {
+		t.Fatal("expected error for empty query")
+	}
+	var emptyErr *ErrEmptyInput
+	if !errors.As(err, &emptyErr) {
+		t.Errorf("expected ErrEmptyInput, got %T: %v", err, err)
+	}
+}
+
+func TestSearchWithFilters_EmbedError(t *testing.T) {
+	embedErr := errors.New("provider down")
+	fStore := &stubFilteredMemorySearchStore{}
+	s := NewSearcherWithFilters(&stubSearchEmbedder{err: embedErr}, &stubMemorySearchStore{}, fStore)
+
+	_, err := s.SearchWithFilters(context.Background(), uuid.New(), "hello", SearchFilters{}, 5)
+	if err == nil {
+		t.Fatal("expected error from embedder")
+	}
+	if !errors.Is(err, embedErr) {
+		t.Errorf("expected wrapped embedErr, got %v", err)
+	}
+}
+
+func TestSearchWithFilters_EmptyResults(t *testing.T) {
+	fStore := &stubFilteredMemorySearchStore{
+		rows: []statedb.SearchMemoriesWithFiltersRow{},
+	}
+	s := NewSearcherWithFilters(&stubSearchEmbedder{}, &stubMemorySearchStore{}, fStore)
+
+	results, err := s.SearchWithFilters(context.Background(), uuid.New(), "obscure", SearchFilters{}, 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if results == nil {
+		t.Fatal("expected non-nil empty slice, got nil")
+	}
+	if len(results) != 0 {
+		t.Errorf("expected 0 results, got %d", len(results))
+	}
+}
+
+func TestSearchWithFilters_NilFilteredStore(t *testing.T) {
+	s := NewSearcher(&stubSearchEmbedder{}, &stubMemorySearchStore{})
+
+	_, err := s.SearchWithFilters(context.Background(), uuid.New(), "hello", SearchFilters{}, 5)
+	if err == nil {
+		t.Fatal("expected error for nil filteredStore")
+	}
+	if got := err.Error(); got != "memory search: filtered store not configured" {
+		t.Errorf("error = %q, want 'memory search: filtered store not configured'", got)
+	}
+}
+
+func TestSearchWithFilters_DefaultLimit(t *testing.T) {
+	fStore := &stubFilteredMemorySearchStore{}
+	s := NewSearcherWithFilters(&stubSearchEmbedder{}, &stubMemorySearchStore{}, fStore)
+
+	_, err := s.SearchWithFilters(context.Background(), uuid.New(), "query", SearchFilters{}, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fStore.params.LimitCount != 5 {
+		t.Errorf("LimitCount = %d, want 5 (default)", fStore.params.LimitCount)
 	}
 }

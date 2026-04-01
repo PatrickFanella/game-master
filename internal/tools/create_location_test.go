@@ -442,3 +442,96 @@ func TestCreateLocationMemoryMetadata(t *testing.T) {
 		t.Fatalf("metadata.location_id = %v, want %s", metadata["location_id"], newLocationID)
 	}
 }
+func TestCreateLocationHandleEmptyNameField(t *testing.T) {
+	campaignID := uuid.New()
+	currentLocationID := uuid.New()
+
+	store := &stubLocationStore{
+		locationsByID: map[[16]byte]statedb.Location{
+			dbutil.ToPgtype(currentLocationID).Bytes: {
+				ID:         dbutil.ToPgtype(currentLocationID),
+				CampaignID: dbutil.ToPgtype(campaignID),
+				Name:       "Current",
+			},
+		},
+	}
+	h := NewCreateLocationHandler(store, nil, nil)
+	ctx := WithCurrentLocationID(context.Background(), currentLocationID)
+
+	_, err := h.Handle(ctx, map[string]any{
+		"name":          "",
+		"description":   "A valley",
+		"region":        "Highlands",
+		"location_type": "wilderness",
+	})
+	if err == nil {
+		t.Fatal("expected error for empty name, got nil")
+	}
+	if !strings.Contains(err.Error(), "name must be a non-empty string") {
+		t.Fatalf("error = %v, want \"name must be a non-empty string\"", err)
+	}
+}
+
+func TestCreateLocationHandleEmptyConnectionsArray(t *testing.T) {
+	campaignID := uuid.New()
+	currentLocationID := uuid.New()
+
+	store := &stubLocationStore{
+		locationsByID: map[[16]byte]statedb.Location{
+			dbutil.ToPgtype(currentLocationID).Bytes: {
+				ID:         dbutil.ToPgtype(currentLocationID),
+				CampaignID: dbutil.ToPgtype(campaignID),
+				Name:       "Current",
+			},
+		},
+	}
+	h := NewCreateLocationHandler(store, nil, nil)
+	ctx := WithCurrentLocationID(context.Background(), currentLocationID)
+
+	_, err := h.Handle(ctx, map[string]any{
+		"name":          "Empty Pass",
+		"description":   "A narrow pass",
+		"region":        "Northern Range",
+		"location_type": "wilderness",
+		"connections":   []any{},
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if len(store.createConnection) != 0 {
+		t.Fatalf("CreateConnection call count = %d, want 0", len(store.createConnection))
+	}
+}
+
+func TestCreateLocationHandleCreateLocationStoreError(t *testing.T) {
+	campaignID := uuid.New()
+	currentLocationID := uuid.New()
+	dbErr := errors.New("db down")
+
+	store := &stubLocationStore{
+		locationsByID: map[[16]byte]statedb.Location{
+			dbutil.ToPgtype(currentLocationID).Bytes: {
+				ID:         dbutil.ToPgtype(currentLocationID),
+				CampaignID: dbutil.ToPgtype(campaignID),
+				Name:       "Current",
+			},
+		},
+		createLocationErr: dbErr,
+	}
+	h := NewCreateLocationHandler(store, nil, nil)
+	ctx := WithCurrentLocationID(context.Background(), currentLocationID)
+
+	_, err := h.Handle(ctx, map[string]any{
+		"name":          "Ruined Fort",
+		"description":   "A forgotten outpost",
+		"region":        "Eastern Wastes",
+		"location_type": "building",
+	})
+	if err == nil {
+		t.Fatal("expected error from store, got nil")
+	}
+	if !strings.Contains(err.Error(), "db down") {
+		t.Fatalf("error = %v, want wrapped store error \"db down\"", err)
+	}
+}
+

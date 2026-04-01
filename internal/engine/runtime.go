@@ -26,6 +26,7 @@ type Engine struct {
 	state     game.StateManager
 	assembler *assembly.ContextAssembler
 	processor *TurnProcessor
+	tier3     *assembly.Tier3Retriever
 }
 
 const recentTurnLimit = 10
@@ -89,6 +90,13 @@ func New(db statedb.DBTX, queries statedb.Querier, provider llm.Provider, llmCfg
 	}
 }
 
+// SetTier3Retriever attaches a semantic memory retriever to the engine.
+// When set, ProcessTurn will fetch relevant memories and include them in
+// the LLM context. Passing nil disables retrieval.
+func (e *Engine) SetTier3Retriever(t *assembly.Tier3Retriever) {
+	e.tier3 = t
+}
+
 var _ GameEngine = (*Engine)(nil)
 
 func (e *Engine) ProcessTurn(ctx context.Context, campaignID uuid.UUID, playerInput string) (*TurnResult, error) {
@@ -112,7 +120,12 @@ func (e *Engine) ProcessTurn(ctx context.Context, campaignID uuid.UUID, playerIn
 	}
 
 	recentTurns := sessionLogsToDomain(recentLogs)
-	messages := e.assembler.AssembleContext(state, recentTurns, playerInput)
+	var retrievedMemories []string
+	if e.tier3 != nil {
+		retrievedMemories, _ = e.tier3.Retrieve(ctx, campaignID, playerInput, state)
+	}
+
+	messages := e.assembler.AssembleContext(state, recentTurns, playerInput, retrievedMemories...)
 	narrative, applied, err := e.processor.ProcessWithRecovery(ctx, messages, e.assembler.Tools())
 	if err != nil {
 		return nil, fmt.Errorf("process turn: %w", err)

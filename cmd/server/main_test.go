@@ -46,7 +46,7 @@ func TestNewRouterHealthAndAPIGroups(t *testing.T) {
 	t.Parallel()
 
 	logger := log.New(io.Discard)
-	router := newRouter(logger, nil)
+	router := newRouter(logger, nil, nil)
 
 	healthReq := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	healthRes := httptest.NewRecorder()
@@ -68,11 +68,14 @@ func TestNewRouterHealthAndAPIGroups(t *testing.T) {
 		t.Fatalf("GET /api/healthz body = %q, want JSON status", apiHealthRes.Body.String())
 	}
 
-	campaignReq := httptest.NewRequest(http.MethodGet, "/api/v1/campaigns/", nil)
+	// With real handlers and nil dependencies, campaigns returns an auth error or server error.
+	// Just verify the route exists and doesn't panic.
+	campaignReq := httptest.NewRequest(http.MethodGet, "/api/v1/campaigns", nil)
 	campaignRes := httptest.NewRecorder()
 	router.ServeHTTP(campaignRes, campaignReq)
-	if campaignRes.Code != http.StatusNotImplemented {
-		t.Fatalf("GET /api/v1/campaigns/ status = %d, want %d", campaignRes.Code, http.StatusNotImplemented)
+	// Accept any non-404 status (route is registered).
+	if campaignRes.Code == http.StatusNotFound {
+		t.Fatalf("GET /api/v1/campaigns status = %d, want route to exist", campaignRes.Code)
 	}
 }
 
@@ -80,7 +83,7 @@ func TestNewRouterRecovererAndCORS(t *testing.T) {
 	t.Parallel()
 
 	logger := log.New(io.Discard)
-	router := newRouter(logger, nil)
+	router := newRouter(logger, nil, nil)
 
 	mux, ok := router.(*chi.Mux)
 	if !ok {

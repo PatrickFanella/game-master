@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -437,5 +438,81 @@ func TestCreateLoreHandleNilStore(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error for nil loreStore")
+	}
+}
+
+
+func TestCreateLoreHandleEmptyContent(t *testing.T) {
+	campaignID := uuid.New()
+	locationID := uuid.New()
+	store := &stubLoreStore{
+		currentLocation: statedb.Location{
+			ID:         dbutil.ToPgtype(locationID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+	}
+	h := NewCreateLoreHandler(store, nil, nil)
+	_, err := h.Handle(WithCurrentLocationID(context.Background(), locationID), map[string]any{
+		"content":  "",
+		"category": "history",
+	})
+	if err == nil {
+		t.Fatal("expected error for empty content")
+	}
+	if !strings.Contains(err.Error(), "content must be a non-empty string") {
+		t.Fatalf("error = %q, want to contain %q", err.Error(), "content must be a non-empty string")
+	}
+}
+
+func TestCreateLoreHandleEmptyRelatedEntities(t *testing.T) {
+	campaignID := uuid.New()
+	locationID := uuid.New()
+	store := &stubLoreStore{
+		currentLocation: statedb.Location{
+			ID:         dbutil.ToPgtype(locationID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+	}
+	h := NewCreateLoreHandler(store, nil, nil)
+	result, err := h.Handle(WithCurrentLocationID(context.Background(), locationID), map[string]any{
+		"content":          "The old forest remembers the war.",
+		"category":         "history",
+		"related_entities": []any{},
+	})
+	if err != nil {
+		t.Fatalf("Handle returned error: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("expected success")
+	}
+	if len(store.createRelationshipCalls) != 0 {
+		t.Fatalf("CreateRelationship call count = %d, want 0", len(store.createRelationshipCalls))
+	}
+}
+
+func TestCreateLoreHandleMemoryStoreError(t *testing.T) {
+	campaignID := uuid.New()
+	locationID := uuid.New()
+	factID := uuid.New()
+	store := &stubLoreStore{
+		currentLocation: statedb.Location{
+			ID:         dbutil.ToPgtype(locationID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+		createdFact: statedb.WorldFact{
+			ID:         dbutil.ToPgtype(factID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+			Source:     loreSource,
+		},
+	}
+	memStore := &stubMemoryStore{err: errors.New("mem error")}
+	embedder := &stubEmbedder{vector: []float32{0.1, 0.2}}
+	h := NewCreateLoreHandler(store, memStore, embedder)
+	_, err := h.Handle(WithCurrentLocationID(context.Background(), locationID), map[string]any{
+		"content":  "Ancient pact sealed beneath the mountain.",
+		"category": "history",
+	})
+	if err == nil {
+		t.Fatal("expected error when memory store CreateMemory fails")
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -454,5 +455,63 @@ func TestReviseFactSourceIsReviseFactTool(t *testing.T) {
 	}
 	if result.Data["source"] != reviseFactToolName {
 		t.Fatalf("result.Data[source] = %v, want %q", result.Data["source"], reviseFactToolName)
+	}
+}
+
+func TestReviseFactHandleEmptyNewFact(t *testing.T) {
+	h := NewReviseFactHandler(&stubReviseFactStore{}, nil, nil)
+	_, err := h.Handle(context.Background(), map[string]any{
+		"fact_id":  uuid.New().String(),
+		"new_fact": "",
+	})
+	if err == nil {
+		t.Fatal("expected error for empty new_fact")
+	}
+	if !strings.Contains(err.Error(), "new_fact must be a non-empty string") {
+		t.Fatalf("error = %q, want \"new_fact must be a non-empty string\"", err.Error())
+	}
+}
+
+func TestReviseFactHandleInvalidFactIDFormat(t *testing.T) {
+	h := NewReviseFactHandler(&stubReviseFactStore{}, nil, nil)
+	_, err := h.Handle(context.Background(), map[string]any{
+		"fact_id":  "not-a-uuid",
+		"new_fact": "Some revised fact text.",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid fact_id format")
+	}
+	if !strings.Contains(err.Error(), "fact_id must be a valid UUID") {
+		t.Fatalf("error = %q, want \"fact_id must be a valid UUID\"", err.Error())
+	}
+}
+
+func TestReviseFactHandleMemoryStoreError(t *testing.T) {
+	campaignID := uuid.New()
+	oldFactID := uuid.New()
+	store := &stubReviseFactStore{
+		factsByID: map[[16]byte]statedb.WorldFact{
+			dbutil.ToPgtype(oldFactID).Bytes: {
+				ID:         dbutil.ToPgtype(oldFactID),
+				CampaignID: dbutil.ToPgtype(campaignID),
+				Fact:       "The empire stands eternal.",
+				Category:   "politics",
+				Source:     establishedSource,
+			},
+		},
+	}
+	memStore := &stubMemoryStore{err: errors.New("mem error")}
+	embedder := &stubEmbedder{vector: []float32{0.1}}
+
+	h := NewReviseFactHandler(store, memStore, embedder)
+	_, err := h.Handle(context.Background(), map[string]any{
+		"fact_id":  oldFactID.String(),
+		"new_fact": "The empire has fallen.",
+	})
+	if err == nil {
+		t.Fatal("expected error when memory store CreateMemory fails")
+	}
+	if !strings.Contains(err.Error(), "mem error") {
+		t.Fatalf("error = %q, want it to contain \"mem error\"", err.Error())
 	}
 }

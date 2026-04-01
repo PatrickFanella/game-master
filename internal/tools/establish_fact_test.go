@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -275,5 +276,80 @@ func TestEstablishFactHandleNilFactStore(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error for nil factStore")
+	}
+}
+
+
+func TestEstablishFactHandleEmptyFact(t *testing.T) {
+	campaignID := uuid.New()
+	locationID := uuid.New()
+	store := &stubEstablishFactStore{
+		currentLocation: statedb.Location{
+			ID:         dbutil.ToPgtype(locationID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+	}
+	h := NewEstablishFactHandler(store, nil, nil)
+	ctx := WithCurrentLocationID(context.Background(), locationID)
+	_, err := h.Handle(ctx, map[string]any{
+		"fact":     "",
+		"category": "history",
+	})
+	if err == nil {
+		t.Fatal("expected error for empty fact string")
+	}
+	if !strings.Contains(err.Error(), "fact must be a non-empty string") {
+		t.Fatalf("error = %q, want to contain %q", err.Error(), "fact must be a non-empty string")
+	}
+}
+
+func TestEstablishFactHandleArbitraryCategoryAccepted(t *testing.T) {
+	campaignID := uuid.New()
+	locationID := uuid.New()
+	store := &stubEstablishFactStore{
+		currentLocation: statedb.Location{
+			ID:         dbutil.ToPgtype(locationID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+	}
+	h := NewEstablishFactHandler(store, nil, nil)
+	ctx := WithCurrentLocationID(context.Background(), locationID)
+	result, err := h.Handle(ctx, map[string]any{
+		"fact":     "Stars are suns.",
+		"category": "science",
+	})
+	if err != nil {
+		t.Fatalf("Handle returned unexpected error for arbitrary category: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("expected success for arbitrary category")
+	}
+	if store.lastCreateFact.Category != "science" {
+		t.Fatalf("CreateFact.Category = %q, want %q", store.lastCreateFact.Category, "science")
+	}
+}
+
+func TestEstablishFactHandleMemoryStoreError(t *testing.T) {
+	campaignID := uuid.New()
+	locationID := uuid.New()
+	store := &stubEstablishFactStore{
+		currentLocation: statedb.Location{
+			ID:         dbutil.ToPgtype(locationID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+	}
+	memStore := &stubMemoryStore{err: errors.New("mem error")}
+	embedder := &stubEmbedder{vector: []float32{0.1, 0.2}}
+	h := NewEstablishFactHandler(store, memStore, embedder)
+	ctx := WithCurrentLocationID(context.Background(), locationID)
+	_, err := h.Handle(ctx, map[string]any{
+		"fact":     "The forge is ancient.",
+		"category": "history",
+	})
+	if err == nil {
+		t.Fatal("expected error when memory store CreateMemory fails")
+	}
+	if !strings.Contains(err.Error(), "mem error") {
+		t.Fatalf("error = %q, want to contain %q", err.Error(), "mem error")
 	}
 }

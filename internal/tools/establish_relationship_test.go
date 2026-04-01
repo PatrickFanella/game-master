@@ -348,6 +348,83 @@ func TestEstablishRelationshipHandleStrengthValidation(t *testing.T) {
 	}
 }
 
+func TestEstablishRelationshipHandleMissingLocationContext(t *testing.T) {
+	sourceID := uuid.New()
+	targetID := uuid.New()
+	store := &stubEstablishRelationshipStore{}
+	h := NewEstablishRelationshipHandler(store)
+	// No location context — use plain Background.
+	_, err := h.Handle(context.Background(), map[string]any{
+		"source_entity_type": "npc",
+		"source_entity_id":   sourceID.String(),
+		"target_entity_type": "npc",
+		"target_entity_id":   targetID.String(),
+		"relationship_type":  "ally",
+		"description":        "Two NPCs.",
+	})
+	if err == nil || !strings.Contains(err.Error(), "requires current location id in context") {
+		t.Fatalf("error = %v, want missing location context error", err)
+	}
+}
+
+func TestEstablishRelationshipHandleEmptyDescription(t *testing.T) {
+	sourceID := uuid.New()
+	targetID := uuid.New()
+	store := &stubEstablishRelationshipStore{}
+	h := NewEstablishRelationshipHandler(store)
+	ctx := WithCurrentLocationID(context.Background(), uuid.New())
+	_, err := h.Handle(ctx, map[string]any{
+		"source_entity_type": "npc",
+		"source_entity_id":   sourceID.String(),
+		"target_entity_type": "npc",
+		"target_entity_id":   targetID.String(),
+		"relationship_type":  "rival",
+		"description":        "",
+	})
+	if err == nil || !strings.Contains(err.Error(), "description must be a non-empty string") {
+		t.Fatalf("error = %v, want description non-empty error", err)
+	}
+}
+
+func TestEstablishRelationshipHandleInvalidEntityType(t *testing.T) {
+	sourceID := uuid.New()
+	targetID := uuid.New()
+	store := &stubEstablishRelationshipStore{}
+	h := NewEstablishRelationshipHandler(store)
+	ctx := WithCurrentLocationID(context.Background(), uuid.New())
+	_, err := h.Handle(ctx, map[string]any{
+		"source_entity_type": "dragon",
+		"source_entity_id":   sourceID.String(),
+		"target_entity_type": "npc",
+		"target_entity_id":   targetID.String(),
+		"relationship_type":  "enemy",
+		"description":        "An ancient foe.",
+	})
+	if err == nil || !strings.Contains(err.Error(), "source_entity_type must be one of") {
+		t.Fatalf("error = %v, want unsupported entity type error", err)
+	}
+}
+
+func TestEstablishRelationshipHandleStrengthBelowMinimum(t *testing.T) {
+	sourceID := uuid.New()
+	targetID := uuid.New()
+	store := &stubEstablishRelationshipStore{}
+	h := NewEstablishRelationshipHandler(store)
+	ctx := WithCurrentLocationID(context.Background(), uuid.New())
+	_, err := h.Handle(ctx, map[string]any{
+		"source_entity_type": "npc",
+		"source_entity_id":   sourceID.String(),
+		"target_entity_type": "npc",
+		"target_entity_id":   targetID.String(),
+		"relationship_type":  "mentor",
+		"description":        "A teacher and student.",
+		"strength":           0,
+	})
+	if err == nil || !strings.Contains(err.Error(), "strength must be between 1 and 10") {
+		t.Fatalf("error = %v, want strength range error", err)
+	}
+}
+
 func TestRegisterEstablishRelationshipRequiresStore(t *testing.T) {
 	err := RegisterEstablishRelationship(NewRegistry(), nil)
 	if err == nil || !strings.Contains(err.Error(), "establish_relationship store is required") {

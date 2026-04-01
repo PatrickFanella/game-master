@@ -16,10 +16,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/PatrickFanella/game-master/internal/auth"
 	"github.com/PatrickFanella/game-master/internal/config"
 	"github.com/PatrickFanella/game-master/internal/engine"
+	"github.com/PatrickFanella/game-master/internal/handlers"
 	"github.com/PatrickFanella/game-master/internal/llm"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
@@ -61,7 +64,7 @@ func run(args []string) int {
 		return 1
 	}
 	gameEngine := engine.New(pool, queries, provider, cfg.LLM)
-	router := newRouter(logger, gameEngine)
+	router := newRouter(logger, gameEngine, queries)
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	server := &http.Server{
@@ -117,7 +120,7 @@ func parseConfigPath(args []string, defaultPath string) (string, error) {
 	return configPath, nil
 }
 
-func newRouter(logger *log.Logger, gameEngine engine.GameEngine) http.Handler {
+func newRouter(logger *log.Logger, gameEngine engine.GameEngine, queries statedb.Querier) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(loggingMiddleware(logger))
@@ -136,39 +139,54 @@ func newRouter(logger *log.Logger, gameEngine engine.GameEngine) http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	registerAPIRoutes(logger, r, gameEngine)
+	h := handlers.New(gameEngine, queries, logger)
+	registerAPIRoutes(logger, r, h)
 	return r
 }
 
-func registerAPIRoutes(logger *log.Logger, r chi.Router, gameEngine engine.GameEngine) {
+func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers) {
+	authMW := auth.NewNoOpMiddleware(uuid.MustParse("00000000-0000-0000-0000-000000000001"))
+
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 			writeJSON(logger, w, http.StatusOK, map[string]any{
 				"status":       "ok",
-				"engine_ready": gameEngine != nil,
+				"engine_ready": h.Engine != nil,
 			})
 		})
 
 		r.Route("/v1", func(r chi.Router) {
-			r.Route("/campaigns", func(r chi.Router) { r.Get("/", notImplemented(logger, "campaigns")) })
-			r.Route("/characters", func(r chi.Router) { r.Get("/", notImplemented(logger, "characters")) })
-			r.Route("/locations", func(r chi.Router) { r.Get("/", notImplemented(logger, "locations")) })
-			r.Route("/npcs", func(r chi.Router) { r.Get("/", notImplemented(logger, "npcs")) })
-			r.Route("/quests", func(r chi.Router) { r.Get("/", notImplemented(logger, "quests")) })
-			r.Route("/items", func(r chi.Router) { r.Get("/", notImplemented(logger, "items")) })
-			r.Route("/turns", func(r chi.Router) { r.Post("/", notImplemented(logger, "turns")) })
+			r.Use(authMW.Authenticate)
+
+			r.Route("/campaigns", func(r chi.Router) {
+				r.Get("/", h.ListCampaigns)
+				r.Post("/", h.CreateCampaign)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", h.GetCampaign)
+					r.Put("/", h.UpdateCampaign)
+					r.Delete("/", h.DeleteCampaign)
+
+					r.Get("/character", h.GetCharacter)
+					r.Get("/character/inventory", h.GetCharacterInventory)
+					r.Get("/character/abilities", h.GetCharacterAbilities)
+
+					r.Get("/locations", h.ListLocations)
+					r.Get("/locations/{lid}", h.GetLocation)
+
+					r.Get("/npcs", h.ListNPCs)
+					r.Get("/npcs/{nid}", h.GetNPC)
+
+					r.Get("/quests", h.ListQuests)
+					r.Get("/quests/{qid}", h.GetQuest)
+
+					r.Post("/action", h.ProcessAction)
+					r.Get("/ws", h.HandleWebSocket)
+				})
+			})
 		})
 	})
 }
 
-func notImplemented(logger *log.Logger, resource string) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(logger, w, http.StatusNotImplemented, map[string]string{
-			"error":   "not_implemented",
-			"message": fmt.Sprintf("%s endpoints are not implemented yet", resource),
-		})
-	}
-}
 
 func writeJSON(logger *log.Logger, w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")

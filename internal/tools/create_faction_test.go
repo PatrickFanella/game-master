@@ -319,4 +319,133 @@ func TestCreateFactionStoresMemoryMetadata(t *testing.T) {
 	}
 }
 
+func TestCreateFactionHandleEmptyName(t *testing.T) {
+	campaignID := uuid.New()
+	currentLocationID := uuid.New()
+	store := &stubFactionStore{
+		currentLocation: statedb.Location{
+			ID:         dbutil.ToPgtype(currentLocationID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+		factionsByID: map[[16]byte]statedb.Faction{},
+	}
+	h := NewCreateFactionHandler(store, nil, nil)
+	_, err := h.Handle(WithCurrentLocationID(context.Background(), currentLocationID), map[string]any{
+		"name":          "",
+		"description":   "desc",
+		"agenda":        "agenda",
+		"territory":     "territory",
+		"properties":    map[string]any{},
+		"relationships": []any{},
+	})
+	if err == nil || !strings.Contains(err.Error(), "name must be a non-empty string") {
+		t.Fatalf("error = %v, want \"name must be a non-empty string\"", err)
+	}
+}
+
+func TestCreateFactionHandleEmptyRelationshipsArray(t *testing.T) {
+	campaignID := uuid.New()
+	currentLocationID := uuid.New()
+	newFactionID := uuid.New()
+	store := &stubFactionStore{
+		currentLocation: statedb.Location{
+			ID:         dbutil.ToPgtype(currentLocationID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+		factionsByID: map[[16]byte]statedb.Faction{},
+		createFactionResult: statedb.Faction{
+			ID:         dbutil.ToPgtype(newFactionID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+			Name:       "Empty Rels",
+		},
+	}
+	memStore := &stubMemoryStore{}
+	h := NewCreateFactionHandler(store, memStore, &stubEmbedder{vector: []float32{0.1}})
+	_, err := h.Handle(WithCurrentLocationID(context.Background(), currentLocationID), map[string]any{
+		"name":          "Empty Rels",
+		"description":   "desc",
+		"agenda":        "agenda",
+		"territory":     "territory",
+		"properties":    map[string]any{},
+		"relationships": []any{},
+	})
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if len(store.lastRelationships) != 0 {
+		t.Fatalf("CreateFactionRelationship calls = %d, want 0", len(store.lastRelationships))
+	}
+}
+
+func TestCreateFactionHandleCreateFactionStoreError(t *testing.T) {
+	campaignID := uuid.New()
+	currentLocationID := uuid.New()
+	store := &stubFactionStore{
+		currentLocation: statedb.Location{
+			ID:         dbutil.ToPgtype(currentLocationID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+		factionsByID:   map[[16]byte]statedb.Faction{},
+		createFactionErr: errors.New("db down"),
+	}
+	h := NewCreateFactionHandler(store, nil, nil)
+	_, err := h.Handle(WithCurrentLocationID(context.Background(), currentLocationID), map[string]any{
+		"name":          "Doomed Faction",
+		"description":   "desc",
+		"agenda":        "agenda",
+		"territory":     "territory",
+		"properties":    map[string]any{},
+		"relationships": []any{},
+	})
+	if err == nil || !strings.Contains(err.Error(), "create faction") {
+		t.Fatalf("error = %v, want \"create faction\" in message", err)
+	}
+	// stub returns error before incrementing call counter
+	if store.createFactionCalls != 0 {
+		t.Fatalf("createFactionCalls = %d, want 0", store.createFactionCalls)
+	}
+}
+
+func TestCreateFactionHandleCreateRelationshipStoreError(t *testing.T) {
+	campaignID := uuid.New()
+	currentLocationID := uuid.New()
+	relatedFactionID := uuid.New()
+	store := &stubFactionStore{
+		currentLocation: statedb.Location{
+			ID:         dbutil.ToPgtype(currentLocationID),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+		factionsByID: map[[16]byte]statedb.Faction{
+			dbutil.ToPgtype(relatedFactionID).Bytes: {
+				ID:         dbutil.ToPgtype(relatedFactionID),
+				CampaignID: dbutil.ToPgtype(campaignID),
+				Name:       "Target Faction",
+			},
+		},
+		createFactionResult: statedb.Faction{
+			ID:         dbutil.ToPgtype(uuid.New()),
+			CampaignID: dbutil.ToPgtype(campaignID),
+		},
+		createRelationshipErr: errors.New("rel error"),
+	}
+	h := NewCreateFactionHandler(store, nil, nil)
+	_, err := h.Handle(WithCurrentLocationID(context.Background(), currentLocationID), map[string]any{
+		"name":        "Faction With Rel",
+		"description": "desc",
+		"agenda":      "agenda",
+		"territory":   "territory",
+		"properties":  map[string]any{},
+		"relationships": []any{
+			map[string]any{
+				"faction_id":  relatedFactionID.String(),
+				"type":        "allied",
+				"description": "alliance",
+			},
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "create relationships") {
+		t.Fatalf("error = %v, want \"create relationships\" in message", err)
+	}
+}
+
 var _ FactionStore = (*stubFactionStore)(nil)

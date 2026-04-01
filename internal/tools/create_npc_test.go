@@ -476,4 +476,145 @@ func TestCreateNPCHandleEmbeddingFailuresAreBestEffort(t *testing.T) {
 	})
 }
 
+func TestCreateNPCHandleEmptyName(t *testing.T) {
+	campaignID := uuid.New()
+	playerID := uuid.New()
+	locationID := uuid.New()
+	playerLocationCopy := locationID
+	store := &stubCreateNPCStore{
+		playerCharacters: map[uuid.UUID]*domain.PlayerCharacter{
+			playerID: {
+				ID:                playerID,
+				CampaignID:        campaignID,
+				CurrentLocationID: &playerLocationCopy,
+			},
+		},
+		validLocations: map[uuid.UUID]uuid.UUID{
+			locationID: campaignID,
+		},
+		npcsByCampaign: map[uuid.UUID][]domain.NPC{
+			campaignID: {},
+		},
+	}
+	h := NewCreateNPCHandler(store, nil, nil)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+	_, err := h.Handle(ctx, map[string]any{
+		"name":        "",
+		"description": "A mysterious figure",
+		"personality": "Reserved",
+	})
+	if err == nil {
+		t.Fatal("expected error for empty name, got nil")
+	}
+	if !strings.Contains(err.Error(), "name must be a non-empty string") {
+		t.Fatalf("error = %v, want \"name must be a non-empty string\"", err)
+	}
+}
+
+func TestCreateNPCHandleDispositionClampBoundaries(t *testing.T) {
+	cases := []struct {
+		name  string
+		input int
+		want  int
+	}{
+		{"neg200", -200, -100},
+		{"neg100", -100, -100},
+		{"zero", 0, 0},
+		{"pos100", 100, 100},
+		{"pos200", 200, 100},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			campaignID := uuid.New()
+			playerID := uuid.New()
+			locationID := uuid.New()
+			playerLocationCopy := locationID
+			store := &stubCreateNPCStore{
+				playerCharacters: map[uuid.UUID]*domain.PlayerCharacter{
+					playerID: {
+						ID:                playerID,
+						CampaignID:        campaignID,
+						CurrentLocationID: &playerLocationCopy,
+					},
+				},
+				validLocations: map[uuid.UUID]uuid.UUID{
+					locationID: campaignID,
+				},
+				npcsByCampaign: map[uuid.UUID][]domain.NPC{
+					campaignID: {},
+				},
+			}
+			h := NewCreateNPCHandler(store, nil, nil)
+			ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+			_, err := h.Handle(ctx, map[string]any{
+				"name":        "Guard",
+				"description": "A guard",
+				"personality": "Stoic",
+				"disposition": tc.input,
+			})
+			if err != nil {
+				t.Fatalf("Handle error for disposition %d: %v", tc.input, err)
+			}
+			if store.lastCreateParams.Disposition != tc.want {
+				t.Fatalf("input %d: disposition = %d, want %d", tc.input, store.lastCreateParams.Disposition, tc.want)
+			}
+		})
+	}
+}
+
+func TestCreateNPCHandleNilStatsAndProperties(t *testing.T) {
+	campaignID := uuid.New()
+	playerID := uuid.New()
+	locationID := uuid.New()
+	playerLocationCopy := locationID
+	store := &stubCreateNPCStore{
+		playerCharacters: map[uuid.UUID]*domain.PlayerCharacter{
+			playerID: {
+				ID:                playerID,
+				CampaignID:        campaignID,
+				CurrentLocationID: &playerLocationCopy,
+			},
+		},
+		validLocations: map[uuid.UUID]uuid.UUID{
+			locationID: campaignID,
+		},
+		npcsByCampaign: map[uuid.UUID][]domain.NPC{
+			campaignID: {},
+		},
+	}
+	h := NewCreateNPCHandler(store, nil, nil)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+	_, err := h.Handle(ctx, map[string]any{
+		"name":        "Wanderer",
+		"description": "A traveler",
+		"personality": "Curious",
+		// stats and properties intentionally omitted
+	})
+	if err != nil {
+		t.Fatalf("Handle returned error for missing stats/properties: %v", err)
+	}
+}
+
+func TestCreateNPCHandlePlayerNotFound(t *testing.T) {
+	playerID := uuid.New()
+	store := &stubCreateNPCStore{
+		// empty map: playerID will not resolve
+		playerCharacters: map[uuid.UUID]*domain.PlayerCharacter{},
+	}
+	h := NewCreateNPCHandler(store, nil, nil)
+	ctx := WithCurrentPlayerCharacterID(context.Background(), playerID)
+	_, err := h.Handle(ctx, map[string]any{
+		"name":        "Ghost",
+		"description": "An apparition",
+		"personality": "Haunting",
+	})
+	if err == nil {
+		t.Fatal("expected error for unknown player character, got nil")
+	}
+	if !strings.Contains(err.Error(), "current player character not found") {
+		t.Fatalf("error = %v, want \"current player character not found\"", err)
+	}
+}
+
 var _ CreateNPCStore = (*stubCreateNPCStore)(nil)
