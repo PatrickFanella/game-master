@@ -70,29 +70,34 @@ func run(args []string) int {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	shutdownErr := make(chan error, 1)
+	serverErr := make(chan error, 1)
 	go func() {
-		<-ctx.Done()
+		serverErr <- server.ListenAndServe()
+	}()
+
+	logger.Infof("starting HTTP server on %s (provider=%s)", addr, cfg.LLM.Provider)
+
+	select {
+	case err := <-serverErr:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Errorf("server failed: %v", err)
+			return 1
+		}
+	case <-ctx.Done():
 		logger.Info("shutdown signal received")
 
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		shutdownErr <- server.Shutdown(shutdownCtx)
-	}()
 
-	logger.Infof("starting HTTP server on %s (provider=%s)", addr, cfg.LLM.Provider)
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Errorf("server failed: %v", err)
-		return 1
-	}
-
-	select {
-	case err := <-shutdownErr:
-		if err != nil {
+		if err := server.Shutdown(shutdownCtx); err != nil {
 			logger.Errorf("graceful shutdown failed: %v", err)
 			return 1
 		}
-	default:
+
+		if err := <-serverErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Errorf("server failed during shutdown: %v", err)
+			return 1
+		}
 	}
 
 	logger.Info("server shutdown complete")
