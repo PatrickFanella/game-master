@@ -8,6 +8,8 @@ import (
 )
 
 func TestLoadUsesDefaultsWhenFileIsMissing(t *testing.T) {
+	unsetenv(t, "GM_DB_URL", "GM_LLM_PROVIDER", "GM_LLM_OLLAMA_ENDPOINT", "GM_LLM_OLLAMA_MODEL")
+
 	cfg, err := Load(filepath.Join(t.TempDir(), "missing.yaml"))
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
@@ -46,6 +48,8 @@ llm:
 
 	t.Setenv("GM_LLM_PROVIDER", "ollama")
 	t.Setenv("GM_LLM_OLLAMA_ENDPOINT", "http://from-env:11434")
+
+	unsetenv(t, "GM_DB_URL", "GM_LLM_OLLAMA_MODEL")
 
 	cfg, err := Load(configPath)
 	if err != nil {
@@ -202,6 +206,7 @@ func TestGMLLMClaudeAPIKeyOverridesGMClaudeAPIKey(t *testing.T) {
 		t.Fatalf("expected GM_LLM_CLAUDE_APIKEY to have highest priority, got %q", cfg.LLM.Claude.APIKey)
 	}
 }
+
 func unsetenv(t *testing.T, keys ...string) {
 	t.Helper()
 	for _, key := range keys {
