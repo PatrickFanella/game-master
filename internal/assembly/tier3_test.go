@@ -37,7 +37,7 @@ func TestTier3Retriever_BasicRetrieval(t *testing.T) {
 			{Content: "Sword found in cave", MemoryType: "item", Distance: 0.35},
 		},
 	}
-	r := NewTier3Retriever(stub, 5)
+	r := NewTier3Retriever(stub, 5, nil)
 
 	got, err := r.Retrieve(context.Background(), uuid.New(), "look around", nil)
 	if err != nil {
@@ -56,7 +56,7 @@ func TestTier3Retriever_BasicRetrieval(t *testing.T) {
 
 func TestTier3Retriever_EmptyResults(t *testing.T) {
 	stub := &stubRetriever{results: nil}
-	r := NewTier3Retriever(stub, 5)
+	r := NewTier3Retriever(stub, 5, nil)
 
 	got, err := r.Retrieve(context.Background(), uuid.New(), "hello", nil)
 	if err != nil {
@@ -69,7 +69,7 @@ func TestTier3Retriever_EmptyResults(t *testing.T) {
 
 func TestTier3Retriever_RetrieverError(t *testing.T) {
 	stub := &stubRetriever{err: errors.New("database down")}
-	r := NewTier3Retriever(stub, 5)
+	r := NewTier3Retriever(stub, 5, nil)
 
 	got, err := r.Retrieve(context.Background(), uuid.New(), "test", nil)
 	if err != nil {
@@ -82,7 +82,7 @@ func TestTier3Retriever_RetrieverError(t *testing.T) {
 
 func TestTier3Retriever_CompositeQuery(t *testing.T) {
 	stub := &stubRetriever{}
-	r := NewTier3Retriever(stub, 3)
+	r := NewTier3Retriever(stub, 3, nil)
 
 	state := &game.GameState{
 		CurrentLocation: domain.Location{Name: "Dark Forest"},
@@ -106,7 +106,7 @@ func TestTier3Retriever_NilState(t *testing.T) {
 			{Content: "old memory", MemoryType: "event", Distance: 0.1},
 		},
 	}
-	r := NewTier3Retriever(stub, 5)
+	r := NewTier3Retriever(stub, 5, nil)
 
 	got, err := r.Retrieve(context.Background(), uuid.New(), "just the input", nil)
 	if err != nil {
@@ -123,14 +123,14 @@ func TestTier3Retriever_NilState(t *testing.T) {
 func TestTier3Retriever_DefaultLimit(t *testing.T) {
 	stub := &stubRetriever{}
 
-	r := NewTier3Retriever(stub, 0)
+	r := NewTier3Retriever(stub, 0, nil)
 	_, _ = r.Retrieve(context.Background(), uuid.New(), "test", nil)
 
 	if stub.captured.limit != 5 {
 		t.Errorf("expected default limit 5, got %d", stub.captured.limit)
 	}
 
-	r2 := NewTier3Retriever(stub, -3)
+	r2 := NewTier3Retriever(stub, -3, nil)
 	_, _ = r2.Retrieve(context.Background(), uuid.New(), "test", nil)
 
 	if stub.captured.limit != 5 {

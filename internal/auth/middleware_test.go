@@ -38,7 +38,7 @@ func TestNoOpMiddleware_AuthenticateSetsDefaultUser(t *testing.T) {
 }
 
 func TestUserFromContext_NoValue(t *testing.T) {
-	userID, ok := UserFromContext(nil)
+	userID, ok := UserFromContext(context.Background())
 	if ok {
 		t.Fatalf("expected no user ID")
 	}

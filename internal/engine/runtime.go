@@ -20,6 +20,7 @@ import (
 
 // Engine is the concrete GameEngine implementation used by the TUI.
 type Engine struct {
+	logger    *slog.Logger
 	state     game.StateManager
 	assembler *assembly.ContextAssembler
 	processor *TurnProcessor
@@ -39,6 +40,11 @@ func WithTier3Retriever(t *assembly.Tier3Retriever) Option {
 	}
 }
 
+// WithLogger sets the structured logger for the engine and its subsystems.
+func WithLogger(l *slog.Logger) Option {
+	return func(e *Engine) { e.logger = l }
+}
+
 // New creates a concrete GameEngine backed by the shared game and llm packages.
 func New(db statedb.DBTX, provider llm.Provider, llmCfg config.LLMConfig, opts ...Option) (*Engine, error) {
 	queries := statedb.New(db)
@@ -51,14 +57,16 @@ func New(db statedb.DBTX, provider llm.Provider, llmCfg config.LLMConfig, opts .
 	e := &Engine{
 		state:     game.NewStateManager(db),
 		assembler: assembly.NewContextAssembler(registry, assembly.WithTokenBudget(llmCfg.ContextTokenBudget())),
-		processor: NewTurnProcessor(provider, registry, tools.NewValidator(registry)),
 	}
 	for _, opt := range opts {
 		opt(e)
 	}
+	if e.logger == nil {
+		e.logger = slog.Default()
+	}
+	e.processor = NewTurnProcessor(provider, registry, tools.NewValidator(registry), e.logger.WithGroup("turns"))
 	return e, nil
 }
-
 
 var _ GameEngine = (*Engine)(nil)
 
@@ -83,7 +91,7 @@ func (e *Engine) ProcessTurn(ctx context.Context, campaignID uuid.UUID, playerIn
 		var tier3Err error
 		retrievedMemories, tier3Err = e.tier3.Retrieve(ctx, campaignID, playerInput, state)
 		if tier3Err != nil {
-			slog.Warn("tier3 memory retrieval failed", "campaign_id", campaignID, "error", tier3Err)
+			e.logger.Warn("tier3 memory retrieval failed", "campaign_id", campaignID, "error", tier3Err)
 		}
 	}
 
@@ -155,6 +163,11 @@ func (e *Engine) ProcessTurnStream(ctx context.Context, campaignID uuid.UUID, pl
 	ch := make(chan StreamEvent, 2)
 	go func() {
 		defer close(ch)
+		defer func() {
+			if r := recover(); r != nil {
+				ch <- StreamEvent{Type: "error", Err: fmt.Errorf("process turn panic: %v", r)}
+			}
+		}()
 		result, err := e.ProcessTurn(ctx, campaignID, playerInput)
 		if err != nil {
 			ch <- StreamEvent{Type: "error", Err: err}
@@ -183,4 +196,3 @@ func marshalAppliedToolCalls(applied []AppliedToolCall) (json.RawMessage, error)
 	}
 	return json.RawMessage(data), nil
 }
-

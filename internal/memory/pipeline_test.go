@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"log/slog"
 	"github.com/google/uuid"
 
 	"github.com/PatrickFanella/game-master/internal/memory"
@@ -78,9 +78,8 @@ func (s *spyStore) createCount() int {
 }
 
 // silentLogger returns a logger that discards output, keeping test output clean.
-func silentLogger() *log.Logger {
-	l := log.NewWithOptions(io.Discard, log.Options{Level: log.FatalLevel})
-	return l
+func silentLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
 // --- tests ---------------------------------------------------------------

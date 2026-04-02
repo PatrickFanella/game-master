@@ -105,7 +105,9 @@ func TestProcessAction_EmptyInput(t *testing.T) {
 	}
 
 	var resp map[string]string
-	json.NewDecoder(rec.Body).Decode(&resp)
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if resp["error"] != "input is required" {
 		t.Errorf("expected error %q, got %q", "input is required", resp["error"])
 	}

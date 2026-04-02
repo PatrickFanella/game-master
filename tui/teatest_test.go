@@ -27,6 +27,7 @@ func testAppWithEngine(gameEngine engine.GameEngine) App {
 		statedb.Campaign{ID: dbutil.ToPgtype(uuid.New())},
 		context.Background(),
 		gameEngine,
+		nil,
 	)
 }
 
@@ -77,7 +78,7 @@ func TestTeatest_TextInputAppearsInViewport(t *testing.T) {
 
 	// Send each character individually via Send so everything goes through
 	// the message channel. Avoid characters that are global key bindings:
-	// h (prev-tab), l (next-tab), q (quit), 1-4 (view switch).
+	// h (prev-tab), l (next-tab), q (quit), 1-5 (view switch).
 	for _, r := range "see a cart" {
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 	}
@@ -108,6 +109,7 @@ func TestTeatest_NumberKeysSwitchToCorrectView(t *testing.T) {
 		{"press 2 → Character Sheet", "2", ViewCharacterSheet, "Character Sheet"},
 		{"press 3 → Inventory", "3", ViewInventory, "Inventory"},
 		{"press 4 → Quest Log", "4", ViewQuestLog, "Quest Log"},
+		{"press 5 → Logs", "5", ViewLogs, "[Logs]"},
 	}
 
 	for _, tt := range tests {
@@ -178,12 +180,13 @@ func TestTeatest_TabCyclesThroughViewsInOrder(t *testing.T) {
 		teatest.WithInitialTermSize(100, 30),
 	)
 
-	// Tab should cycle: Narrative → Character → Inventory → Quests → Narrative.
+	// Tab should cycle: Narrative → Character → Inventory → Quests → Logs → Narrative.
 	// The status bar highlights the active view with brackets: [ViewName].
 	expectedHighlights := []string{
 		"[Character]",
 		"[Inventory]",
 		"[Quests]",
+		"[Logs]",
 		"[Narrative]",
 	}
 
@@ -220,7 +223,7 @@ func TestTeatest_ViewSwitchingPreservesState(t *testing.T) {
 
 	// Send each character individually via Send so everything goes through
 	// the message channel. Avoid characters that are global key bindings:
-	// h (prev-tab), l (next-tab), q (quit), 1-4 (view switch).
+	// h (prev-tab), l (next-tab), q (quit), 1-5 (view switch).
 	for _, r := range "see a cart" {
 		tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 	}

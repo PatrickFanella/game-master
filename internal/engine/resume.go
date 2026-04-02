@@ -27,6 +27,7 @@ type ResumeResult struct {
 
 // Resumer loads campaign state and produces a recap summary.
 type Resumer struct {
+	logger    *slog.Logger
 	store     ResumeStore
 	summarize func(ctx context.Context, logs []domain.SessionLog) (string, error)
 }
@@ -37,8 +38,12 @@ type Resumer struct {
 func NewResumer(
 	store ResumeStore,
 	summarize func(ctx context.Context, logs []domain.SessionLog) (string, error),
+	logger *slog.Logger,
 ) *Resumer {
-	return &Resumer{store: store, summarize: summarize}
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &Resumer{logger: logger, store: store, summarize: summarize}
 }
 
 // Resume loads full campaign state and generates a "Previously..." summary
@@ -61,7 +66,7 @@ func (r *Resumer) Resume(ctx context.Context, campaignID uuid.UUID) (*ResumeResu
 
 	summary, err := r.summarize(ctx, logs)
 	if err != nil {
-		slog.Warn("resume: summarize failed, using fallback",
+		r.logger.Warn("resume: summarize failed, using fallback",
 			"campaign_id", campaignID,
 			"error", err,
 		)

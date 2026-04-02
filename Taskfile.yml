@@ -1,13 +1,54 @@
 version: '3'
 
 vars:
-  DATABASE_URL: '{{default "postgres://game_master:game_master@localhost:5432/game_master?sslmode=disable" .DATABASE_URL}}'
+  DATABASE_URL: '{{default "postgres://game_master:game_master@localhost:5434/game_master?sslmode=disable" .DATABASE_URL}}'
+  APP_LOG_FILE: '{{default ".logs/tui.log" .APP_LOG_FILE}}'
+
 
 tasks:
   dev:
-    desc: Run the TUI entrypoint in development mode
+    desc: Start local Postgres, run migrations, then launch the TUI using .env settings
     cmds:
-      - go run ./cmd/tui
+      - set -a && . ./.env && set +a && export DATABASE_URL="${DATABASE_URL:-$GM_DB_URL}" && (docker start game-master-postgres || docker compose up -d postgres) && task migrate && go run ./cmd/tui
+
+  dev:app-logs:
+    desc: Start local Postgres, run migrations, then launch the TUI with app stderr captured to a log file
+    cmds:
+      - mkdir -p .logs
+      - rm -f '{{.APP_LOG_FILE}}' && touch '{{.APP_LOG_FILE}}'
+      - set -a && . ./.env && set +a && export DATABASE_URL="${DATABASE_URL:-$GM_DB_URL}" && (docker start game-master-postgres || docker compose up -d postgres) && task migrate && sh -c 'go run ./cmd/tui 2>> "{{.APP_LOG_FILE}}"'
+
+  logs:app:
+    desc: Tail captured TUI app logs
+    cmds:
+      - mkdir -p .logs && touch '{{.APP_LOG_FILE}}'
+      - tail -f '{{.APP_LOG_FILE}}'
+
+  logs:postgres:
+    desc: Stream local Postgres logs for debugging
+    cmds:
+      - docker logs -f game-master-postgres
+
+  logs:ollama:
+    desc: Stream Ollama logs from Docker if present, else from the system service
+    cmds:
+      - |
+        if docker ps -a --format '{{.Names}}' | grep -qx 'game-master-ollama'; then
+          docker logs -f game-master-ollama
+        elif systemctl is-active --quiet ollama; then
+          journalctl -fu ollama
+        else
+          echo 'No game-master-ollama container or active system ollama service found.' >&2
+          exit 1
+        fi
+
+  reset:first-boot:
+    desc: Reset local Postgres data to first-boot state (destroys local game data)
+    cmds:
+      - docker rm -f game-master-postgres || true
+      - docker volume rm game-master_postgres_data || true
+      - docker compose up -d postgres
+      - task migrate
 
   migrate:
     desc: Run goose migrations against the configured database
@@ -50,3 +91,15 @@ tasks:
       - mkdir -p ./bin
       - go build -o ./bin/tui ./cmd/tui
       - go build -o ./bin/server ./cmd/server
+      - go build -o ./bin/logs ./cmd/logs
+
+
+  logs:stream:
+    desc: Stream structured game logs with colors and filtering
+    cmds:
+      - go run ./cmd/logs {{.CLI_ARGS}}
+
+  logs:clean:
+    desc: Remove all structured log files
+    cmds:
+      - rm -f .logs/game-master.jsonl

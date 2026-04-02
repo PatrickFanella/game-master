@@ -117,6 +117,9 @@ func buildScenePrompt(profile *CampaignProfile, skeleton *WorldSkeleton) string 
 	// Collect NPCs at the starting location.
 	var npcsAtStart []string
 	for _, npc := range skeleton.NPCs {
+		if npc.Location != skeleton.StartingLocationName {
+			continue
+		}
 		npcsAtStart = append(npcsAtStart, npc.Name+" ("+npc.Description+")")
 	}
 	npcList := "none"

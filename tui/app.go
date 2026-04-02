@@ -15,12 +15,14 @@ import (
 	"github.com/PatrickFanella/game-master/internal/config"
 	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/engine"
+	"github.com/PatrickFanella/game-master/internal/logging"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/tui/character"
 	"github.com/PatrickFanella/game-master/tui/inventory"
+	"github.com/PatrickFanella/game-master/tui/logpanel"
+	"github.com/PatrickFanella/game-master/tui/msgs"
 	"github.com/PatrickFanella/game-master/tui/narrative"
 	"github.com/PatrickFanella/game-master/tui/quest"
-	"github.com/PatrickFanella/game-master/tui/msgs"
 	"github.com/PatrickFanella/game-master/tui/styles"
 )
 
@@ -32,13 +34,16 @@ const (
 	ViewCharacterSheet                  // 1 – player attributes and stats
 	ViewInventory                       // 2 – carried items and gold
 	ViewQuestLog                        // 3 – active and completed quests
+	ViewLogs                            // 4 – structured log viewer
 )
 
-const statusBarHints = "1-4: switch view | tab/shift+tab/right/left/h/l: cycle | q: quit"
-const statusBarSectionSeparator = "  ·  "
-const statusBarViewSeparator = " | "
-const narrativeChunkSize = 24 // small chunks keep the streamed narrative feeling responsive in the viewport
-const narrativeChunkDelay = 20 * time.Millisecond
+const (
+	statusBarHints            = "1-5: switch view | tab/shift+tab/right/left/h/l: cycle | q: quit"
+	statusBarSectionSeparator = "  ·  "
+	statusBarViewSeparator    = " | "
+	narrativeChunkSize        = 24 // small chunks keep the streamed narrative feeling responsive in the viewport
+	narrativeChunkDelay       = 20 * time.Millisecond
+)
 
 type turnProcessedMsg struct {
 	result *engine.TurnResult
@@ -62,25 +67,26 @@ type narrativeStreamDoneMsg struct {
 // Sub-view state is preserved across view switches because each view is stored
 // independently and only the active index changes.
 type App struct {
-	cfg       config.Config
-	ctx       context.Context
-	engine    engine.GameEngine
-	campaign  statedb.Campaign
-	router    *Router
-	width     int
-	height    int
-	turnBusy  bool
+	cfg      config.Config
+	ctx      context.Context
+	engine   engine.GameEngine
+	campaign statedb.Campaign
+	router   *Router
+	width    int
+	height   int
+	turnBusy bool
 }
 
 // NewApp creates and initialises the root App model with all four sub-views
 // registered. The narrative log is pre-seeded with welcome messages.
 // campaign is the currently active campaign; its name is shown in the title bar.
 func NewApp(cfg config.Config, campaign statedb.Campaign) App {
-	return NewAppWithEngine(cfg, campaign, context.Background(), nil)
+	return NewAppWithEngine(cfg, campaign, context.Background(), nil, nil)
 }
 
 // NewAppWithEngine creates a root App that sends narrative turns through the engine.
-func NewAppWithEngine(cfg config.Config, campaign statedb.Campaign, ctx context.Context, gameEngine engine.GameEngine) App {
+// logBuf may be nil if structured logging is not configured.
+func NewAppWithEngine(cfg config.Config, campaign statedb.Campaign, ctx context.Context, gameEngine engine.GameEngine, logBuf *logging.RingBuffer) App {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -91,11 +97,13 @@ func NewAppWithEngine(cfg config.Config, campaign statedb.Campaign, ctx context.
 	cv := character.New()
 	iv := inventory.New()
 	qv := quest.New()
+	lv := logpanel.New(logBuf)
 
 	router.Register("Narrative", &nv)
 	router.Register("Character", &cv)
 	router.Register("Inventory", &iv)
 	router.Register("Quests", &qv)
+	router.Register("Logs", &lv)
 
 	// Seed the narrative log with a welcome message for the selected campaign.
 	nv.AddEntry(narrative.Entry{
@@ -110,11 +118,11 @@ func NewAppWithEngine(cfg config.Config, campaign statedb.Campaign, ctx context.
 	}
 
 	return App{
-		cfg:       cfg,
-		ctx:       ctx,
-		engine:    gameEngine,
-		campaign:  campaign,
-		router:    router,
+		cfg:      cfg,
+		ctx:      ctx,
+		engine:   gameEngine,
+		campaign: campaign,
+		router:   router,
 	}
 }
 
@@ -143,7 +151,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.router.NextTab()
 		case "shift+tab", "left", "h":
 			a.router.PrevTab()
-		case "1", "2", "3", "4":
+		case "1", "2", "3", "4", "5":
 			idx := int(msg.String()[0] - '1')
 			a.router.GoToTab(idx)
 		default:

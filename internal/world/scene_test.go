@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -229,5 +230,34 @@ func TestSceneGenerator_EmptyChoicesValid(t *testing.T) {
 	}
 	if len(result.Choices) != 0 {
 		t.Errorf("choices: got %d, want 0", len(result.Choices))
+	}
+}
+
+
+func TestBuildScenePrompt_FiltersNPCsByLocation(t *testing.T) {
+	profile := testProfile()
+	skeleton := &WorldSkeleton{
+		Locations: []SkeletonLocation{
+			{Name: "Ironhold", Description: "mountain fortress", Region: "north", LocationType: "city"},
+		},
+		NPCs: []SkeletonNPC{
+			{Name: "Kael", Description: "guild master", Personality: "stern", Faction: "Iron Guild", Location: "Ironhold"},
+			{Name: "Lira", Description: "herbalist", Personality: "kind", Faction: "", Location: "Ironhold"},
+			{Name: "Orc Scout", Description: "enemy spy", Personality: "cunning", Faction: "", Location: "Forest Outpost"},
+		},
+		WorldFacts:           []SkeletonFact{{Fact: "test fact", Category: "lore"}},
+		StartingLocationName: "Ironhold",
+	}
+
+	prompt := buildScenePrompt(profile, skeleton)
+
+	if !strings.Contains(prompt, "Kael") {
+		t.Error("expected prompt to include Kael (at starting location)")
+	}
+	if !strings.Contains(prompt, "Lira") {
+		t.Error("expected prompt to include Lira (at starting location)")
+	}
+	if strings.Contains(prompt, "Orc Scout") {
+		t.Error("prompt should NOT include Orc Scout (different location)")
 	}
 }

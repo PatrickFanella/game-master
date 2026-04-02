@@ -212,11 +212,11 @@ func unsetenv(t *testing.T, keys ...string) {
 	for _, key := range keys {
 		key := key
 		if orig, ok := os.LookupEnv(key); ok {
-			t.Cleanup(func() { os.Setenv(key, orig) })
+			t.Cleanup(func() { _ = os.Setenv(key, orig) })
 		} else {
-			t.Cleanup(func() { os.Unsetenv(key) })
+			t.Cleanup(func() { _ = os.Unsetenv(key) })
 		}
-		os.Unsetenv(key)
+		_ = os.Unsetenv(key)
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 // fails the tool call is skipped; narrative text and all successful tool
 // calls from the same response are still returned.
 type TurnProcessor struct {
+	logger    *slog.Logger
 	provider  llm.Provider
 	registry  *tools.Registry
 	validator *tools.Validator
@@ -27,8 +28,13 @@ func NewTurnProcessor(
 	provider llm.Provider,
 	registry *tools.Registry,
 	validator *tools.Validator,
+	logger *slog.Logger,
 ) *TurnProcessor {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &TurnProcessor{
+		logger:    logger,
 		provider:  provider,
 		registry:  registry,
 		validator: validator,
@@ -87,11 +93,11 @@ func (tp *TurnProcessor) ProcessWithRecovery(
 		result, execErr := tp.attemptToolCall(ctx, tc, allowed)
 		if execErr == nil {
 			if atc, encErr := buildAppliedToolCall(tc, result); encErr != nil {
-				slog.Error("failed to encode applied tool call; skipping",
-					"tool", tc.Name,
-					"tool_call_id", tc.ID,
-					"error", encErr.Error(),
-				)
+			tp.logger.Error("failed to encode applied tool call; skipping",
+				"tool", tc.Name,
+				"tool_call_id", tc.ID,
+				"error", encErr.Error(),
+			)
 			} else {
 				applied = append(applied, atc)
 			}
@@ -103,7 +109,7 @@ func (tp *TurnProcessor) ProcessWithRecovery(
 			ctx, tc, execErr, messages, assistantContent, availableTools,
 		)
 		if retryLLMErr != nil {
-			slog.Error("tool call failed and retry LLM call also failed; skipping",
+			tp.logger.Error("tool call failed and retry LLM call also failed; skipping",
 				"tool", tc.Name,
 				"tool_call_id", tc.ID,
 				"initial_error", execErr.Error(),
@@ -114,7 +120,7 @@ func (tp *TurnProcessor) ProcessWithRecovery(
 
 		retryResult, retryExecErr := tp.attemptToolCall(ctx, retryTC, allowed)
 		if retryExecErr != nil {
-			slog.Error("tool call failed after retry; skipping",
+			tp.logger.Error("tool call failed after retry; skipping",
 				"tool", tc.Name,
 				"tool_call_id", tc.ID,
 				"retry_tool_call_id", retryTC.ID,
@@ -126,7 +132,7 @@ func (tp *TurnProcessor) ProcessWithRecovery(
 		}
 
 		if atc, encErr := buildAppliedToolCall(retryTC, retryResult); encErr != nil {
-			slog.Error("failed to encode applied tool call after retry; skipping",
+			tp.logger.Error("failed to encode applied tool call after retry; skipping",
 				"tool", retryTC.Name,
 				"tool_call_id", retryTC.ID,
 				"error", encErr.Error(),

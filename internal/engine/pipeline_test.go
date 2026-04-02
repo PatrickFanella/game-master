@@ -145,7 +145,7 @@ func newPipelineTestEngine(state *fakeStateManager, provider llm.Provider, reg *
 	return &Engine{
 		state:     state,
 		assembler: assembly.NewContextAssembler(reg),
-		processor: NewTurnProcessor(provider, reg, tools.NewValidator(reg)),
+		processor: NewTurnProcessor(provider, reg, tools.NewValidator(reg), nil),
 	}
 }
 

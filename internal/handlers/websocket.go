@@ -37,7 +37,7 @@ func (h *Handlers) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		h.Logger.Errorf("websocket accept for campaign %s: %v", campaignID, err)
 		return
 	}
-	defer conn.CloseNow()
+	defer func() { _ = conn.CloseNow() }()
 
 	ctx := r.Context()
 
@@ -73,7 +73,8 @@ func (h *Handlers) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		ch, err := h.Engine.ProcessTurnStream(ctx, campaignID, payload.Input)
 		if err != nil {
-			sendErrorEnvelope(ctx, conn, fmt.Sprintf("stream error: %v", err))
+			h.Logger.Errorf("process turn stream for campaign %s: %v", campaignID, err)
+			sendErrorEnvelope(ctx, conn, "failed to process turn")
 			continue
 		}
 
@@ -90,7 +91,11 @@ func (h *Handlers) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 				envelope.Payload, _ = json.Marshal(event.Result)
 			case "error":
 				envelope.Type = "error"
-				envelope.Payload, _ = json.Marshal(map[string]string{"error": event.Err.Error()})
+				errMsg := "an internal error occurred"
+				if event.Err != nil {
+					h.Logger.Errorf("stream event error for campaign %s: %v", campaignID, event.Err)
+				}
+				envelope.Payload, _ = json.Marshal(map[string]string{"error": errMsg})
 			default:
 				continue
 			}

@@ -151,7 +151,7 @@ func TestTurnProcessor_RetrySucceeds(t *testing.T) {
 		},
 	)
 
-	tp := NewTurnProcessor(provider, reg, validator)
+	tp := NewTurnProcessor(provider, reg, validator, nil)
 	messages := []llm.Message{{Role: llm.RoleUser, Content: "Do something"}}
 
 	narrative, applied, err := tp.ProcessWithRecovery(context.Background(), messages, reg.List())
@@ -224,7 +224,7 @@ func TestTurnProcessor_BothAttemptsFailToolSkipped(t *testing.T) {
 		},
 	)
 
-	tp := NewTurnProcessor(provider, reg, validator)
+	tp := NewTurnProcessor(provider, reg, validator, nil)
 	messages := []llm.Message{{Role: llm.RoleUser, Content: "Attack the dragon"}}
 
 	narrative, applied, err := tp.ProcessWithRecovery(context.Background(), messages, reg.List())
@@ -271,7 +271,7 @@ func TestTurnProcessor_SuccessfulToolCallApplied(t *testing.T) {
 		},
 	)
 
-	tp := NewTurnProcessor(provider, reg, validator)
+	tp := NewTurnProcessor(provider, reg, validator, nil)
 	messages := []llm.Message{{Role: llm.RoleUser, Content: "Attack"}}
 
 	narrative, applied, err := tp.ProcessWithRecovery(context.Background(), messages, reg.List())
@@ -361,7 +361,7 @@ func TestTurnProcessor_NarrativePreservedWithMixedToolCalls(t *testing.T) {
 		},
 	)
 
-	tp := NewTurnProcessor(provider, reg, validator)
+	tp := NewTurnProcessor(provider, reg, validator, nil)
 	messages := []llm.Message{{Role: llm.RoleUser, Content: "Do mixed things"}}
 
 	narrative, applied, err := tp.ProcessWithRecovery(context.Background(), messages, reg.List())
@@ -396,7 +396,7 @@ func TestTurnProcessor_InitialLLMFailureReturnsError(t *testing.T) {
 		},
 	)
 
-	tp := NewTurnProcessor(provider, reg, validator)
+	tp := NewTurnProcessor(provider, reg, validator, nil)
 	messages := []llm.Message{{Role: llm.RoleUser, Content: "Hello"}}
 
 	_, _, err := tp.ProcessWithRecovery(context.Background(), messages, reg.List())
@@ -448,7 +448,7 @@ func TestTurnProcessor_ValidationFailureTriggersRetry(t *testing.T) {
 		},
 	)
 
-	tp := NewTurnProcessor(provider, reg, validator)
+	tp := NewTurnProcessor(provider, reg, validator, nil)
 	messages := []llm.Message{{Role: llm.RoleUser, Content: "Do the thing"}}
 
 	narrative, applied, err := tp.ProcessWithRecovery(context.Background(), messages, reg.List())
@@ -489,7 +489,7 @@ func TestTurnProcessor_NoToolCalls(t *testing.T) {
 		},
 	)
 
-	tp := NewTurnProcessor(provider, reg, validator)
+	tp := NewTurnProcessor(provider, reg, validator, nil)
 	messages := []llm.Message{{Role: llm.RoleUser, Content: "Describe the scene"}}
 
 	narrative, applied, err := tp.ProcessWithRecovery(context.Background(), messages, reg.List())
@@ -544,7 +544,7 @@ func TestTurnProcessor_RetryLLMCallFails(t *testing.T) {
 		},
 	)
 
-	tp := NewTurnProcessor(provider, reg, validator)
+	tp := NewTurnProcessor(provider, reg, validator, nil)
 	messages := []llm.Message{{Role: llm.RoleUser, Content: "Do something"}}
 
 	narrative, applied, err := tp.ProcessWithRecovery(context.Background(), messages, reg.List())
@@ -644,7 +644,7 @@ func TestTurnProcessor_HallucinatedToolCallSkipped(t *testing.T) {
 		},
 	)
 
-	tp := NewTurnProcessor(provider, reg, validator)
+	tp := NewTurnProcessor(provider, reg, validator, nil)
 	messages := []llm.Message{{Role: llm.RoleUser, Content: "Do the thing"}}
 
 	narrative, applied, err := tp.ProcessWithRecovery(context.Background(), messages, advertised)

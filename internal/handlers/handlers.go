@@ -31,7 +31,9 @@ func New(eng engine.GameEngine, queries statedb.Querier, logger *log.Logger) *Ha
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(payload)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		log.Errorf("writeJSON encode: %v", err)
+	}
 }
 
 // writeError writes a JSON error response.

@@ -34,10 +34,10 @@ var (
 	ColorInfo    = lipgloss.AdaptiveColor{Dark: "#60a5fa", Light: "#2563eb"}
 
 	// Role-specific text colors.
-	ColorPlayerInput  = lipgloss.AdaptiveColor{Dark: "#34d399", Light: "#15803d"}
-	ColorNPCDialogue  = lipgloss.AdaptiveColor{Dark: "#fcd34d", Light: "#b45309"}
-	ColorSystemMsg    = lipgloss.AdaptiveColor{Dark: "#94a3b8", Light: "#6b7280"}
-	ColorHeaderText   = lipgloss.AdaptiveColor{Dark: "#c084fc", Light: "#7c3aed"}
+	ColorPlayerInput = lipgloss.AdaptiveColor{Dark: "#34d399", Light: "#15803d"}
+	ColorNPCDialogue = lipgloss.AdaptiveColor{Dark: "#fcd34d", Light: "#b45309"}
+	ColorSystemMsg   = lipgloss.AdaptiveColor{Dark: "#94a3b8", Light: "#6b7280"}
+	ColorHeaderText  = lipgloss.AdaptiveColor{Dark: "#c084fc", Light: "#7c3aed"}
 )
 
 // ---------------------------------------------------------------------------
@@ -147,6 +147,34 @@ var StatusError = lipgloss.NewStyle().
 var StatusInfo = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(ColorInfo)
+
+// LogTimestamp renders compact timestamps in a muted tone.
+var LogTimestamp = lipgloss.NewStyle().
+	Foreground(ColorMuted)
+
+// LogService renders the service label for structured logs.
+var LogService = lipgloss.NewStyle().
+	Foreground(ColorAccentDim)
+
+// LogFieldKey renders structured log field keys.
+var LogFieldKey = lipgloss.NewStyle().
+	Foreground(ColorMuted)
+
+// LogFieldValue renders structured log field values.
+var LogFieldValue = lipgloss.NewStyle().
+	Foreground(ColorForeground)
+
+// LogLevelDebug renders the DBG level badge.
+var LogLevelDebug = lipgloss.NewStyle().Bold(true).Foreground(ColorMuted)
+
+// LogLevelInfo renders the INF level badge.
+var LogLevelInfo = lipgloss.NewStyle().Bold(true).Foreground(ColorInfo)
+
+// LogLevelWarn renders the WRN level badge.
+var LogLevelWarn = lipgloss.NewStyle().Bold(true).Foreground(ColorWarning)
+
+// LogLevelError renders the ERR level badge.
+var LogLevelError = lipgloss.NewStyle().Bold(true).Foreground(ColorError)
 
 // ---------------------------------------------------------------------------
 // Container / box styles

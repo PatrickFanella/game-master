@@ -245,7 +245,7 @@ func TestEnterSubmitsSelectedChoiceWhenInputEmpty(t *testing.T) {
 	m = updated.(*Model)
 
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = updated.(*Model)
+	_ = updated.(*Model)
 
 	if cmd == nil {
 		t.Fatal("expected submit command for selected choice")

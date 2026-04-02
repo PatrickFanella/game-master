@@ -21,14 +21,19 @@ type MemoryRetriever interface {
 type Tier3Retriever struct {
 	retriever MemoryRetriever
 	limit     int
+	logger   *slog.Logger
 }
 
 // NewTier3Retriever creates a Tier3Retriever. A non-positive limit defaults to 5.
-func NewTier3Retriever(retriever MemoryRetriever, limit int) *Tier3Retriever {
+// A nil logger falls back to slog.Default().
+func NewTier3Retriever(retriever MemoryRetriever, limit int, logger *slog.Logger) *Tier3Retriever {
 	if limit <= 0 {
 		limit = 5
 	}
-	return &Tier3Retriever{retriever: retriever, limit: limit}
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &Tier3Retriever{retriever: retriever, limit: limit, logger: logger}
 }
 
 // Retrieve builds a composite query from the player input and current game
@@ -40,7 +45,7 @@ func (t *Tier3Retriever) Retrieve(ctx context.Context, campaignID uuid.UUID, pla
 
 	results, err := t.retriever.SearchSimilar(ctx, campaignID, query, t.limit)
 	if err != nil {
-		slog.Warn("tier3 memory retrieval failed", "campaign_id", campaignID, "error", err)
+		t.logger.Warn("tier3 memory retrieval failed", "campaign_id", campaignID, "error", err)
 		return nil, nil
 	}
 

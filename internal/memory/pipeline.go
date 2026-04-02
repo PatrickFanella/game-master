@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
-	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
 	pgvector_go "github.com/pgvector/pgvector-go"
 
@@ -40,20 +40,20 @@ type Pipeline struct {
 	store    PipelineStore
 	jobs     chan EmbedJob
 	done     chan struct{}
-	logger   *log.Logger
+	logger   *slog.Logger
 }
 
 const defaultBufferSize = 64
 
 // NewPipeline creates a Pipeline and starts its background worker.
 // bufferSize controls the channel capacity; values <= 0 default to 64.
-// A nil logger falls back to log.Default().
-func NewPipeline(embedder Embedder, store PipelineStore, bufferSize int, logger *log.Logger) *Pipeline {
+// A nil logger falls back to slog.Default().
+func NewPipeline(embedder Embedder, store PipelineStore, bufferSize int, logger *slog.Logger) *Pipeline {
 	if bufferSize <= 0 {
 		bufferSize = defaultBufferSize
 	}
 	if logger == nil {
-		logger = log.Default()
+		logger = slog.Default()
 	}
 	p := &Pipeline{
 		embedder: embedder,

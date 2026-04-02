@@ -44,7 +44,7 @@ func (s *npcService) GetNPCByID(ctx context.Context, npcID uuid.UUID) (*domain.N
 // --- tools.UpdateNPCStore methods ---
 
 func (s *npcService) LocationExistsInCampaign(ctx context.Context, locationID, campaignID uuid.UUID) (bool, error) {
-	location, err := s.queries.GetLocationByID(ctx, statedb.GetLocationByIDParams{ID: dbutil.ToPgtype(locationID)})
+	location, err := s.queries.GetLocationByID(ctx, statedb.GetLocationByIDParams{ID: dbutil.ToPgtype(locationID), CampaignID: dbutil.ToPgtype(campaignID)})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil

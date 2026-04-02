@@ -63,7 +63,8 @@ type GameEngine interface {
 
 // StreamEvent carries either a narrative chunk or the final turn result.
 type StreamEvent struct {
-	// Type is "chunk" for narrative fragments, "result" for the final outcome.
+// Type is "chunk" for narrative fragments, "result" for the final outcome,
+// or "error" when streaming fails (check Err).
 	Type string
 	// Text is the narrative fragment (when Type is "chunk").
 	Text string

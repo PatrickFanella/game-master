@@ -255,12 +255,12 @@ func buildCharacterSystemPrompt(cp *CampaignProfile) string {
 
 	if cp != nil {
 		b.WriteString("=== CAMPAIGN CONTEXT ===\n\n")
-		b.WriteString(fmt.Sprintf("The campaign is set in a %s world with a %s tone.", cp.WorldType, cp.Tone))
+		fmt.Fprintf(&b, "The campaign is set in a %s world with a %s tone.", cp.WorldType, cp.Tone)
 		if cp.Genre != "" {
-			b.WriteString(fmt.Sprintf(" The genre is %s.", cp.Genre))
+			fmt.Fprintf(&b, " The genre is %s.", cp.Genre)
 		}
 		if len(cp.Themes) > 0 {
-			b.WriteString(fmt.Sprintf(" Key themes include %s.", strings.Join(cp.Themes, ", ")))
+			fmt.Fprintf(&b, " Key themes include %s.", strings.Join(cp.Themes, ", "))
 		}
 		b.WriteString(" Tailor your questions and suggestions to fit this setting.\n\n")
 	}

@@ -37,9 +37,10 @@ func (s *combatService) CreateNPC(ctx context.Context, params tools.InitiateComb
 	properties := map[string]any{}
 	if len(params.Abilities) > 0 {
 		var abilities []any
-		if err := json.Unmarshal(params.Abilities, &abilities); err == nil {
-			properties["abilities"] = abilities
+		if err := json.Unmarshal(params.Abilities, &abilities); err != nil {
+			return nil, fmt.Errorf("create npc: parse abilities: %w", err)
 		}
+		properties["abilities"] = abilities
 	}
 	propertiesJSON, err := json.Marshal(properties)
 	if err != nil {

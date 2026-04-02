@@ -526,7 +526,7 @@ func TestCreateCampaign_CreatesLocationForCampaign(t *testing.T) {
 	userID := pgtype.UUID{Bytes: [16]byte{7}, Valid: true}
 	q := &stubQuerier{}
 
-	camp, err := bootstrap.CreateCampaign(context.Background(), q, userID, "My Campaign", "", "")
+	camp, err := bootstrap.CreateCampaign(context.Background(), q, userID, "My Campaign", "")
 	if err != nil {
 		t.Fatalf("CreateCampaign returned error: %v", err)
 	}
@@ -546,7 +546,7 @@ func TestCreateCampaign_EmptyNameReturnsError(t *testing.T) {
 	userID := pgtype.UUID{Bytes: [16]byte{8}, Valid: true}
 	q := &stubQuerier{}
 
-	_, err := bootstrap.CreateCampaign(context.Background(), q, userID, "", "", "")
+	_, err := bootstrap.CreateCampaign(context.Background(), q, userID, "", "")
 	if err == nil {
 		t.Fatal("expected error for empty campaign name")
 	}
@@ -556,7 +556,7 @@ func TestCreateCampaign_WhitespaceOnlyNameReturnsError(t *testing.T) {
 	userID := pgtype.UUID{Bytes: [16]byte{9}, Valid: true}
 	q := &stubQuerier{}
 
-	_, err := bootstrap.CreateCampaign(context.Background(), q, userID, "   ", "", "")
+	_, err := bootstrap.CreateCampaign(context.Background(), q, userID, "   ", "")
 	if err == nil {
 		t.Fatal("expected error for whitespace-only campaign name")
 	}
@@ -566,7 +566,7 @@ func TestCreateCampaign_TrimsWhitespace(t *testing.T) {
 	userID := pgtype.UUID{Bytes: [16]byte{10}, Valid: true}
 	q := &stubQuerier{}
 
-	camp, err := bootstrap.CreateCampaign(context.Background(), q, userID, "  My Adventure  ", "", "")
+	camp, err := bootstrap.CreateCampaign(context.Background(), q, userID, "  My Adventure  ", "")
 	if err != nil {
 		t.Fatalf("CreateCampaign returned error: %v", err)
 	}

@@ -444,9 +444,10 @@ func resolverDamageNarrative(dmg DamageRecord, state *CombatState) string {
 	parts := []string{
 		fmt.Sprintf("%s takes %d %s damage. (HP: %d/%d)", target.Name, dmg.Amount, dmg.DamageType, target.HP, target.MaxHP),
 	}
-	if target.Status == CombatantStatusDead {
+	switch target.Status {
+	case CombatantStatusDead:
 		parts = append(parts, fmt.Sprintf("%s has been defeated!", target.Name))
-	} else if target.Status == CombatantStatusUnconscious {
+	case CombatantStatusUnconscious:
 		parts = append(parts, fmt.Sprintf("%s falls unconscious!", target.Name))
 	}
 	return strings.Join(parts, " ")

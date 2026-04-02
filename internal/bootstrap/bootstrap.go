@@ -56,13 +56,12 @@ func Run(ctx context.Context, q statedb.Querier) (Result, error) {
 	return Result{User: user, Campaigns: campaigns}, nil
 }
 
-// CreateCampaign creates a new campaign with the given name, genre, and
-// difficulty for the user and adds a default starting location. It is used
-// when the player selects "New campaign" from the campaign selection list.
-// The name is trimmed of whitespace; an empty or whitespace-only name returns
-// an error. Genre and difficulty are optional; empty strings are stored as
-// SQL NULL via invalid pgtype.Text values.
-func CreateCampaign(ctx context.Context, q statedb.Querier, userID pgtype.UUID, name, genre, difficulty string) (statedb.Campaign, error) {
+// CreateCampaign creates a new campaign with the given name and genre for the
+// user and adds a default starting location. It is used when the player
+// selects "New campaign" from the campaign selection list. The name is trimmed
+// of whitespace; an empty or whitespace-only name returns an error. Genre is
+// optional; an empty string is stored as SQL NULL via invalid pgtype.Text.
+func CreateCampaign(ctx context.Context, q statedb.Querier, userID pgtype.UUID, name, genre string) (statedb.Campaign, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return statedb.Campaign{}, errors.New("campaign name cannot be empty")
@@ -71,7 +70,7 @@ func CreateCampaign(ctx context.Context, q statedb.Querier, userID pgtype.UUID, 
 	campaign, err := q.CreateCampaign(ctx, statedb.CreateCampaignParams{
 		Name:        name,
 		Genre:       pgtype.Text{String: genre, Valid: genre != ""},
-		Description: pgtype.Text{String: "Difficulty: " + difficulty, Valid: difficulty != ""},
+		Description: pgtype.Text{},
 		Status:      "active",
 		CreatedBy:   userID,
 	})

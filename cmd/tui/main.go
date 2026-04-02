@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,6 +17,7 @@ import (
 	"github.com/PatrickFanella/game-master/internal/config"
 	"github.com/PatrickFanella/game-master/internal/engine"
 	"github.com/PatrickFanella/game-master/internal/llm"
+	"github.com/PatrickFanella/game-master/internal/logging"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/tui"
 )
@@ -31,7 +33,14 @@ func run(args []string) int {
 		return 2
 	}
 
-	logger := log.NewWithOptions(os.Stderr, log.Options{
+	logResult, err := logging.Setup(".logs/game-master.jsonl", slog.LevelDebug)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "init logging: %v\n", err)
+		return 1
+	}
+	defer logResult.Cleanup()
+
+	logger := log.NewWithOptions(logResult.BridgeWriter, log.Options{
 		ReportTimestamp: true,
 	})
 	log.SetDefault(logger)
@@ -63,14 +72,14 @@ func run(args []string) int {
 		logger.Errorf("create llm provider: %v", err)
 		return 1
 	}
-	gameEngine, err := engine.New(pool, provider, cfg.LLM)
+	gameEngine, err := engine.New(pool, provider, cfg.LLM, engine.WithLogger(slog.Default().WithGroup("engine")))
 	if err != nil {
 		logger.Errorf("create engine: %v", err)
 		return 1
 	}
 
 	p := tea.NewProgram(
-		tui.NewLauncherWithEngine(cfg, ctx, queries, gameEngine),
+		tui.NewLauncherWithEngine(cfg, ctx, queries, gameEngine, tui.WithLogBuffer(logResult.RingBuffer)),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 		tea.WithContext(ctx),

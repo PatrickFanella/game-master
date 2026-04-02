@@ -293,45 +293,45 @@ func serializeState(state *game.GameState) string {
 
 	// Campaign
 	sb.WriteString("### Campaign\n")
-	sb.WriteString(fmt.Sprintf("- Name: %s\n", state.Campaign.Name))
+	fmt.Fprintf(&sb, "- Name: %s\n", state.Campaign.Name)
 	if state.Campaign.Genre != "" {
-		sb.WriteString(fmt.Sprintf("- Genre: %s\n", state.Campaign.Genre))
+		fmt.Fprintf(&sb, "- Genre: %s\n", state.Campaign.Genre)
 	}
 	if state.Campaign.Tone != "" {
-		sb.WriteString(fmt.Sprintf("- Tone: %s\n", state.Campaign.Tone))
+		fmt.Fprintf(&sb, "- Tone: %s\n", state.Campaign.Tone)
 	}
 	if len(state.Campaign.Themes) > 0 {
-		sb.WriteString(fmt.Sprintf("- Themes: %s\n", strings.Join(state.Campaign.Themes, ", ")))
+		fmt.Fprintf(&sb, "- Themes: %s\n", strings.Join(state.Campaign.Themes, ", "))
 	}
 	if state.Campaign.Description != "" {
-		sb.WriteString(fmt.Sprintf("- Description: %s\n", state.Campaign.Description))
+		fmt.Fprintf(&sb, "- Description: %s\n", state.Campaign.Description)
 	}
 	sb.WriteString("\n")
 
 	// Player character
 	sb.WriteString("### Player Character\n")
-	sb.WriteString(fmt.Sprintf("- Name: %s\n", state.Player.Name))
-	sb.WriteString(fmt.Sprintf("- Level: %d\n", state.Player.Level))
-	sb.WriteString(fmt.Sprintf("- HP: %d/%d\n", state.Player.HP, state.Player.MaxHP))
+	fmt.Fprintf(&sb, "- Name: %s\n", state.Player.Name)
+	fmt.Fprintf(&sb, "- Level: %d\n", state.Player.Level)
+	fmt.Fprintf(&sb, "- HP: %d/%d\n", state.Player.HP, state.Player.MaxHP)
 	if state.Player.Description != "" {
-		sb.WriteString(fmt.Sprintf("- Description: %s\n", state.Player.Description))
+		fmt.Fprintf(&sb, "- Description: %s\n", state.Player.Description)
 	}
 	if state.Player.Status != "" {
-		sb.WriteString(fmt.Sprintf("- Status: %s\n", state.Player.Status))
+		fmt.Fprintf(&sb, "- Status: %s\n", state.Player.Status)
 	}
 	sb.WriteString("\n")
 
 	// Current location
 	sb.WriteString("### Current Location\n")
-	sb.WriteString(fmt.Sprintf("- Name: %s\n", state.CurrentLocation.Name))
+	fmt.Fprintf(&sb, "- Name: %s\n", state.CurrentLocation.Name)
 	if state.CurrentLocation.Region != "" {
-		sb.WriteString(fmt.Sprintf("- Region: %s\n", state.CurrentLocation.Region))
+		fmt.Fprintf(&sb, "- Region: %s\n", state.CurrentLocation.Region)
 	}
 	if state.CurrentLocation.LocationType != "" {
-		sb.WriteString(fmt.Sprintf("- Type: %s\n", state.CurrentLocation.LocationType))
+		fmt.Fprintf(&sb, "- Type: %s\n", state.CurrentLocation.LocationType)
 	}
 	if state.CurrentLocation.Description != "" {
-		sb.WriteString(fmt.Sprintf("- Description: %s\n", state.CurrentLocation.Description))
+		fmt.Fprintf(&sb, "- Description: %s\n", state.CurrentLocation.Description)
 	}
 	wroteExitsHeader := false
 	for _, conn := range state.CurrentLocationConnections {
@@ -343,9 +343,9 @@ func serializeState(state *game.GameState) string {
 			wroteExitsHeader = true
 		}
 		if conn.TravelTime != "" {
-			sb.WriteString(fmt.Sprintf("  - %s (travel time: %s)\n", conn.Description, conn.TravelTime))
+			fmt.Fprintf(&sb, "  - %s (travel time: %s)\n", conn.Description, conn.TravelTime)
 		} else {
-			sb.WriteString(fmt.Sprintf("  - %s\n", conn.Description))
+			fmt.Fprintf(&sb, "  - %s\n", conn.Description)
 		}
 	}
 	sb.WriteString("\n")
@@ -370,13 +370,13 @@ func serializeState(state *game.GameState) string {
 	if len(state.ActiveQuests) > 0 {
 		sb.WriteString("### Active Quests\n")
 		for _, quest := range state.ActiveQuests {
-			sb.WriteString(fmt.Sprintf("- %s", quest.Title))
+			fmt.Fprintf(&sb, "- %s", quest.Title)
 			if quest.QuestType != "" {
-				sb.WriteString(fmt.Sprintf(" (%s)", quest.QuestType))
+				fmt.Fprintf(&sb, " (%s)", quest.QuestType)
 			}
 			sb.WriteString("\n")
 			if quest.Description != "" {
-				sb.WriteString(fmt.Sprintf("  %s\n", quest.Description))
+				fmt.Fprintf(&sb, "  %s\n", quest.Description)
 			}
 			if objectives, ok := state.ActiveQuestObjectives[quest.ID]; ok {
 				for _, obj := range objectives {
@@ -384,7 +384,7 @@ func serializeState(state *game.GameState) string {
 					if obj.Completed {
 						check = "[x]"
 					}
-					sb.WriteString(fmt.Sprintf("  %s %s\n", check, obj.Description))
+					fmt.Fprintf(&sb, "  %s %s\n", check, obj.Description)
 				}
 			}
 		}
@@ -411,7 +411,7 @@ func serializeState(state *game.GameState) string {
 	if len(state.WorldFacts) > 0 {
 		sb.WriteString("### World Facts\n")
 		for _, fact := range state.WorldFacts {
-			sb.WriteString(fmt.Sprintf("- %s\n", fact.Fact))
+			fmt.Fprintf(&sb, "- %s\n", fact.Fact)
 		}
 		sb.WriteString("\n")
 	}

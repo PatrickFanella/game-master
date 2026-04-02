@@ -573,9 +573,10 @@ func formatDamageNarrative(dmg combat.DamageRecord, state *combat.CombatState) s
 	parts := []string{
 		fmt.Sprintf("%s takes %d %s damage. (HP: %d/%d)", target.Name, dmg.Amount, dmg.DamageType, target.HP, target.MaxHP),
 	}
-	if target.Status == combat.CombatantStatusDead {
+	switch target.Status {
+	case combat.CombatantStatusDead:
 		parts = append(parts, fmt.Sprintf("%s has been defeated!", target.Name))
-	} else if target.Status == combat.CombatantStatusUnconscious {
+	case combat.CombatantStatusUnconscious:
 		parts = append(parts, fmt.Sprintf("%s falls unconscious!", target.Name))
 	}
 	return strings.Join(parts, " ")

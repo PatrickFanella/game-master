@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,6 +25,7 @@ import (
 	"github.com/PatrickFanella/game-master/internal/engine"
 	"github.com/PatrickFanella/game-master/internal/handlers"
 	"github.com/PatrickFanella/game-master/internal/llm"
+	"github.com/PatrickFanella/game-master/internal/logging"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
 
@@ -38,7 +40,14 @@ func run(args []string) int {
 		return 2
 	}
 
-	logger := log.NewWithOptions(os.Stderr, log.Options{ReportTimestamp: true})
+	logResult, err := logging.Setup(".logs/game-master.jsonl", slog.LevelDebug)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "init logging: %v\n", err)
+		return 1
+	}
+	defer logResult.Cleanup()
+
+	logger := log.NewWithOptions(logResult.BridgeWriter, log.Options{ReportTimestamp: true})
 	log.SetDefault(logger)
 
 	cfg, err := config.Load(configPath)
@@ -63,7 +72,7 @@ func run(args []string) int {
 		logger.Errorf("create llm provider: %v", err)
 		return 1
 	}
-	gameEngine, err := engine.New(pool, provider, cfg.LLM)
+	gameEngine, err := engine.New(pool, provider, cfg.LLM, engine.WithLogger(slog.Default().WithGroup("engine")))
 	if err != nil {
 		logger.Errorf("create engine: %v", err)
 		return 1
@@ -190,7 +199,6 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers) {
 		})
 	})
 }
-
 
 func writeJSON(logger *log.Logger, w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")

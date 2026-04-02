@@ -139,7 +139,7 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 
 			g2.Go(func() error {
 				var err error
-				location, err = sm.queries.GetLocationByID(g2Ctx, statedb.GetLocationByIDParams{ID: pgLocationID})
+				location, err = sm.queries.GetLocationByID(g2Ctx, statedb.GetLocationByIDParams{ID: pgLocationID, CampaignID: pgCampaignID})
 				return err
 			})
 			g2.Go(func() error {

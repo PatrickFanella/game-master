@@ -20,6 +20,7 @@ import (
 	"github.com/PatrickFanella/game-master/internal/config"
 	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/engine"
+	"github.com/PatrickFanella/game-master/internal/logging"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/tui/campaign"
 	"github.com/PatrickFanella/game-master/tui/styles"
@@ -67,6 +68,7 @@ type Launcher struct {
 	ctx     context.Context
 	engine  engine.GameEngine
 	queries statedb.Querier
+	logBuf  *logging.RingBuffer
 	user    statedb.User
 	state   launcherState
 	picker  campaign.Model
@@ -74,6 +76,14 @@ type Launcher struct {
 	errMsg  string
 	width   int
 	height  int
+}
+
+// LauncherOption configures the Launcher.
+type LauncherOption func(*Launcher)
+
+// WithLogBuffer attaches a RingBuffer so the log panel can display entries.
+func WithLogBuffer(buf *logging.RingBuffer) LauncherOption {
+	return func(l *Launcher) { l.logBuf = buf }
 }
 
 // NewLauncher creates the Launcher model. ctx is used for all DB operations so
@@ -84,11 +94,11 @@ func NewLauncher(cfg config.Config, ctx context.Context, queries statedb.Querier
 }
 
 // NewLauncherWithEngine creates the Launcher model with a game engine dependency.
-func NewLauncherWithEngine(cfg config.Config, ctx context.Context, queries statedb.Querier, gameEngine engine.GameEngine) Launcher {
+func NewLauncherWithEngine(cfg config.Config, ctx context.Context, queries statedb.Querier, gameEngine engine.GameEngine, opts ...LauncherOption) Launcher {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	sp.Style = lipgloss.NewStyle().Foreground(styles.ColorAccent)
-	return Launcher{
+	l := Launcher{
 		cfg:     cfg,
 		ctx:     ctx,
 		engine:  gameEngine,
@@ -96,6 +106,10 @@ func NewLauncherWithEngine(cfg config.Config, ctx context.Context, queries state
 		state:   launcherLoading,
 		spinner: sp,
 	}
+	for _, opt := range opts {
+		opt(&l)
+	}
+	return l
 }
 
 // Init implements tea.Model.  It fires the DB bootstrap command immediately.
@@ -227,7 +241,7 @@ func (l Launcher) loadingView(msg string) string {
 
 // transitionToApp creates the main App model and returns it as the new model.
 func (l Launcher) transitionToApp(c statedb.Campaign) (tea.Model, tea.Cmd) {
-	app := NewAppWithEngine(l.cfg, c, l.ctx, l.engine)
+	app := NewAppWithEngine(l.cfg, c, l.ctx, l.engine, l.logBuf)
 	return app, app.Init()
 }
 
@@ -249,7 +263,7 @@ func (l Launcher) runCreateCampaign(result campaign.CampaignFormResult) tea.Cmd 
 	queries := l.queries
 	userID := l.user.ID
 	return func() tea.Msg {
-		c, err := bootstrap.CreateCampaign(ctx, queries, userID, result.Name, result.Genre, result.Difficulty)
+		c, err := bootstrap.CreateCampaign(ctx, queries, userID, result.Name, result.Genre)
 		return campaignCreatedMsg{c: c, err: err}
 	}
 }

@@ -80,7 +80,7 @@ func dialWS(t *testing.T, h *Handlers, campaignID string) (*websocket.Conn, *htt
 	if err != nil {
 		t.Fatalf("dial websocket: %v", err)
 	}
-	t.Cleanup(func() { conn.CloseNow() })
+	t.Cleanup(func() { _ = conn.CloseNow() })
 
 	return conn, srv
 }
@@ -88,10 +88,10 @@ func dialWS(t *testing.T, h *Handlers, campaignID string) (*websocket.Conn, *htt
 // sendAction writes an action message to the WebSocket.
 func sendAction(t *testing.T, ctx context.Context, conn *websocket.Conn, input string) {
 	t.Helper()
-	payload, _ := json.Marshal(wsActionPayload{Input: input})
-	msg := wsActionMessage{
-		Type:    "action",
-		Payload: payload,
+	payload, _ := json.Marshal(map[string]string{"input": input})
+	msg := map[string]any{
+		"type":    "action",
+		"payload": json.RawMessage(payload),
 	}
 	if err := wsjson.Write(ctx, conn, msg); err != nil {
 		t.Fatalf("write action: %v", err)
@@ -213,8 +213,8 @@ func TestHandleWebSocket_StreamError(t *testing.T) {
 	if err := json.Unmarshal(env.Payload, &errPayload); err != nil {
 		t.Fatalf("unmarshal error payload: %v", err)
 	}
-	if !strings.Contains(errPayload["error"], "llm unavailable") {
-		t.Errorf("expected error to contain %q, got %q", "llm unavailable", errPayload["error"])
+	if errPayload["error"] != "failed to process turn" {
+		t.Errorf("expected error %q, got %q", "failed to process turn", errPayload["error"])
 	}
 }
 
@@ -230,6 +230,66 @@ func TestHandleWebSocket_GracefulClose(t *testing.T) {
 		t.Fatalf("close websocket: %v", err)
 	}
 
-	// Give handler goroutine a moment to process the close frame.
-	time.Sleep(100 * time.Millisecond)
+}
+
+
+func TestHandleWebSocket_StreamErrorEvent(t *testing.T) {
+	t.Run("NilErr", func(t *testing.T) {
+		eng := &wsStubEngine{
+			streamEvents: []engine.StreamEvent{
+				{Type: "error", Err: nil},
+			},
+		}
+		h := New(eng, nil, log.Default())
+		campaignID := uuid.New().String()
+		conn, _ := dialWS(t, h, campaignID)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		sendAction(t, ctx, conn, "look")
+
+		env := readEnvelope(t, ctx, conn)
+		if env.Type != "error" {
+			t.Fatalf("expected type error, got %q", env.Type)
+		}
+		var errPayload map[string]string
+		if err := json.Unmarshal(env.Payload, &errPayload); err != nil {
+			t.Fatalf("unmarshal error payload: %v", err)
+		}
+		if errPayload["error"] != "an internal error occurred" {
+			t.Errorf("expected generic error, got %q", errPayload["error"])
+		}
+	})
+
+	t.Run("WithErr", func(t *testing.T) {
+		eng := &wsStubEngine{
+			streamEvents: []engine.StreamEvent{
+				{Type: "error", Err: errors.New("db timeout")},
+			},
+		}
+		h := New(eng, nil, log.Default())
+		campaignID := uuid.New().String()
+		conn, _ := dialWS(t, h, campaignID)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		sendAction(t, ctx, conn, "look")
+
+		env := readEnvelope(t, ctx, conn)
+		if env.Type != "error" {
+			t.Fatalf("expected type error, got %q", env.Type)
+		}
+		var errPayload map[string]string
+		if err := json.Unmarshal(env.Payload, &errPayload); err != nil {
+			t.Fatalf("unmarshal error payload: %v", err)
+		}
+		if errPayload["error"] != "an internal error occurred" {
+			t.Errorf("expected generic error, got %q", errPayload["error"])
+		}
+		if strings.Contains(errPayload["error"], "db timeout") {
+			t.Errorf("error leaked internal details: %q", errPayload["error"])
+		}
+	})
 }

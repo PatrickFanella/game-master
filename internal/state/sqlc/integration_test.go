@@ -467,7 +467,7 @@ func TestIntegrationLocations(t *testing.T) {
 	}
 
 	// GetByID
-	got, err := q.GetLocationByID(ctx, GetLocationByIDParams{ID: loc.ID, CampaignID: loc.CampaignID})
+	got, err := q.GetLocationByID(ctx, statedb.GetLocationByIDParams{ID: loc.ID, CampaignID: loc.CampaignID})
 	if err != nil {
 		t.Fatalf("GetLocationByID: %v", err)
 	}
@@ -637,7 +637,7 @@ func TestIntegrationNPCs(t *testing.T) {
 	}
 
 	// GetNPCByID
-	got, err := q.GetNPCByID(ctx, GetNPCByIDParams{ID: npc.ID, CampaignID: npc.CampaignID})
+	got, err := q.GetNPCByID(ctx, statedb.GetNPCByIDParams{ID: npc.ID, CampaignID: npc.CampaignID})
 	if err != nil {
 		t.Fatalf("GetNPCByID: %v", err)
 	}
@@ -909,7 +909,7 @@ func TestIntegrationQuests(t *testing.T) {
 	}
 
 	// GetQuestByID
-	got, err := q.GetQuestByID(ctx, GetQuestByIDParams{ID: main.ID, CampaignID: main.CampaignID})
+	got, err := q.GetQuestByID(ctx, statedb.GetQuestByIDParams{ID: main.ID, CampaignID: main.CampaignID})
 	if err != nil {
 		t.Fatalf("GetQuestByID: %v", err)
 	}

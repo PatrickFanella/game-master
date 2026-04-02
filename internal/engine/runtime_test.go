@@ -8,6 +8,7 @@ import (
 
 	"github.com/PatrickFanella/game-master/internal/config"
 	"github.com/PatrickFanella/game-master/internal/llm"
+	"github.com/google/uuid"
 )
 
 func TestMarshalAppliedToolCallsNilEncodesArray(t *testing.T) {
@@ -133,4 +134,51 @@ func TestNewRegistersExpectedTools(t *testing.T) {
 			t.Errorf("expected tool %q to be registered", name)
 		}
 	}
+}
+
+
+func TestProcessTurnStream_Error(t *testing.T) {
+	e, err := New(nil, &testProvider{}, config.LLMConfig{Provider: "ollama", Ollama: config.OllamaConfig{ContextTokenBudget: 8000}})
+
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ch, err := e.ProcessTurnStream(context.Background(), uuid.New(), "look around")
+	if err != nil {
+		t.Fatalf("ProcessTurnStream() error = %v", err)
+	}
+
+	var events []StreamEvent
+	for ev := range ch {
+		events = append(events, ev)
+	}
+
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	if events[0].Type != "error" {
+		t.Fatalf("expected error event, got %q", events[0].Type)
+	}
+	if events[0].Err == nil {
+		t.Fatal("expected non-nil Err on error event")
+	}
+}
+
+func TestProcessTurnStream_ChannelCloses(t *testing.T) {
+	e, err := New(nil, &testProvider{}, config.LLMConfig{Provider: "ollama", Ollama: config.OllamaConfig{ContextTokenBudget: 8000}})
+
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	ch, err := e.ProcessTurnStream(context.Background(), uuid.New(), "test")
+	if err != nil {
+		t.Fatalf("ProcessTurnStream() error = %v", err)
+	}
+
+	// Channel must close (no goroutine leak).
+	for range ch {
+	}
+	// If we get here, channel closed successfully.
 }

@@ -66,15 +66,21 @@ type WindowAger struct {
 	summarizer TurnSummarizer
 	pipeline   JobSubmitter
 	store      AgingStore
+	logger     *slog.Logger
 }
 
 // NewWindowAger returns a WindowAger wired to the given dependencies.
-func NewWindowAger(policy AgingPolicy, summarizer TurnSummarizer, pipeline JobSubmitter, store AgingStore) *WindowAger {
+// A nil logger falls back to slog.Default().
+func NewWindowAger(policy AgingPolicy, summarizer TurnSummarizer, pipeline JobSubmitter, store AgingStore, logger *slog.Logger) *WindowAger {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &WindowAger{
 		policy:     policy,
 		summarizer: summarizer,
 		pipeline:   pipeline,
 		store:      store,
+		logger:     logger,
 	}
 }
 
@@ -100,7 +106,7 @@ func (w *WindowAger) CheckAndAge(ctx context.Context, campaignID uuid.UUID, tota
 
 		result, err := w.summarizer.SummarizeTurn(ctx, turn.PlayerInput, turn.LLMResponse, turn.ToolCalls)
 		if err != nil {
-			slog.Warn("aging: summarize failed",
+			w.logger.Warn("aging: summarize failed",
 				"turn_id", turn.ID,
 				"turn_number", turn.TurnNumber,
 				"error", err,
@@ -113,14 +119,14 @@ func (w *WindowAger) CheckAndAge(ctx context.Context, campaignID uuid.UUID, tota
 			CampaignID: turn.CampaignID,
 			MemoryType: result.EventType,
 		}); !ok {
-			slog.Warn("aging: pipeline submit failed (buffer full)",
+			w.logger.Warn("aging: pipeline submit failed (buffer full)",
 				"turn_id", turn.ID,
 				"turn_number", turn.TurnNumber,
 			)
 		}
 
 		if err := w.store.MarkTurnSummarized(ctx, turn.ID); err != nil {
-			slog.Warn("aging: mark summarized failed",
+			w.logger.Warn("aging: mark summarized failed",
 				"turn_id", turn.ID,
 				"turn_number", turn.TurnNumber,
 				"error", err,

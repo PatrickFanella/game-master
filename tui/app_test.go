@@ -85,12 +85,16 @@ func TestViewStateConstants(t *testing.T) {
 	if ViewQuestLog != 3 {
 		t.Fatalf("ViewQuestLog should be 3, got %d", ViewQuestLog)
 	}
+
+	if ViewLogs != 4 {
+		t.Fatalf("ViewLogs should be 4, got %d", ViewLogs)
+	}
 }
 
 func TestNewAppRegistersAllViews(t *testing.T) {
 	app := NewApp(testCfg, testCampaign)
-	if app.router.TabCount() != 4 {
-		t.Fatalf("expected 4 registered views, got %d", app.router.TabCount())
+	if app.router.TabCount() != 5 {
+		t.Fatalf("expected 5 registered views, got %d", app.router.TabCount())
 	}
 }
 
@@ -105,7 +109,7 @@ func TestNewAppStartsOnNarrative(t *testing.T) {
 func TestAppTabNamesMatchViewStates(t *testing.T) {
 	app := NewApp(testCfg, testCampaign)
 	tabs := app.router.Tabs()
-	expected := []string{"Narrative", "Character", "Inventory", "Quests"}
+	expected := []string{"Narrative", "Character", "Inventory", "Quests", "Logs"}
 	for i, name := range expected {
 		if tabs[i].Name != name {
 			t.Errorf("tab[%d]: expected %q, got %q", i, name, tabs[i].Name)
@@ -153,8 +157,8 @@ func TestAppUpdateTabNextView(t *testing.T) {
 
 func TestAppUpdateTabWrapsAround(t *testing.T) {
 	app := NewApp(testCfg, testCampaign)
-	// Advance to the last view (QuestLog = index 3).
-	app.router.GoToTab(3)
+	// Advance to the last view (Logs = index 4).
+	app.router.GoToTab(4)
 	m, _ := app.Update(tea.KeyMsg{Type: tea.KeyTab})
 	updated := m.(App)
 	if updated.ActiveViewState() != ViewNarrative {
@@ -164,11 +168,11 @@ func TestAppUpdateTabWrapsAround(t *testing.T) {
 
 func TestAppUpdateShiftTabCyclesBackward(t *testing.T) {
 	app := NewApp(testCfg, testCampaign)
-	// shift+tab from Narrative wraps to QuestLog.
+	// shift+tab from Narrative wraps to Logs.
 	m, _ := app.Update(tea.KeyMsg{Type: tea.KeyShiftTab})
 	updated := m.(App)
-	if updated.ActiveViewState() != ViewQuestLog {
-		t.Fatalf("expected ViewQuestLog after shift+tab wrap, got %d", updated.ActiveViewState())
+	if updated.ActiveViewState() != ViewLogs {
+		t.Fatalf("expected ViewLogs after shift+tab wrap, got %d", updated.ActiveViewState())
 	}
 }
 
@@ -191,8 +195,8 @@ func TestAppUpdateNumberKeys(t *testing.T) {
 		{'2', ViewCharacterSheet},
 		{'3', ViewInventory},
 		{'4', ViewQuestLog},
+		{'5', ViewLogs},
 	}
-
 	for _, tt := range tests {
 		app := NewApp(testCfg, testCampaign)
 		m, _ := app.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{tt.key}})
@@ -249,7 +253,7 @@ func TestStatusBarShowsViewsHintsAndActiveView(t *testing.T) {
 	app := NewApp(testCfg, testCampaign)
 	_, statusBar := app.chrome()
 
-	for _, label := range []string{"Narrative", "Character", "Inventory", "Quests"} {
+	for _, label := range []string{"Narrative", "Character", "Inventory", "Quests", "Logs"} {
 		if !strings.Contains(statusBar, label) {
 			t.Fatalf("expected status bar to include %q", label)
 		}
@@ -279,7 +283,7 @@ func TestStatusBarUpdatesImmediatelyOnViewSwitch(t *testing.T) {
 	m2, _ := updated.Update(tea.KeyMsg{Type: tea.KeyTab})
 	updated2 := m2.(App)
 	_, statusBar2 := updated2.chrome()
-	if !strings.Contains(statusBar2, "[Quests]") {
+	if !strings.Contains(statusBar2, "[Quests]") || !strings.Contains(statusBar2, "Logs") {
 		t.Fatal("expected status bar to highlight quests after tab cycling")
 	}
 }
@@ -328,10 +332,11 @@ func TestAppSubmitCallsEngineAndStreamsNarrativeWithChoices(t *testing.T) {
 		},
 	}
 
-	app := NewAppWithEngine(testCfg, statedb.Campaign{ID: dbutil.ToPgtype(campaignID)}, context.Background(), mockEngine)
+	app := NewAppWithEngine(testCfg, statedb.Campaign{ID: dbutil.ToPgtype(campaignID)}, context.Background(), mockEngine, nil)
 	sized, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	app = sized.(App)
-	model, cmd := app.Update(narrative.SubmitMsg{Input: "open the door"})
+	var cmd tea.Cmd
+	model, _ := app.Update(narrative.SubmitMsg{Input: "open the door"})
 	updated := model.(App)
 
 	if !updated.turnBusy {
@@ -373,7 +378,7 @@ func TestAppTurnErrorAddsSystemMessage(t *testing.T) {
 		},
 	}
 
-	app := NewAppWithEngine(testCfg, testCampaign, context.Background(), mockEngine)
+	app := NewAppWithEngine(testCfg, testCampaign, context.Background(), mockEngine, nil)
 	sized, _ := app.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	app = sized.(App)
 	model, _ := app.Update(narrative.SubmitMsg{Input: "talk to innkeeper"})

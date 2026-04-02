@@ -54,7 +54,7 @@ func TestResume_Success(t *testing.T) {
 		return "Previously, the hero explored the forest.", nil
 	}
 
-	r := NewResumer(store, summarize)
+	r := NewResumer(store, summarize, nil)
 	result, err := r.Resume(context.Background(), cid)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -82,7 +82,7 @@ func TestResume_NoLogs(t *testing.T) {
 		return "", nil
 	}
 
-	r := NewResumer(store, summarize)
+	r := NewResumer(store, summarize, nil)
 	result, err := r.Resume(context.Background(), cid)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -97,7 +97,7 @@ func TestResume_NoLogs(t *testing.T) {
 
 func TestResume_GatherStateError(t *testing.T) {
 	store := &stubResumeStore{stateErr: errors.New("db down")}
-	r := NewResumer(store, nil)
+	r := NewResumer(store, nil, nil)
 	_, err := r.Resume(context.Background(), uuid.New())
 	if err == nil {
 		t.Fatal("expected error")
@@ -118,7 +118,7 @@ func TestResume_SummarizeError(t *testing.T) {
 		return "", errors.New("LLM unavailable")
 	}
 
-	r := NewResumer(store, summarize)
+	r := NewResumer(store, summarize, nil)
 	result, err := r.Resume(context.Background(), cid)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -143,7 +143,7 @@ func TestResume_LogsPassedToSummarizer(t *testing.T) {
 		return "ok", nil
 	}
 
-	r := NewResumer(store, summarize)
+	r := NewResumer(store, summarize, nil)
 	_, err := r.Resume(context.Background(), cid)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

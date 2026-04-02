@@ -563,8 +563,5 @@ func TestNarrativeResolver_ThreeRoundCombat(t *testing.T) {
 func TestNarrativeResolver_ImplementsInterface(t *testing.T) {
 	// Verify that NarrativeCombatResolver can be assigned to a CombatResolver
 	// variable, confirming interface compliance.
-	var resolver CombatResolver = NewNarrativeCombatResolver(uuid.New())
-	if resolver == nil {
-		t.Fatal("resolver should not be nil")
-	}
+	var _ CombatResolver = NewNarrativeCombatResolver(uuid.New())
 }

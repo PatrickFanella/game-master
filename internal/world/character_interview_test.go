@@ -350,9 +350,6 @@ func TestCharacterInterviewer_LLMError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !ci.Done() == false {
-		// just checking it didn't get marked done
-	}
 	if ci.Profile() != nil {
 		t.Error("Profile should be nil after error")
 	}

@@ -143,7 +143,7 @@ func TestWindowAger_NoAgingNeeded(t *testing.T) {
 	summarizer := &stubSummarizer{}
 	submitter := &stubSubmitter{fullAt: -1}
 
-	ager := NewWindowAger(AgingPolicy{WindowSize: 10}, summarizer, submitter, store)
+	ager := NewWindowAger(AgingPolicy{WindowSize: 10}, summarizer, submitter, store, nil)
 	err := ager.CheckAndAge(context.Background(), uuid.New(), 5)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -171,7 +171,7 @@ func TestWindowAger_AgesTurns(t *testing.T) {
 	}
 	submitter := &stubSubmitter{fullAt: -1}
 
-	ager := NewWindowAger(AgingPolicy{WindowSize: 10}, summarizer, submitter, store)
+	ager := NewWindowAger(AgingPolicy{WindowSize: 10}, summarizer, submitter, store, nil)
 	// totalTurns=13 with window=10 → 3 to age
 	err := ager.CheckAndAge(context.Background(), uuid.New(), 13)
 	if err != nil {
@@ -223,7 +223,7 @@ func TestWindowAger_SummarizerError(t *testing.T) {
 	}
 
 	submitter := &stubSubmitter{fullAt: -1}
-	ager := NewWindowAger(AgingPolicy{WindowSize: 10}, summarizer, submitter, store)
+	ager := NewWindowAger(AgingPolicy{WindowSize: 10}, summarizer, submitter, store, nil)
 
 	err := ager.CheckAndAge(context.Background(), uuid.New(), 13)
 	if err != nil {
@@ -266,7 +266,7 @@ func TestWindowAger_MarkError(t *testing.T) {
 	}
 	submitter := &stubSubmitter{fullAt: -1}
 
-	ager := NewWindowAger(AgingPolicy{WindowSize: 10}, summarizer, submitter, store)
+	ager := NewWindowAger(AgingPolicy{WindowSize: 10}, summarizer, submitter, store, nil)
 	err := ager.CheckAndAge(context.Background(), uuid.New(), 13)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -293,7 +293,7 @@ func TestWindowAger_EmptyTurns(t *testing.T) {
 	summarizer := &stubSummarizer{}
 	submitter := &stubSubmitter{fullAt: -1}
 
-	ager := NewWindowAger(AgingPolicy{WindowSize: 5}, summarizer, submitter, store)
+	ager := NewWindowAger(AgingPolicy{WindowSize: 5}, summarizer, submitter, store, nil)
 	// totalTurns=10 with window=5 → 5 to age, but store returns empty
 	err := ager.CheckAndAge(context.Background(), uuid.New(), 10)
 	if err != nil {
@@ -319,7 +319,7 @@ func TestWindowAger_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
-	ager := NewWindowAger(AgingPolicy{WindowSize: 10}, summarizer, submitter, store)
+	ager := NewWindowAger(AgingPolicy{WindowSize: 10}, summarizer, submitter, store, nil)
 	err := ager.CheckAndAge(ctx, uuid.New(), 13)
 	if err == nil {
 		t.Fatal("expected error from cancelled context")
@@ -343,7 +343,7 @@ func TestWindowAger_PipelineFull(t *testing.T) {
 	// Pipeline is "full" after 0 submits
 	submitter := &stubSubmitter{fullAt: 0}
 
-	ager := NewWindowAger(AgingPolicy{WindowSize: 5}, summarizer, submitter, store)
+	ager := NewWindowAger(AgingPolicy{WindowSize: 5}, summarizer, submitter, store, nil)
 	err := ager.CheckAndAge(context.Background(), uuid.New(), 7)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
