@@ -6,8 +6,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/PatrickFanella/game-master/internal/assembly"
 	"github.com/PatrickFanella/game-master/internal/config"
 	"github.com/PatrickFanella/game-master/internal/llm"
+	"github.com/PatrickFanella/game-master/internal/memory"
 	"github.com/google/uuid"
 )
 
@@ -181,4 +183,34 @@ func TestProcessTurnStream_ChannelCloses(t *testing.T) {
 	for range ch {
 	}
 	// If we get here, channel closed successfully.
+}
+
+// stubSearcher implements assembly.MemoryRetriever for testing.
+type stubSearcher struct{}
+
+func (s *stubSearcher) SearchSimilar(_ context.Context, _ uuid.UUID, _ string, _ int) ([]memory.MemoryResult, error) {
+	return nil, nil
+}
+
+func TestWithTier3Retriever_SetsField(t *testing.T) {
+	retriever := assembly.NewTier3Retriever(&stubSearcher{}, 5, nil)
+	e, err := New(nil, &testProvider{}, config.LLMConfig{Provider: "ollama", Ollama: config.OllamaConfig{ContextTokenBudget: 8000}},
+		WithTier3Retriever(retriever),
+	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if e.tier3 == nil {
+		t.Fatal("expected tier3 to be non-nil after WithTier3Retriever")
+	}
+}
+
+func TestNewWithoutTier3Retriever_NilField(t *testing.T) {
+	e, err := New(nil, &testProvider{}, config.LLMConfig{Provider: "ollama", Ollama: config.OllamaConfig{ContextTokenBudget: 8000}})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if e.tier3 != nil {
+		t.Fatal("expected tier3 to be nil without WithTier3Retriever")
+	}
 }
