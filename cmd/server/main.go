@@ -20,6 +20,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/PatrickFanella/game-master/internal/assembly"
 	"github.com/PatrickFanella/game-master/internal/auth"
 	"github.com/PatrickFanella/game-master/internal/bootstrap"
 	"github.com/PatrickFanella/game-master/internal/config"
@@ -27,6 +28,7 @@ import (
 	"github.com/PatrickFanella/game-master/internal/handlers"
 	"github.com/PatrickFanella/game-master/internal/llm"
 	"github.com/PatrickFanella/game-master/internal/logging"
+	"github.com/PatrickFanella/game-master/internal/memory"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
 
@@ -81,7 +83,21 @@ func run(args []string) int {
 		logger.Errorf("create llm provider: %v", err)
 		return 1
 	}
-	gameEngine, err := engine.New(pool, provider, cfg.LLM, engine.WithLogger(slog.Default().WithGroup("engine")))
+
+	engineOpts := []engine.Option{
+		engine.WithLogger(slog.Default().WithGroup("engine")),
+	}
+	if cfg.LLM.Provider == "ollama" {
+		embedder := memory.NewOllamaEmbedder(
+			cfg.LLM.Ollama.Endpoint, "nomic-embed-text",
+			memory.WithOllamaEmbedderTimeout(cfg.LLM.Ollama.RequestTimeout()),
+		)
+		searcher := memory.NewSearcher(embedder, queries)
+		tier3 := assembly.NewTier3Retriever(searcher, 5, slog.Default().WithGroup("tier3"))
+		engineOpts = append(engineOpts, engine.WithTier3Retriever(tier3))
+	}
+
+	gameEngine, err := engine.New(pool, provider, cfg.LLM, engineOpts...)
 	if err != nil {
 		logger.Errorf("create engine: %v", err)
 		return 1
