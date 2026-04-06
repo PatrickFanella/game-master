@@ -684,6 +684,47 @@ func (m *mockQuerier) TransferItem(_ context.Context, _ statedb.TransferItemPara
 func (m *mockQuerier) SupersedeFact(_ context.Context, _ statedb.SupersedeFactParams) (statedb.WorldFact, error) {
 	return statedb.WorldFact{}, pgx.ErrNoRows
 }
+func (m *mockQuerier) GetFactPlayerKnown(_ context.Context, _ pgtype.UUID) (bool, error) {
+	return false, nil
+}
+func (m *mockQuerier) ListPlayerKnownFacts(_ context.Context, _ pgtype.UUID) ([]statedb.WorldFact, error) {
+	return nil, nil
+}
+func (m *mockQuerier) SetFactPlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+func (m *mockQuerier) ListPlayerAwareRelationships(_ context.Context, _ pgtype.UUID) ([]statedb.EntityRelationship, error) {
+	return nil, nil
+}
+func (m *mockQuerier) SetRelationshipPlayerAware(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+func (m *mockQuerier) ListPlayerKnownLanguages(_ context.Context, _ pgtype.UUID) ([]statedb.Language, error) {
+	return nil, nil
+}
+func (m *mockQuerier) SetLanguagePlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+func (m *mockQuerier) ListPlayerKnownCultures(_ context.Context, _ pgtype.UUID) ([]statedb.Culture, error) {
+	return nil, nil
+}
+func (m *mockQuerier) SetCulturePlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+func (m *mockQuerier) ListPlayerKnownBeliefSystems(_ context.Context, _ pgtype.UUID) ([]statedb.BeliefSystem, error) {
+	return nil, nil
+}
+func (m *mockQuerier) SetBeliefSystemPlayerKnown(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+func (m *mockQuerier) ListPlayerKnownEconomicSystems(_ context.Context, _ pgtype.UUID) ([]statedb.EconomicSystem, error) {
+	return nil, nil
+}
+func (m *mockQuerier) SetEconomicSystemPlayerKnown(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+func (m *mockQuerier) ListPlayerKnownLocations(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
+	return nil, nil
+}
+func (m *mockQuerier) ListPlayerVisitedLocations(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
+	return nil, nil
+}
+func (m *mockQuerier) SetLocationPlayerKnown(_ context.Context, _ pgtype.UUID) error  { return nil }
+func (m *mockQuerier) SetLocationPlayerVisited(_ context.Context, _ pgtype.UUID) error { return nil }
 
 func (m *mockQuerier) ListActiveFactsByCampaign(_ context.Context, _ pgtype.UUID) ([]statedb.WorldFact, error) {
 	if m.getWorldFactsErr != nil {

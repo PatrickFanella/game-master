@@ -22,6 +22,8 @@ const reviseFactToolName = "revise_fact"
 type ReviseFactStore interface {
 	GetFactByID(ctx context.Context, id pgtype.UUID) (statedb.WorldFact, error)
 	SupersedeFact(ctx context.Context, arg statedb.SupersedeFactParams) (statedb.WorldFact, error)
+	SetFactPlayerKnown(ctx context.Context, id pgtype.UUID) error
+	GetFactPlayerKnown(ctx context.Context, id pgtype.UUID) (bool, error)
 }
 
 // ReviseFactTool returns the revise_fact tool definition and JSON schema.
@@ -39,6 +41,10 @@ func ReviseFactTool() llm.Tool {
 				"new_fact": map[string]any{
 					"type":        "string",
 					"description": "The revised fact text that will replace the old one.",
+				},
+				"reveal_to_player": map[string]any{
+					"type":        "boolean",
+					"description": "If true, the player character becomes aware of this fact. Defaults to false.",
 				},
 			},
 			"required":             []string{"fact_id", "new_fact"},
@@ -115,6 +121,12 @@ func (h *ReviseFactHandler) Handle(ctx context.Context, args map[string]any) (*T
 			return nil, fmt.Errorf("fact %s was superseded concurrently; fetch the current fact and retry", factID)
 		}
 		return nil, fmt.Errorf("supersede fact: %w", err)
+	}
+
+	// Propagate player_known from old fact to new fact.
+	oldPlayerKnown, _ := h.factStore.GetFactPlayerKnown(ctx, dbutil.ToPgtype(factID))
+	if oldPlayerKnown {
+		_ = h.factStore.SetFactPlayerKnown(ctx, newFact.ID)
 	}
 
 	newFactID := dbutil.FromPgtype(newFact.ID)

@@ -27,7 +27,7 @@ INSERT INTO locations (
   $5,
   COALESCE($6::jsonb, '{}'::jsonb)
 )
-RETURNING id, campaign_id, name, description, region, location_type, properties, created_at, updated_at
+RETURNING id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
 `
 
 type CreateLocationParams struct {
@@ -59,12 +59,14 @@ func (q *Queries) CreateLocation(ctx context.Context, arg CreateLocationParams) 
 		&i.Properties,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerVisited,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
 
 const getLocationByID = `-- name: GetLocationByID :one
-SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at
+SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
 FROM locations
 WHERE id = $1
   AND ($2::uuid IS NULL OR campaign_id = $2)
@@ -88,12 +90,14 @@ func (q *Queries) GetLocationByID(ctx context.Context, arg GetLocationByIDParams
 		&i.Properties,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerVisited,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
 
 const listLocationsByCampaign = `-- name: ListLocationsByCampaign :many
-SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at
+SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
 FROM locations
 WHERE campaign_id = $1
 ORDER BY created_at, id
@@ -118,6 +122,8 @@ func (q *Queries) ListLocationsByCampaign(ctx context.Context, campaignID pgtype
 			&i.Properties,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PlayerVisited,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -130,7 +136,7 @@ func (q *Queries) ListLocationsByCampaign(ctx context.Context, campaignID pgtype
 }
 
 const listLocationsByRegion = `-- name: ListLocationsByRegion :many
-SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at
+SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
 FROM locations
 WHERE campaign_id = $1
   AND region = $2
@@ -161,6 +167,8 @@ func (q *Queries) ListLocationsByRegion(ctx context.Context, arg ListLocationsBy
 			&i.Properties,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PlayerVisited,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -170,6 +178,108 @@ func (q *Queries) ListLocationsByRegion(ctx context.Context, arg ListLocationsBy
 		return nil, err
 	}
 	return items, nil
+}
+
+const listPlayerKnownLocations = `-- name: ListPlayerKnownLocations :many
+SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
+FROM locations
+WHERE campaign_id = $1
+  AND player_known = TRUE
+ORDER BY created_at, id
+`
+
+func (q *Queries) ListPlayerKnownLocations(ctx context.Context, campaignID pgtype.UUID) ([]Location, error) {
+	rows, err := q.db.Query(ctx, listPlayerKnownLocations, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Location
+	for rows.Next() {
+		var i Location
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.Name,
+			&i.Description,
+			&i.Region,
+			&i.LocationType,
+			&i.Properties,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PlayerVisited,
+			&i.PlayerKnown,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPlayerVisitedLocations = `-- name: ListPlayerVisitedLocations :many
+SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
+FROM locations
+WHERE campaign_id = $1
+  AND player_visited = TRUE
+ORDER BY created_at, id
+`
+
+func (q *Queries) ListPlayerVisitedLocations(ctx context.Context, campaignID pgtype.UUID) ([]Location, error) {
+	rows, err := q.db.Query(ctx, listPlayerVisitedLocations, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Location
+	for rows.Next() {
+		var i Location
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.Name,
+			&i.Description,
+			&i.Region,
+			&i.LocationType,
+			&i.Properties,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PlayerVisited,
+			&i.PlayerKnown,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setLocationPlayerKnown = `-- name: SetLocationPlayerKnown :exec
+UPDATE locations
+SET player_known = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) SetLocationPlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setLocationPlayerKnown, id)
+	return err
+}
+
+const setLocationPlayerVisited = `-- name: SetLocationPlayerVisited :exec
+UPDATE locations
+SET player_visited = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) SetLocationPlayerVisited(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setLocationPlayerVisited, id)
+	return err
 }
 
 const updateLocation = `-- name: UpdateLocation :one
@@ -182,7 +292,7 @@ SET
   properties = COALESCE($5::jsonb, '{}'::jsonb),
   updated_at = now()
 WHERE id = $6
-RETURNING id, campaign_id, name, description, region, location_type, properties, created_at, updated_at
+RETURNING id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
 `
 
 type UpdateLocationParams struct {
@@ -214,6 +324,8 @@ func (q *Queries) UpdateLocation(ctx context.Context, arg UpdateLocationParams) 
 		&i.Properties,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerVisited,
+		&i.PlayerKnown,
 	)
 	return i, err
 }

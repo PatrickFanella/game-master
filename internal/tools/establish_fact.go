@@ -24,6 +24,7 @@ const (
 type EstablishFactStore interface {
 	CreateFact(ctx context.Context, arg statedb.CreateFactParams) (statedb.WorldFact, error)
 	GetLocationByID(ctx context.Context, id pgtype.UUID) (statedb.Location, error)
+	SetFactPlayerKnown(ctx context.Context, id pgtype.UUID) error
 }
 
 // EstablishFactTool returns the establish_fact tool definition and JSON schema.
@@ -41,6 +42,10 @@ func EstablishFactTool() llm.Tool {
 				"category": map[string]any{
 					"type":        "string",
 					"description": "Category for the fact (e.g. 'history', 'geography', 'politics').",
+				},
+				"reveal_to_player": map[string]any{
+					"type":        "boolean",
+					"description": "If true, the player character becomes aware of this fact. Defaults to false.",
 				},
 			},
 			"required":             []string{"fact", "category"},
@@ -116,6 +121,11 @@ func (h *EstablishFactHandler) Handle(ctx context.Context, args map[string]any) 
 
 	factID := dbutil.FromPgtype(worldFact.ID)
 	campaignID := dbutil.FromPgtype(worldFact.CampaignID)
+
+	revealToPlayer, _ := parseBoolArg(args, "reveal_to_player")
+	if revealToPlayer {
+		_ = h.factStore.SetFactPlayerKnown(ctx, worldFact.ID)
+	}
 
 	if h.embedder != nil && h.memoryStore != nil {
 		if err := h.embedFactMemory(ctx, campaignID, factID, fact, category); err != nil {

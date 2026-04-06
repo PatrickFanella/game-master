@@ -18,15 +18,15 @@ INSERT INTO languages (
   COALESCE(sqlc.narg(spoken_by_faction_ids)::uuid[], '{}'::uuid[]),
   COALESCE(sqlc.narg(spoken_by_culture_ids)::uuid[], '{}'::uuid[])
 )
-RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description;
+RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description, player_known;
 
 -- name: GetLanguageByID :one
-SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
+SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description, player_known
 FROM languages
 WHERE id = sqlc.arg(id);
 
 -- name: ListLanguagesByCampaign :many
-SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
+SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description, player_known
 FROM languages
 WHERE campaign_id = sqlc.arg(campaign_id)
 ORDER BY created_at, id;
@@ -43,7 +43,7 @@ SET
   spoken_by_culture_ids = COALESCE(sqlc.narg(spoken_by_culture_ids)::uuid[], spoken_by_culture_ids),
   updated_at = now()
 WHERE id = sqlc.arg(id)
-RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description;
+RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description, player_known;
 
 -- name: DeleteLanguage :exec
 DELETE FROM languages
@@ -59,15 +59,15 @@ INSERT INTO belief_systems (
   sqlc.arg(name),
   COALESCE(sqlc.narg(details)::jsonb, '{}'::jsonb)
 )
-RETURNING id, campaign_id, name, details, created_at, updated_at;
+RETURNING id, campaign_id, name, details, created_at, updated_at, player_known;
 
 -- name: GetBeliefSystemByID :one
-SELECT id, campaign_id, name, details, created_at, updated_at
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
 FROM belief_systems
 WHERE id = sqlc.arg(id);
 
 -- name: ListBeliefSystemsByCampaign :many
-SELECT id, campaign_id, name, details, created_at, updated_at
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
 FROM belief_systems
 WHERE campaign_id = sqlc.arg(campaign_id)
 ORDER BY created_at, id;
@@ -79,7 +79,7 @@ SET
   details = COALESCE(sqlc.narg(details)::jsonb, details),
   updated_at = now()
 WHERE id = sqlc.arg(id)
-RETURNING id, campaign_id, name, details, created_at, updated_at;
+RETURNING id, campaign_id, name, details, created_at, updated_at, player_known;
 
 -- name: DeleteBeliefSystem :exec
 DELETE FROM belief_systems
@@ -95,15 +95,15 @@ INSERT INTO economic_systems (
   sqlc.arg(name),
   COALESCE(sqlc.narg(details)::jsonb, '{}'::jsonb)
 )
-RETURNING id, campaign_id, name, details, created_at, updated_at;
+RETURNING id, campaign_id, name, details, created_at, updated_at, player_known;
 
 -- name: GetEconomicSystemByID :one
-SELECT id, campaign_id, name, details, created_at, updated_at
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
 FROM economic_systems
 WHERE id = sqlc.arg(id);
 
 -- name: ListEconomicSystemsByCampaign :many
-SELECT id, campaign_id, name, details, created_at, updated_at
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
 FROM economic_systems
 WHERE campaign_id = sqlc.arg(campaign_id)
 ORDER BY created_at, id;
@@ -115,7 +115,7 @@ SET
   details = COALESCE(sqlc.narg(details)::jsonb, details),
   updated_at = now()
 WHERE id = sqlc.arg(id)
-RETURNING id, campaign_id, name, details, created_at, updated_at;
+RETURNING id, campaign_id, name, details, created_at, updated_at, player_known;
 
 -- name: DeleteEconomicSystem :exec
 DELETE FROM economic_systems
@@ -135,15 +135,15 @@ INSERT INTO cultures (
   sqlc.arg(name),
   COALESCE(sqlc.narg(details)::jsonb, '{}'::jsonb)
 )
-RETURNING id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at;
+RETURNING id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known;
 
 -- name: GetCultureByID :one
-SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
+SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known
 FROM cultures
 WHERE id = sqlc.arg(id);
 
 -- name: ListCulturesByCampaign :many
-SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
+SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known
 FROM cultures
 WHERE campaign_id = sqlc.arg(campaign_id)
 ORDER BY created_at, id;
@@ -157,14 +157,14 @@ SET
   details = COALESCE(sqlc.narg(details)::jsonb, details),
   updated_at = now()
 WHERE id = sqlc.arg(id)
-RETURNING id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at;
+RETURNING id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known;
 
 -- name: DeleteCulture :exec
 DELETE FROM cultures
 WHERE id = sqlc.arg(id);
 
 -- name: ListLanguagesByFaction :many
-SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at, l.spoken_by_faction_ids, l.spoken_by_culture_ids, l.description
+SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at, l.spoken_by_faction_ids, l.spoken_by_culture_ids, l.description, l.player_known
 FROM languages l
 INNER JOIN factions f
   ON f.id = sqlc.arg(faction_id)::uuid
@@ -173,14 +173,62 @@ WHERE l.spoken_by_faction_ids @> ARRAY[f.id]
 ORDER BY l.created_at, l.id;
 
 -- name: GetBeliefSystemByCulture :one
-SELECT b.id, b.campaign_id, b.name, b.details, b.created_at, b.updated_at
+SELECT b.id, b.campaign_id, b.name, b.details, b.created_at, b.updated_at, b.player_known
 FROM belief_systems b
 INNER JOIN cultures c
   ON c.belief_system_id = b.id
 WHERE c.id = sqlc.arg(culture_id);
 
 -- name: ListCulturesByLanguage :many
-SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
+SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known
 FROM cultures
 WHERE language_id = sqlc.arg(language_id)
 ORDER BY created_at, id;
+
+-- name: ListPlayerKnownLanguages :many
+SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description, player_known
+FROM languages
+WHERE campaign_id = sqlc.arg(campaign_id)
+  AND player_known = TRUE
+ORDER BY created_at, id;
+
+-- name: SetLanguagePlayerKnown :exec
+UPDATE languages
+SET player_known = TRUE
+WHERE id = sqlc.arg(id);
+
+-- name: ListPlayerKnownBeliefSystems :many
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
+FROM belief_systems
+WHERE campaign_id = sqlc.arg(campaign_id)
+  AND player_known = TRUE
+ORDER BY created_at, id;
+
+-- name: SetBeliefSystemPlayerKnown :exec
+UPDATE belief_systems
+SET player_known = TRUE
+WHERE id = sqlc.arg(id);
+
+-- name: ListPlayerKnownEconomicSystems :many
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
+FROM economic_systems
+WHERE campaign_id = sqlc.arg(campaign_id)
+  AND player_known = TRUE
+ORDER BY created_at, id;
+
+-- name: SetEconomicSystemPlayerKnown :exec
+UPDATE economic_systems
+SET player_known = TRUE
+WHERE id = sqlc.arg(id);
+
+-- name: ListPlayerKnownCultures :many
+SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known
+FROM cultures
+WHERE campaign_id = sqlc.arg(campaign_id)
+  AND player_known = TRUE
+ORDER BY created_at, id;
+
+-- name: SetCulturePlayerKnown :exec
+UPDATE cultures
+SET player_known = TRUE
+WHERE id = sqlc.arg(id);

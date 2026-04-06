@@ -31,7 +31,7 @@ INSERT INTO entity_relationships (
   $7,
   $8
 )
-RETURNING id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at
+RETURNING id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware
 `
 
 type CreateRelationshipParams struct {
@@ -69,6 +69,7 @@ func (q *Queries) CreateRelationship(ctx context.Context, arg CreateRelationship
 		&i.Strength,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerAware,
 	)
 	return i, err
 }
@@ -90,7 +91,7 @@ func (q *Queries) DeleteRelationship(ctx context.Context, arg DeleteRelationship
 }
 
 const getRelationshipsBetween = `-- name: GetRelationshipsBetween :many
-SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at
+SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware
 FROM entity_relationships
 WHERE campaign_id = $1
   AND (
@@ -146,6 +147,7 @@ func (q *Queries) GetRelationshipsBetween(ctx context.Context, arg GetRelationsh
 			&i.Strength,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PlayerAware,
 		); err != nil {
 			return nil, err
 		}
@@ -158,7 +160,7 @@ func (q *Queries) GetRelationshipsBetween(ctx context.Context, arg GetRelationsh
 }
 
 const getRelationshipsByEntity = `-- name: GetRelationshipsByEntity :many
-SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at
+SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware
 FROM entity_relationships
 WHERE campaign_id = $1
   AND (
@@ -196,6 +198,48 @@ func (q *Queries) GetRelationshipsByEntity(ctx context.Context, arg GetRelations
 			&i.Strength,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PlayerAware,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPlayerAwareRelationships = `-- name: ListPlayerAwareRelationships :many
+SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware
+FROM entity_relationships
+WHERE campaign_id = $1
+  AND player_aware = TRUE
+ORDER BY created_at, id
+`
+
+func (q *Queries) ListPlayerAwareRelationships(ctx context.Context, campaignID pgtype.UUID) ([]EntityRelationship, error) {
+	rows, err := q.db.Query(ctx, listPlayerAwareRelationships, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EntityRelationship
+	for rows.Next() {
+		var i EntityRelationship
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.SourceEntityType,
+			&i.SourceEntityID,
+			&i.TargetEntityType,
+			&i.TargetEntityID,
+			&i.RelationshipType,
+			&i.Description,
+			&i.Strength,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PlayerAware,
 		); err != nil {
 			return nil, err
 		}
@@ -208,7 +252,7 @@ func (q *Queries) GetRelationshipsByEntity(ctx context.Context, arg GetRelations
 }
 
 const listRelationshipsByCampaign = `-- name: ListRelationshipsByCampaign :many
-SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at
+SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware
 FROM entity_relationships
 WHERE campaign_id = $1
 ORDER BY created_at, id
@@ -235,6 +279,7 @@ func (q *Queries) ListRelationshipsByCampaign(ctx context.Context, campaignID pg
 			&i.Strength,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PlayerAware,
 		); err != nil {
 			return nil, err
 		}
@@ -246,6 +291,17 @@ func (q *Queries) ListRelationshipsByCampaign(ctx context.Context, campaignID pg
 	return items, nil
 }
 
+const setRelationshipPlayerAware = `-- name: SetRelationshipPlayerAware :exec
+UPDATE entity_relationships
+SET player_aware = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) SetRelationshipPlayerAware(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setRelationshipPlayerAware, id)
+	return err
+}
+
 const updateRelationship = `-- name: UpdateRelationship :one
 UPDATE entity_relationships
 SET
@@ -255,7 +311,7 @@ SET
   updated_at = now()
 WHERE id = $4
   AND campaign_id = $5
-RETURNING id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at
+RETURNING id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware
 `
 
 type UpdateRelationshipParams struct {
@@ -287,6 +343,7 @@ func (q *Queries) UpdateRelationship(ctx context.Context, arg UpdateRelationship
 		&i.Strength,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerAware,
 	)
 	return i, err
 }

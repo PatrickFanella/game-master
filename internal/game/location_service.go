@@ -64,6 +64,14 @@ func (s *locationService) UpdatePlayerLocation(ctx context.Context, playerCharac
 	return err
 }
 
+func (s *locationService) SetLocationPlayerVisited(ctx context.Context, locationID uuid.UUID) error {
+	return s.queries.SetLocationPlayerVisited(ctx, dbutil.ToPgtype(locationID))
+}
+
+func (s *locationService) SetLocationPlayerKnown(ctx context.Context, locationID uuid.UUID) error {
+	return s.queries.SetLocationPlayerKnown(ctx, dbutil.ToPgtype(locationID))
+}
+
 // --- tools.DescribeSceneStore methods ---
 
 func (s *locationService) UpdateScene(ctx context.Context, locationID uuid.UUID, description string, mood, timeOfDay *string) error {

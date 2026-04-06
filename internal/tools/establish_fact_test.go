@@ -43,6 +43,8 @@ func (s *stubEstablishFactStore) GetLocationByID(_ context.Context, _ pgtype.UUI
 	return s.currentLocation, nil
 }
 
+func (s *stubEstablishFactStore) SetFactPlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+
 func TestRegisterEstablishFact(t *testing.T) {
 	reg := NewRegistry()
 	if err := RegisterEstablishFact(reg, &stubEstablishFactStore{}, &stubMemoryStore{}, &stubEmbedder{vector: []float32{0.1}}); err != nil {

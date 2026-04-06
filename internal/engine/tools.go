@@ -59,6 +59,7 @@ func registerAllTools(registry *tools.Registry, queries statedb.Querier, embedde
 	errs = appendErr(errs, tools.RegisterCreateLore(registry, worldSvc, worldSvc, embedder))
 	errs = appendErr(errs, tools.RegisterReviseFact(registry, worldSvc, worldSvc, embedder))
 	errs = appendErr(errs, tools.RegisterDescribeScene(registry, locSvc))
+	errs = appendErr(errs, tools.RegisterRevealLocation(registry, locSvc))
 	errs = appendErr(errs, tools.RegisterNPCDialogue(registry, npcSvc))
 	errs = appendErr(errs, tools.RegisterPresentChoices(registry))
 	errs = appendErr(errs, tools.RegisterBranchQuest(registry, worldSvc))

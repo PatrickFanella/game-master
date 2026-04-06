@@ -56,6 +56,10 @@ func (s *stubReviseFactStore) SupersedeFact(_ context.Context, arg statedb.Super
 	}, nil
 }
 
+func (s *stubReviseFactStore) SetFactPlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+
+func (s *stubReviseFactStore) GetFactPlayerKnown(_ context.Context, _ pgtype.UUID) (bool, error) { return false, nil }
+
 func TestRegisterReviseFact(t *testing.T) {
 	reg := NewRegistry()
 	if err := RegisterReviseFact(reg, &stubReviseFactStore{}, &stubMemoryStore{}, &stubEmbedder{vector: []float32{0.1}}); err != nil {

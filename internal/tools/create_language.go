@@ -7,7 +7,9 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/PatrickFanella/game-master/internal/dbutil"
 	"github.com/PatrickFanella/game-master/internal/llm"
 )
 
@@ -30,6 +32,7 @@ type LanguageStore interface {
 	CreateLanguage(ctx context.Context, params CreateLanguageParams) (uuid.UUID, error)
 	FactionBelongsToCampaign(ctx context.Context, factionID, campaignID uuid.UUID) (bool, error)
 	CultureBelongsToCampaign(ctx context.Context, cultureID, campaignID uuid.UUID) (bool, error)
+	SetLanguagePlayerKnown(ctx context.Context, id pgtype.UUID) error
 }
 
 // CreateMemoryParams holds the parameters for creating a semantic memory.
@@ -96,6 +99,10 @@ func CreateLanguageTool() llm.Tool {
 					"items": map[string]any{
 						"type": "string",
 					},
+				},
+				"reveal_to_player": map[string]any{
+					"type":        "boolean",
+					"description": "If true, the player character becomes aware of this language. Defaults to false.",
 				},
 			},
 			"required":             []string{"campaign_id", "name", "description", "phonological_rules", "naming_conventions", "sample_vocabulary"},
@@ -201,6 +208,11 @@ func (h *CreateLanguageHandler) Handle(ctx context.Context, args map[string]any)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create language: %w", err)
+	}
+
+	revealToPlayer, _ := parseBoolArg(args, "reveal_to_player")
+	if revealToPlayer {
+		_ = h.languageStore.SetLanguagePlayerKnown(ctx, dbutil.ToPgtype(languageID))
 	}
 
 	if h.embedder != nil && h.memoryStore != nil {

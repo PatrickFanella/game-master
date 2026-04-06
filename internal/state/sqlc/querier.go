@@ -47,6 +47,7 @@ type Querier interface {
 	GetCultureByID(ctx context.Context, id pgtype.UUID) (Culture, error)
 	GetEconomicSystemByID(ctx context.Context, id pgtype.UUID) (EconomicSystem, error)
 	GetFactByID(ctx context.Context, id pgtype.UUID) (WorldFact, error)
+	GetFactPlayerKnown(ctx context.Context, id pgtype.UUID) (bool, error)
 	GetFactionByID(ctx context.Context, id pgtype.UUID) (Faction, error)
 	GetFactionRelationships(ctx context.Context, factionID pgtype.UUID) ([]FactionRelationship, error)
 	GetItemByID(ctx context.Context, id pgtype.UUID) (Item, error)
@@ -86,6 +87,14 @@ type Querier interface {
 	ListNPCsByLocation(ctx context.Context, arg ListNPCsByLocationParams) ([]Npc, error)
 	ListObjectivesByQuest(ctx context.Context, questID pgtype.UUID) ([]QuestObjective, error)
 	ListObjectivesByQuests(ctx context.Context, questIds []pgtype.UUID) ([]QuestObjective, error)
+	ListPlayerAwareRelationships(ctx context.Context, campaignID pgtype.UUID) ([]EntityRelationship, error)
+	ListPlayerKnownBeliefSystems(ctx context.Context, campaignID pgtype.UUID) ([]BeliefSystem, error)
+	ListPlayerKnownCultures(ctx context.Context, campaignID pgtype.UUID) ([]Culture, error)
+	ListPlayerKnownEconomicSystems(ctx context.Context, campaignID pgtype.UUID) ([]EconomicSystem, error)
+	ListPlayerKnownFacts(ctx context.Context, campaignID pgtype.UUID) ([]WorldFact, error)
+	ListPlayerKnownLanguages(ctx context.Context, campaignID pgtype.UUID) ([]Language, error)
+	ListPlayerKnownLocations(ctx context.Context, campaignID pgtype.UUID) ([]Location, error)
+	ListPlayerVisitedLocations(ctx context.Context, campaignID pgtype.UUID) ([]Location, error)
 	ListQuestsByCampaign(ctx context.Context, campaignID pgtype.UUID) ([]Quest, error)
 	ListQuestsByType(ctx context.Context, arg ListQuestsByTypeParams) ([]Quest, error)
 	ListRecentSessionLogs(ctx context.Context, arg ListRecentSessionLogsParams) ([]SessionLog, error)
@@ -97,6 +106,14 @@ type Querier interface {
 	Ping(ctx context.Context) (int32, error)
 	SearchMemoriesBySimilarity(ctx context.Context, arg SearchMemoriesBySimilarityParams) ([]SearchMemoriesBySimilarityRow, error)
 	SearchMemoriesWithFilters(ctx context.Context, arg SearchMemoriesWithFiltersParams) ([]SearchMemoriesWithFiltersRow, error)
+	SetBeliefSystemPlayerKnown(ctx context.Context, id pgtype.UUID) error
+	SetCulturePlayerKnown(ctx context.Context, id pgtype.UUID) error
+	SetEconomicSystemPlayerKnown(ctx context.Context, id pgtype.UUID) error
+	SetFactPlayerKnown(ctx context.Context, id pgtype.UUID) error
+	SetLanguagePlayerKnown(ctx context.Context, id pgtype.UUID) error
+	SetLocationPlayerKnown(ctx context.Context, id pgtype.UUID) error
+	SetLocationPlayerVisited(ctx context.Context, id pgtype.UUID) error
+	SetRelationshipPlayerAware(ctx context.Context, id pgtype.UUID) error
 	SupersedeFact(ctx context.Context, arg SupersedeFactParams) (WorldFact, error)
 	TransferItem(ctx context.Context, arg TransferItemParams) (Item, error)
 	UpdateBeliefSystem(ctx context.Context, arg UpdateBeliefSystemParams) (BeliefSystem, error)

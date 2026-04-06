@@ -10,12 +10,13 @@ import (
 )
 
 type BeliefSystem struct {
-	ID         pgtype.UUID
-	CampaignID pgtype.UUID
-	Name       string
-	Details    []byte
-	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
+	ID          pgtype.UUID
+	CampaignID  pgtype.UUID
+	Name        string
+	Details     []byte
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	PlayerKnown bool
 }
 
 type Campaign struct {
@@ -43,15 +44,17 @@ type Culture struct {
 	Details        []byte
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
+	PlayerKnown    bool
 }
 
 type EconomicSystem struct {
-	ID         pgtype.UUID
-	CampaignID pgtype.UUID
-	Name       string
-	Details    []byte
-	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
+	ID          pgtype.UUID
+	CampaignID  pgtype.UUID
+	Name        string
+	Details     []byte
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	PlayerKnown bool
 }
 
 type EntityRelationship struct {
@@ -66,6 +69,7 @@ type EntityRelationship struct {
 	Strength         pgtype.Int4
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
+	PlayerAware      bool
 }
 
 type Faction struct {
@@ -117,18 +121,21 @@ type Language struct {
 	SpokenByFactionIds []pgtype.UUID
 	SpokenByCultureIds []pgtype.UUID
 	Description        string
+	PlayerKnown        bool
 }
 
 type Location struct {
-	ID           pgtype.UUID
-	CampaignID   pgtype.UUID
-	Name         string
-	Description  pgtype.Text
-	Region       pgtype.Text
-	LocationType pgtype.Text
-	Properties   []byte
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID            pgtype.UUID
+	CampaignID    pgtype.UUID
+	Name          string
+	Description   pgtype.Text
+	Region        pgtype.Text
+	LocationType  pgtype.Text
+	Properties    []byte
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	PlayerVisited bool
+	PlayerKnown   bool
 }
 
 type LocationConnection struct {
@@ -237,4 +244,5 @@ type WorldFact struct {
 	Source       string
 	SupersededBy pgtype.UUID
 	CreatedAt    pgtype.Timestamptz
+	PlayerKnown  bool
 }

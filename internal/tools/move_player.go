@@ -17,6 +17,7 @@ type MovePlayerStore interface {
 	GetLocation(ctx context.Context, locationID uuid.UUID) (name, description string, err error)
 	IsLocationConnected(ctx context.Context, fromLocationID, toLocationID uuid.UUID) (bool, error)
 	UpdatePlayerLocation(ctx context.Context, playerCharacterID, locationID uuid.UUID) error
+	SetLocationPlayerVisited(ctx context.Context, locationID uuid.UUID) error
 }
 
 // MovePlayerTool returns the move_player tool definition and JSON schema.
@@ -96,6 +97,8 @@ func (h *MovePlayerHandler) Handle(ctx context.Context, args map[string]any) (*T
 	if err := h.store.UpdatePlayerLocation(ctx, playerCharacterID, targetLocationID); err != nil {
 		return nil, fmt.Errorf("update player location: %w", err)
 	}
+
+	_ = h.store.SetLocationPlayerVisited(ctx, targetLocationID)
 
 	return &ToolResult{
 		Success: true,

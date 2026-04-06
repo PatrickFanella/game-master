@@ -40,6 +40,7 @@ type CultureStore interface {
 	GetLanguageByID(ctx context.Context, id pgtype.UUID) (statedb.Language, error)
 	GetBeliefSystemByID(ctx context.Context, id pgtype.UUID) (statedb.BeliefSystem, error)
 	GetFactionByID(ctx context.Context, id pgtype.UUID) (statedb.Faction, error)
+	SetCulturePlayerKnown(ctx context.Context, id pgtype.UUID) error
 }
 
 // CreateCultureTool returns the create_culture tool definition and JSON schema.
@@ -114,6 +115,10 @@ func CreateCultureTool() llm.Tool {
 					"items": map[string]any{
 						"type": "string",
 					},
+				},
+				"reveal_to_player": map[string]any{
+					"type":        "boolean",
+					"description": "If true, the player character becomes aware of this culture. Defaults to false.",
 				},
 			},
 			"required":             createCultureRequiredFields(),
@@ -240,6 +245,11 @@ func (h *CreateCultureHandler) Handle(ctx context.Context, args map[string]any) 
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create culture: %w", err)
+	}
+
+	revealToPlayer, _ := parseBoolArg(args, "reveal_to_player")
+	if revealToPlayer {
+		_ = h.cultureStore.SetCulturePlayerKnown(ctx, culture.ID)
 	}
 
 	campaignID := dbutil.FromPgtype(language.CampaignID)

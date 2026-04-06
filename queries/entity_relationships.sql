@@ -18,10 +18,10 @@ INSERT INTO entity_relationships (
   sqlc.narg(description),
   sqlc.narg(strength)
 )
-RETURNING id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at;
+RETURNING id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware;
 
 -- name: GetRelationshipsByEntity :many
-SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at
+SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware
 FROM entity_relationships
 WHERE campaign_id = sqlc.arg(campaign_id)
   AND (
@@ -32,7 +32,7 @@ WHERE campaign_id = sqlc.arg(campaign_id)
 ORDER BY created_at, id;
 
 -- name: GetRelationshipsBetween :many
-SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at
+SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware
 FROM entity_relationships
 WHERE campaign_id = sqlc.arg(campaign_id)
   AND (
@@ -53,7 +53,7 @@ WHERE campaign_id = sqlc.arg(campaign_id)
 ORDER BY created_at, id;
 
 -- name: ListRelationshipsByCampaign :many
-SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at
+SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware
 FROM entity_relationships
 WHERE campaign_id = sqlc.arg(campaign_id)
 ORDER BY created_at, id;
@@ -67,7 +67,19 @@ SET
   updated_at = now()
 WHERE id = sqlc.arg(id)
   AND campaign_id = sqlc.arg(campaign_id)
-RETURNING id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at;
+RETURNING id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware;
+
+-- name: ListPlayerAwareRelationships :many
+SELECT id, campaign_id, source_entity_type, source_entity_id, target_entity_type, target_entity_id, relationship_type, description, strength, created_at, updated_at, player_aware
+FROM entity_relationships
+WHERE campaign_id = sqlc.arg(campaign_id)
+  AND player_aware = TRUE
+ORDER BY created_at, id;
+
+-- name: SetRelationshipPlayerAware :exec
+UPDATE entity_relationships
+SET player_aware = TRUE
+WHERE id = sqlc.arg(id);
 
 -- name: DeleteRelationship :exec
 DELETE FROM entity_relationships

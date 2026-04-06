@@ -65,6 +65,8 @@ func (s *stubBeliefSystemStore) GetCultureByID(_ context.Context, id pgtype.UUID
 	return culture, nil
 }
 
+func (s *stubBeliefSystemStore) SetBeliefSystemPlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+
 func TestRegisterCreateBeliefSystem(t *testing.T) {
 	reg := NewRegistry()
 	beliefStore := &stubBeliefSystemStore{}

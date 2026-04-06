@@ -26,6 +26,7 @@ type BeliefSystemStore interface {
 	CreateFact(ctx context.Context, arg statedb.CreateFactParams) (statedb.WorldFact, error)
 	GetFactionByID(ctx context.Context, id pgtype.UUID) (statedb.Faction, error)
 	GetCultureByID(ctx context.Context, id pgtype.UUID) (statedb.Culture, error)
+	SetBeliefSystemPlayerKnown(ctx context.Context, id pgtype.UUID) error
 }
 
 // CreateBeliefSystemTool returns the create_belief_system tool definition and JSON schema.
@@ -98,6 +99,10 @@ func CreateBeliefSystemTool() llm.Tool {
 						},
 					},
 					"additionalProperties": false,
+				},
+				"reveal_to_player": map[string]any{
+					"type":        "boolean",
+					"description": "If true, the player character becomes aware of this belief system. Defaults to false.",
 				},
 			},
 			"required": []string{
@@ -220,6 +225,11 @@ func (h *CreateBeliefSystemHandler) Handle(ctx context.Context, args map[string]
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create belief system: %w", err)
+	}
+
+	revealToPlayer, _ := parseBoolArg(args, "reveal_to_player")
+	if revealToPlayer {
+		_ = h.beliefStore.SetBeliefSystemPlayerKnown(ctx, beliefSystem.ID)
 	}
 
 	for i, fact := range buildBeliefSystemFacts(name, deitiesOrPrinciples, practices, institutions, moralFramework, taboos) {

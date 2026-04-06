@@ -212,3 +212,33 @@ func (s *worldService) UpdateRelationship(ctx context.Context, arg statedb.Updat
 func (s *worldService) GetRelationshipsByEntity(ctx context.Context, arg statedb.GetRelationshipsByEntityParams) ([]statedb.EntityRelationship, error) {
 	return s.queries.GetRelationshipsByEntity(ctx, arg)
 }
+
+// --- Spoiler visibility setters ---
+
+func (s *worldService) SetFactPlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	return s.queries.SetFactPlayerKnown(ctx, id)
+}
+
+func (s *worldService) GetFactPlayerKnown(ctx context.Context, id pgtype.UUID) (bool, error) {
+	return s.queries.GetFactPlayerKnown(ctx, id)
+}
+
+func (s *worldService) SetRelationshipPlayerAware(ctx context.Context, id pgtype.UUID) error {
+	return s.queries.SetRelationshipPlayerAware(ctx, id)
+}
+
+func (s *worldService) SetLanguagePlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	return s.queries.SetLanguagePlayerKnown(ctx, id)
+}
+
+func (s *worldService) SetCulturePlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	return s.queries.SetCulturePlayerKnown(ctx, id)
+}
+
+func (s *worldService) SetBeliefSystemPlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	return s.queries.SetBeliefSystemPlayerKnown(ctx, id)
+}
+
+func (s *worldService) SetEconomicSystemPlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	return s.queries.SetEconomicSystemPlayerKnown(ctx, id)
+}

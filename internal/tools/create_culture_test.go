@@ -70,6 +70,8 @@ func (s *stubCultureStore) GetFactionByID(_ context.Context, id pgtype.UUID) (st
 	return faction, nil
 }
 
+func (s *stubCultureStore) SetCulturePlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+
 func TestRegisterCreateCulture(t *testing.T) {
 	reg := NewRegistry()
 	cultureStore := &stubCultureStore{}

@@ -80,6 +80,7 @@ var explorationTools = map[string]struct{}{
 	"create_economic_system": {},
 	"create_lore":            {},
 	"establish_relationship": {},
+	"reveal_location":        {},
 	"initiate_combat":        {},
 }
 

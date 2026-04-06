@@ -1,0 +1,19 @@
+-- +goose Up
+ALTER TABLE world_facts ADD COLUMN player_known BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE entity_relationships ADD COLUMN player_aware BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE languages ADD COLUMN player_known BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE cultures ADD COLUMN player_known BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE belief_systems ADD COLUMN player_known BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE economic_systems ADD COLUMN player_known BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE locations ADD COLUMN player_visited BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE locations ADD COLUMN player_known BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- +goose Down
+ALTER TABLE locations DROP COLUMN IF EXISTS player_known;
+ALTER TABLE locations DROP COLUMN IF EXISTS player_visited;
+ALTER TABLE economic_systems DROP COLUMN IF EXISTS player_known;
+ALTER TABLE belief_systems DROP COLUMN IF EXISTS player_known;
+ALTER TABLE cultures DROP COLUMN IF EXISTS player_known;
+ALTER TABLE languages DROP COLUMN IF EXISTS player_known;
+ALTER TABLE entity_relationships DROP COLUMN IF EXISTS player_aware;
+ALTER TABLE world_facts DROP COLUMN IF EXISTS player_known;

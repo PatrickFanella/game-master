@@ -49,6 +49,10 @@ func (s *stubMovePlayerStore) UpdatePlayerLocation(_ context.Context, playerChar
 	return nil
 }
 
+func (s *stubMovePlayerStore) SetLocationPlayerVisited(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
 func TestRegisterMovePlayer(t *testing.T) {
 	reg := NewRegistry()
 	if err := RegisterMovePlayer(reg, &stubMovePlayerStore{}); err != nil {

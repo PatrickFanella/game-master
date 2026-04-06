@@ -21,7 +21,7 @@ INSERT INTO belief_systems (
   $2,
   COALESCE($3::jsonb, '{}'::jsonb)
 )
-RETURNING id, campaign_id, name, details, created_at, updated_at
+RETURNING id, campaign_id, name, details, created_at, updated_at, player_known
 `
 
 type CreateBeliefSystemParams struct {
@@ -40,6 +40,7 @@ func (q *Queries) CreateBeliefSystem(ctx context.Context, arg CreateBeliefSystem
 		&i.Details,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
@@ -58,7 +59,7 @@ INSERT INTO cultures (
   $4,
   COALESCE($5::jsonb, '{}'::jsonb)
 )
-RETURNING id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
+RETURNING id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known
 `
 
 type CreateCultureParams struct {
@@ -87,6 +88,7 @@ func (q *Queries) CreateCulture(ctx context.Context, arg CreateCultureParams) (C
 		&i.Details,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
@@ -101,7 +103,7 @@ INSERT INTO economic_systems (
   $2,
   COALESCE($3::jsonb, '{}'::jsonb)
 )
-RETURNING id, campaign_id, name, details, created_at, updated_at
+RETURNING id, campaign_id, name, details, created_at, updated_at, player_known
 `
 
 type CreateEconomicSystemParams struct {
@@ -120,6 +122,7 @@ func (q *Queries) CreateEconomicSystem(ctx context.Context, arg CreateEconomicSy
 		&i.Details,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
@@ -144,7 +147,7 @@ INSERT INTO languages (
   COALESCE($7::uuid[], '{}'::uuid[]),
   COALESCE($8::uuid[], '{}'::uuid[])
 )
-RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
+RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description, player_known
 `
 
 type CreateLanguageParams struct {
@@ -182,6 +185,7 @@ func (q *Queries) CreateLanguage(ctx context.Context, arg CreateLanguageParams) 
 		&i.SpokenByFactionIds,
 		&i.SpokenByCultureIds,
 		&i.Description,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
@@ -227,7 +231,7 @@ func (q *Queries) DeleteLanguage(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getBeliefSystemByCulture = `-- name: GetBeliefSystemByCulture :one
-SELECT b.id, b.campaign_id, b.name, b.details, b.created_at, b.updated_at
+SELECT b.id, b.campaign_id, b.name, b.details, b.created_at, b.updated_at, b.player_known
 FROM belief_systems b
 INNER JOIN cultures c
   ON c.belief_system_id = b.id
@@ -244,12 +248,13 @@ func (q *Queries) GetBeliefSystemByCulture(ctx context.Context, cultureID pgtype
 		&i.Details,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
 
 const getBeliefSystemByID = `-- name: GetBeliefSystemByID :one
-SELECT id, campaign_id, name, details, created_at, updated_at
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
 FROM belief_systems
 WHERE id = $1
 `
@@ -264,12 +269,13 @@ func (q *Queries) GetBeliefSystemByID(ctx context.Context, id pgtype.UUID) (Beli
 		&i.Details,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
 
 const getCultureByID = `-- name: GetCultureByID :one
-SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
+SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known
 FROM cultures
 WHERE id = $1
 `
@@ -286,12 +292,13 @@ func (q *Queries) GetCultureByID(ctx context.Context, id pgtype.UUID) (Culture, 
 		&i.Details,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
 
 const getEconomicSystemByID = `-- name: GetEconomicSystemByID :one
-SELECT id, campaign_id, name, details, created_at, updated_at
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
 FROM economic_systems
 WHERE id = $1
 `
@@ -306,12 +313,13 @@ func (q *Queries) GetEconomicSystemByID(ctx context.Context, id pgtype.UUID) (Ec
 		&i.Details,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
 
 const getLanguageByID = `-- name: GetLanguageByID :one
-SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
+SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description, player_known
 FROM languages
 WHERE id = $1
 `
@@ -331,12 +339,13 @@ func (q *Queries) GetLanguageByID(ctx context.Context, id pgtype.UUID) (Language
 		&i.SpokenByFactionIds,
 		&i.SpokenByCultureIds,
 		&i.Description,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
 
 const listBeliefSystemsByCampaign = `-- name: ListBeliefSystemsByCampaign :many
-SELECT id, campaign_id, name, details, created_at, updated_at
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
 FROM belief_systems
 WHERE campaign_id = $1
 ORDER BY created_at, id
@@ -358,6 +367,7 @@ func (q *Queries) ListBeliefSystemsByCampaign(ctx context.Context, campaignID pg
 			&i.Details,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -370,7 +380,7 @@ func (q *Queries) ListBeliefSystemsByCampaign(ctx context.Context, campaignID pg
 }
 
 const listCulturesByCampaign = `-- name: ListCulturesByCampaign :many
-SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
+SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known
 FROM cultures
 WHERE campaign_id = $1
 ORDER BY created_at, id
@@ -394,6 +404,7 @@ func (q *Queries) ListCulturesByCampaign(ctx context.Context, campaignID pgtype.
 			&i.Details,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -406,7 +417,7 @@ func (q *Queries) ListCulturesByCampaign(ctx context.Context, campaignID pgtype.
 }
 
 const listCulturesByLanguage = `-- name: ListCulturesByLanguage :many
-SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
+SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known
 FROM cultures
 WHERE language_id = $1
 ORDER BY created_at, id
@@ -430,6 +441,7 @@ func (q *Queries) ListCulturesByLanguage(ctx context.Context, languageID pgtype.
 			&i.Details,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -442,7 +454,7 @@ func (q *Queries) ListCulturesByLanguage(ctx context.Context, languageID pgtype.
 }
 
 const listEconomicSystemsByCampaign = `-- name: ListEconomicSystemsByCampaign :many
-SELECT id, campaign_id, name, details, created_at, updated_at
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
 FROM economic_systems
 WHERE campaign_id = $1
 ORDER BY created_at, id
@@ -464,6 +476,7 @@ func (q *Queries) ListEconomicSystemsByCampaign(ctx context.Context, campaignID 
 			&i.Details,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -476,7 +489,7 @@ func (q *Queries) ListEconomicSystemsByCampaign(ctx context.Context, campaignID 
 }
 
 const listLanguagesByCampaign = `-- name: ListLanguagesByCampaign :many
-SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
+SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description, player_known
 FROM languages
 WHERE campaign_id = $1
 ORDER BY created_at, id
@@ -503,6 +516,7 @@ func (q *Queries) ListLanguagesByCampaign(ctx context.Context, campaignID pgtype
 			&i.SpokenByFactionIds,
 			&i.SpokenByCultureIds,
 			&i.Description,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -515,7 +529,7 @@ func (q *Queries) ListLanguagesByCampaign(ctx context.Context, campaignID pgtype
 }
 
 const listLanguagesByFaction = `-- name: ListLanguagesByFaction :many
-SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at, l.spoken_by_faction_ids, l.spoken_by_culture_ids, l.description
+SELECT l.id, l.campaign_id, l.name, l.phonology, l.naming, l.vocabulary, l.created_at, l.updated_at, l.spoken_by_faction_ids, l.spoken_by_culture_ids, l.description, l.player_known
 FROM languages l
 INNER JOIN factions f
   ON f.id = $1::uuid
@@ -545,6 +559,7 @@ func (q *Queries) ListLanguagesByFaction(ctx context.Context, factionID pgtype.U
 			&i.SpokenByFactionIds,
 			&i.SpokenByCultureIds,
 			&i.Description,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -556,6 +571,201 @@ func (q *Queries) ListLanguagesByFaction(ctx context.Context, factionID pgtype.U
 	return items, nil
 }
 
+const listPlayerKnownBeliefSystems = `-- name: ListPlayerKnownBeliefSystems :many
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
+FROM belief_systems
+WHERE campaign_id = $1
+  AND player_known = TRUE
+ORDER BY created_at, id
+`
+
+func (q *Queries) ListPlayerKnownBeliefSystems(ctx context.Context, campaignID pgtype.UUID) ([]BeliefSystem, error) {
+	rows, err := q.db.Query(ctx, listPlayerKnownBeliefSystems, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BeliefSystem
+	for rows.Next() {
+		var i BeliefSystem
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.Name,
+			&i.Details,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PlayerKnown,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPlayerKnownCultures = `-- name: ListPlayerKnownCultures :many
+SELECT id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known
+FROM cultures
+WHERE campaign_id = $1
+  AND player_known = TRUE
+ORDER BY created_at, id
+`
+
+func (q *Queries) ListPlayerKnownCultures(ctx context.Context, campaignID pgtype.UUID) ([]Culture, error) {
+	rows, err := q.db.Query(ctx, listPlayerKnownCultures, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Culture
+	for rows.Next() {
+		var i Culture
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.LanguageID,
+			&i.BeliefSystemID,
+			&i.Name,
+			&i.Details,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PlayerKnown,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPlayerKnownEconomicSystems = `-- name: ListPlayerKnownEconomicSystems :many
+SELECT id, campaign_id, name, details, created_at, updated_at, player_known
+FROM economic_systems
+WHERE campaign_id = $1
+  AND player_known = TRUE
+ORDER BY created_at, id
+`
+
+func (q *Queries) ListPlayerKnownEconomicSystems(ctx context.Context, campaignID pgtype.UUID) ([]EconomicSystem, error) {
+	rows, err := q.db.Query(ctx, listPlayerKnownEconomicSystems, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EconomicSystem
+	for rows.Next() {
+		var i EconomicSystem
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.Name,
+			&i.Details,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PlayerKnown,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPlayerKnownLanguages = `-- name: ListPlayerKnownLanguages :many
+SELECT id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description, player_known
+FROM languages
+WHERE campaign_id = $1
+  AND player_known = TRUE
+ORDER BY created_at, id
+`
+
+func (q *Queries) ListPlayerKnownLanguages(ctx context.Context, campaignID pgtype.UUID) ([]Language, error) {
+	rows, err := q.db.Query(ctx, listPlayerKnownLanguages, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Language
+	for rows.Next() {
+		var i Language
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.Name,
+			&i.Phonology,
+			&i.Naming,
+			&i.Vocabulary,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SpokenByFactionIds,
+			&i.SpokenByCultureIds,
+			&i.Description,
+			&i.PlayerKnown,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setBeliefSystemPlayerKnown = `-- name: SetBeliefSystemPlayerKnown :exec
+UPDATE belief_systems
+SET player_known = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) SetBeliefSystemPlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setBeliefSystemPlayerKnown, id)
+	return err
+}
+
+const setCulturePlayerKnown = `-- name: SetCulturePlayerKnown :exec
+UPDATE cultures
+SET player_known = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) SetCulturePlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setCulturePlayerKnown, id)
+	return err
+}
+
+const setEconomicSystemPlayerKnown = `-- name: SetEconomicSystemPlayerKnown :exec
+UPDATE economic_systems
+SET player_known = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) SetEconomicSystemPlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setEconomicSystemPlayerKnown, id)
+	return err
+}
+
+const setLanguagePlayerKnown = `-- name: SetLanguagePlayerKnown :exec
+UPDATE languages
+SET player_known = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) SetLanguagePlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setLanguagePlayerKnown, id)
+	return err
+}
+
 const updateBeliefSystem = `-- name: UpdateBeliefSystem :one
 UPDATE belief_systems
 SET
@@ -563,7 +773,7 @@ SET
   details = COALESCE($2::jsonb, details),
   updated_at = now()
 WHERE id = $3
-RETURNING id, campaign_id, name, details, created_at, updated_at
+RETURNING id, campaign_id, name, details, created_at, updated_at, player_known
 `
 
 type UpdateBeliefSystemParams struct {
@@ -582,6 +792,7 @@ func (q *Queries) UpdateBeliefSystem(ctx context.Context, arg UpdateBeliefSystem
 		&i.Details,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
@@ -595,7 +806,7 @@ SET
   details = COALESCE($4::jsonb, details),
   updated_at = now()
 WHERE id = $5
-RETURNING id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at
+RETURNING id, campaign_id, language_id, belief_system_id, name, details, created_at, updated_at, player_known
 `
 
 type UpdateCultureParams struct {
@@ -624,6 +835,7 @@ func (q *Queries) UpdateCulture(ctx context.Context, arg UpdateCultureParams) (C
 		&i.Details,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
@@ -635,7 +847,7 @@ SET
   details = COALESCE($2::jsonb, details),
   updated_at = now()
 WHERE id = $3
-RETURNING id, campaign_id, name, details, created_at, updated_at
+RETURNING id, campaign_id, name, details, created_at, updated_at, player_known
 `
 
 type UpdateEconomicSystemParams struct {
@@ -654,6 +866,7 @@ func (q *Queries) UpdateEconomicSystem(ctx context.Context, arg UpdateEconomicSy
 		&i.Details,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
@@ -670,7 +883,7 @@ SET
   spoken_by_culture_ids = COALESCE($7::uuid[], spoken_by_culture_ids),
   updated_at = now()
 WHERE id = $8
-RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description
+RETURNING id, campaign_id, name, phonology, naming, vocabulary, created_at, updated_at, spoken_by_faction_ids, spoken_by_culture_ids, description, player_known
 `
 
 type UpdateLanguageParams struct {
@@ -708,6 +921,7 @@ func (q *Queries) UpdateLanguage(ctx context.Context, arg UpdateLanguageParams) 
 		&i.SpokenByFactionIds,
 		&i.SpokenByCultureIds,
 		&i.Description,
+		&i.PlayerKnown,
 	)
 	return i, err
 }

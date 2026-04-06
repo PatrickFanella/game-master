@@ -65,6 +65,8 @@ func (s *stubEconomicSystemStore) GetLocationByID(_ context.Context, id pgtype.U
 	return location, nil
 }
 
+func (s *stubEconomicSystemStore) SetEconomicSystemPlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+
 func TestRegisterCreateEconomicSystem(t *testing.T) {
 	reg := NewRegistry()
 	economicStore := &stubEconomicSystemStore{}

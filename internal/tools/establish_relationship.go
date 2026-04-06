@@ -28,6 +28,7 @@ type EstablishRelationshipStore interface {
 	GetRelationshipsBetween(ctx context.Context, arg statedb.GetRelationshipsBetweenParams) ([]statedb.EntityRelationship, error)
 	CreateRelationship(ctx context.Context, arg statedb.CreateRelationshipParams) (statedb.EntityRelationship, error)
 	UpdateRelationship(ctx context.Context, arg statedb.UpdateRelationshipParams) (statedb.EntityRelationship, error)
+	SetRelationshipPlayerAware(ctx context.Context, id pgtype.UUID) error
 }
 
 // EstablishRelationshipTool returns the establish_relationship tool definition and JSON schema.
@@ -67,6 +68,10 @@ func EstablishRelationshipTool() llm.Tool {
 					"description": "Optional relationship strength from 1-10. Defaults to 5. This tool intentionally uses a 1-10 scale even though the underlying database column supports a broader integer range.",
 					"minimum":     1,
 					"maximum":     10,
+				},
+				"reveal_to_player": map[string]any{
+					"type":        "boolean",
+					"description": "If true, the player character becomes aware of this relationship. Defaults to false.",
 				},
 			},
 			"required": []string{
@@ -211,6 +216,11 @@ func (h *EstablishRelationshipHandler) Handle(ctx context.Context, args map[stri
 		if err != nil {
 			return nil, fmt.Errorf("create relationship: %w", err)
 		}
+	}
+
+	revealToPlayer, _ := parseBoolArg(args, "reveal_to_player")
+	if revealToPlayer {
+		_ = h.store.SetRelationshipPlayerAware(ctx, relationship.ID)
 	}
 
 	verb := "established"

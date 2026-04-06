@@ -14,22 +14,22 @@ INSERT INTO locations (
   sqlc.arg(location_type),
   COALESCE(sqlc.narg(properties)::jsonb, '{}'::jsonb)
 )
-RETURNING id, campaign_id, name, description, region, location_type, properties, created_at, updated_at;
+RETURNING id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known;
 
 -- name: GetLocationByID :one
-SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at
+SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
 FROM locations
 WHERE id = sqlc.arg(id)
   AND (sqlc.narg(campaign_id)::uuid IS NULL OR campaign_id = sqlc.narg(campaign_id));
 
 -- name: ListLocationsByCampaign :many
-SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at
+SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
 FROM locations
 WHERE campaign_id = sqlc.arg(campaign_id)
 ORDER BY created_at, id;
 
 -- name: ListLocationsByRegion :many
-SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at
+SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
 FROM locations
 WHERE campaign_id = sqlc.arg(campaign_id)
   AND region = sqlc.arg(region)
@@ -45,4 +45,28 @@ SET
   properties = COALESCE(sqlc.narg(properties)::jsonb, '{}'::jsonb),
   updated_at = now()
 WHERE id = sqlc.arg(id)
-RETURNING id, campaign_id, name, description, region, location_type, properties, created_at, updated_at;
+RETURNING id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known;
+
+-- name: ListPlayerVisitedLocations :many
+SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
+FROM locations
+WHERE campaign_id = sqlc.arg(campaign_id)
+  AND player_visited = TRUE
+ORDER BY created_at, id;
+
+-- name: ListPlayerKnownLocations :many
+SELECT id, campaign_id, name, description, region, location_type, properties, created_at, updated_at, player_visited, player_known
+FROM locations
+WHERE campaign_id = sqlc.arg(campaign_id)
+  AND player_known = TRUE
+ORDER BY created_at, id;
+
+-- name: SetLocationPlayerVisited :exec
+UPDATE locations
+SET player_visited = TRUE
+WHERE id = sqlc.arg(id);
+
+-- name: SetLocationPlayerKnown :exec
+UPDATE locations
+SET player_known = TRUE
+WHERE id = sqlc.arg(id);

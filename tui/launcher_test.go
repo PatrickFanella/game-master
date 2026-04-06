@@ -342,6 +342,43 @@ func (n *noopQuerier) SearchMemoriesWithFilters(ctx context.Context, arg statedb
 func (n *noopQuerier) SupersedeFact(ctx context.Context, arg statedb.SupersedeFactParams) (statedb.WorldFact, error) {
 	return statedb.WorldFact{}, nil
 }
+func (n *noopQuerier) GetFactPlayerKnown(_ context.Context, _ pgtype.UUID) (bool, error) {
+	return false, nil
+}
+func (n *noopQuerier) ListPlayerKnownFacts(_ context.Context, _ pgtype.UUID) ([]statedb.WorldFact, error) {
+	return nil, nil
+}
+func (n *noopQuerier) SetFactPlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+func (n *noopQuerier) ListPlayerAwareRelationships(_ context.Context, _ pgtype.UUID) ([]statedb.EntityRelationship, error) {
+	return nil, nil
+}
+func (n *noopQuerier) SetRelationshipPlayerAware(_ context.Context, _ pgtype.UUID) error { return nil }
+func (n *noopQuerier) ListPlayerKnownLanguages(_ context.Context, _ pgtype.UUID) ([]statedb.Language, error) {
+	return nil, nil
+}
+func (n *noopQuerier) SetLanguagePlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+func (n *noopQuerier) ListPlayerKnownCultures(_ context.Context, _ pgtype.UUID) ([]statedb.Culture, error) {
+	return nil, nil
+}
+func (n *noopQuerier) SetCulturePlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+func (n *noopQuerier) ListPlayerKnownBeliefSystems(_ context.Context, _ pgtype.UUID) ([]statedb.BeliefSystem, error) {
+	return nil, nil
+}
+func (n *noopQuerier) SetBeliefSystemPlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+func (n *noopQuerier) ListPlayerKnownEconomicSystems(_ context.Context, _ pgtype.UUID) ([]statedb.EconomicSystem, error) {
+	return nil, nil
+}
+func (n *noopQuerier) SetEconomicSystemPlayerKnown(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+func (n *noopQuerier) ListPlayerKnownLocations(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
+	return nil, nil
+}
+func (n *noopQuerier) ListPlayerVisitedLocations(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
+	return nil, nil
+}
+func (n *noopQuerier) SetLocationPlayerKnown(_ context.Context, _ pgtype.UUID) error  { return nil }
+func (n *noopQuerier) SetLocationPlayerVisited(_ context.Context, _ pgtype.UUID) error { return nil }
 
 func (n *noopQuerier) TransferItem(ctx context.Context, arg statedb.TransferItemParams) (statedb.Item, error) {
 	return statedb.Item{}, nil

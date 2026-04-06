@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type stubLanguageStore struct {
@@ -49,6 +50,8 @@ func (s *stubLanguageStore) CultureBelongsToCampaign(_ context.Context, cultureI
 	}
 	return camp == campaignID, nil
 }
+
+func (s *stubLanguageStore) SetLanguagePlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
 
 type stubMemoryStore struct {
 	lastParams CreateMemoryParams

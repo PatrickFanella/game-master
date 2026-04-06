@@ -388,6 +388,47 @@ func (s *stubQuerier) SearchMemoriesWithFilters(ctx context.Context, arg statedb
 func (s *stubQuerier) SupersedeFact(ctx context.Context, arg statedb.SupersedeFactParams) (statedb.WorldFact, error) {
 	return statedb.WorldFact{}, nil
 }
+func (s *stubQuerier) GetFactPlayerKnown(_ context.Context, _ pgtype.UUID) (bool, error) {
+	return false, nil
+}
+func (s *stubQuerier) ListPlayerKnownFacts(_ context.Context, _ pgtype.UUID) ([]statedb.WorldFact, error) {
+	return nil, nil
+}
+func (s *stubQuerier) SetFactPlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+func (s *stubQuerier) ListPlayerAwareRelationships(_ context.Context, _ pgtype.UUID) ([]statedb.EntityRelationship, error) {
+	return nil, nil
+}
+func (s *stubQuerier) SetRelationshipPlayerAware(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+func (s *stubQuerier) ListPlayerKnownLanguages(_ context.Context, _ pgtype.UUID) ([]statedb.Language, error) {
+	return nil, nil
+}
+func (s *stubQuerier) SetLanguagePlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+func (s *stubQuerier) ListPlayerKnownCultures(_ context.Context, _ pgtype.UUID) ([]statedb.Culture, error) {
+	return nil, nil
+}
+func (s *stubQuerier) SetCulturePlayerKnown(_ context.Context, _ pgtype.UUID) error { return nil }
+func (s *stubQuerier) ListPlayerKnownBeliefSystems(_ context.Context, _ pgtype.UUID) ([]statedb.BeliefSystem, error) {
+	return nil, nil
+}
+func (s *stubQuerier) SetBeliefSystemPlayerKnown(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+func (s *stubQuerier) ListPlayerKnownEconomicSystems(_ context.Context, _ pgtype.UUID) ([]statedb.EconomicSystem, error) {
+	return nil, nil
+}
+func (s *stubQuerier) SetEconomicSystemPlayerKnown(_ context.Context, _ pgtype.UUID) error {
+	return nil
+}
+func (s *stubQuerier) ListPlayerKnownLocations(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
+	return nil, nil
+}
+func (s *stubQuerier) ListPlayerVisitedLocations(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
+	return nil, nil
+}
+func (s *stubQuerier) SetLocationPlayerKnown(_ context.Context, _ pgtype.UUID) error  { return nil }
+func (s *stubQuerier) SetLocationPlayerVisited(_ context.Context, _ pgtype.UUID) error { return nil }
 
 func (s *stubQuerier) TransferItem(ctx context.Context, arg statedb.TransferItemParams) (statedb.Item, error) {
 	return statedb.Item{}, nil

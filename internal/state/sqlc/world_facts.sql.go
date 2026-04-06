@@ -23,7 +23,7 @@ INSERT INTO world_facts (
   $3,
   $4
 )
-RETURNING id, campaign_id, fact, category, source, superseded_by, created_at
+RETURNING id, campaign_id, fact, category, source, superseded_by, created_at, player_known
 `
 
 type CreateFactParams struct {
@@ -49,12 +49,13 @@ func (q *Queries) CreateFact(ctx context.Context, arg CreateFactParams) (WorldFa
 		&i.Source,
 		&i.SupersededBy,
 		&i.CreatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
 
 const getFactByID = `-- name: GetFactByID :one
-SELECT id, campaign_id, fact, category, source, superseded_by, created_at
+SELECT id, campaign_id, fact, category, source, superseded_by, created_at, player_known
 FROM world_facts
 WHERE id = $1
 `
@@ -70,12 +71,26 @@ func (q *Queries) GetFactByID(ctx context.Context, id pgtype.UUID) (WorldFact, e
 		&i.Source,
 		&i.SupersededBy,
 		&i.CreatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }
 
+const getFactPlayerKnown = `-- name: GetFactPlayerKnown :one
+SELECT player_known
+FROM world_facts
+WHERE id = $1
+`
+
+func (q *Queries) GetFactPlayerKnown(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, getFactPlayerKnown, id)
+	var player_known bool
+	err := row.Scan(&player_known)
+	return player_known, err
+}
+
 const listActiveFactsByCampaign = `-- name: ListActiveFactsByCampaign :many
-SELECT id, campaign_id, fact, category, source, superseded_by, created_at
+SELECT id, campaign_id, fact, category, source, superseded_by, created_at, player_known
 FROM world_facts
 WHERE campaign_id = $1
   AND superseded_by IS NULL
@@ -99,6 +114,7 @@ func (q *Queries) ListActiveFactsByCampaign(ctx context.Context, campaignID pgty
 			&i.Source,
 			&i.SupersededBy,
 			&i.CreatedAt,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -111,7 +127,7 @@ func (q *Queries) ListActiveFactsByCampaign(ctx context.Context, campaignID pgty
 }
 
 const listFactsByCampaign = `-- name: ListFactsByCampaign :many
-SELECT id, campaign_id, fact, category, source, superseded_by, created_at
+SELECT id, campaign_id, fact, category, source, superseded_by, created_at, player_known
 FROM world_facts
 WHERE campaign_id = $1
 ORDER BY created_at, id
@@ -134,6 +150,7 @@ func (q *Queries) ListFactsByCampaign(ctx context.Context, campaignID pgtype.UUI
 			&i.Source,
 			&i.SupersededBy,
 			&i.CreatedAt,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -146,7 +163,7 @@ func (q *Queries) ListFactsByCampaign(ctx context.Context, campaignID pgtype.UUI
 }
 
 const listFactsByCategory = `-- name: ListFactsByCategory :many
-SELECT id, campaign_id, fact, category, source, superseded_by, created_at
+SELECT id, campaign_id, fact, category, source, superseded_by, created_at, player_known
 FROM world_facts
 WHERE campaign_id = $1
   AND category = $2
@@ -175,6 +192,7 @@ func (q *Queries) ListFactsByCategory(ctx context.Context, arg ListFactsByCatego
 			&i.Source,
 			&i.SupersededBy,
 			&i.CreatedAt,
+			&i.PlayerKnown,
 		); err != nil {
 			return nil, err
 		}
@@ -184,6 +202,55 @@ func (q *Queries) ListFactsByCategory(ctx context.Context, arg ListFactsByCatego
 		return nil, err
 	}
 	return items, nil
+}
+
+const listPlayerKnownFacts = `-- name: ListPlayerKnownFacts :many
+SELECT id, campaign_id, fact, category, source, superseded_by, created_at, player_known
+FROM world_facts
+WHERE campaign_id = $1
+  AND player_known = TRUE
+  AND superseded_by IS NULL
+ORDER BY created_at, id
+`
+
+func (q *Queries) ListPlayerKnownFacts(ctx context.Context, campaignID pgtype.UUID) ([]WorldFact, error) {
+	rows, err := q.db.Query(ctx, listPlayerKnownFacts, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorldFact
+	for rows.Next() {
+		var i WorldFact
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.Fact,
+			&i.Category,
+			&i.Source,
+			&i.SupersededBy,
+			&i.CreatedAt,
+			&i.PlayerKnown,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setFactPlayerKnown = `-- name: SetFactPlayerKnown :exec
+UPDATE world_facts
+SET player_known = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) SetFactPlayerKnown(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, setFactPlayerKnown, id)
+	return err
 }
 
 const supersedeFact = `-- name: SupersedeFact :one
@@ -221,7 +288,8 @@ SELECT
   world_facts.category,
   world_facts.source,
   world_facts.superseded_by,
-  world_facts.created_at
+  world_facts.created_at,
+  world_facts.player_known
 FROM world_facts
 WHERE world_facts.id = (SELECT id FROM new_fact)
   AND EXISTS (SELECT 1 FROM updated_previous)
@@ -250,6 +318,7 @@ func (q *Queries) SupersedeFact(ctx context.Context, arg SupersedeFactParams) (W
 		&i.Source,
 		&i.SupersededBy,
 		&i.CreatedAt,
+		&i.PlayerKnown,
 	)
 	return i, err
 }

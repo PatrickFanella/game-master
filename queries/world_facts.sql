@@ -10,32 +10,50 @@ INSERT INTO world_facts (
   sqlc.arg(category),
   sqlc.arg(source)
 )
-RETURNING id, campaign_id, fact, category, source, superseded_by, created_at;
+RETURNING id, campaign_id, fact, category, source, superseded_by, created_at, player_known;
 
 -- name: GetFactByID :one
-SELECT id, campaign_id, fact, category, source, superseded_by, created_at
+SELECT id, campaign_id, fact, category, source, superseded_by, created_at, player_known
 FROM world_facts
 WHERE id = sqlc.arg(id);
 
 -- name: ListFactsByCampaign :many
-SELECT id, campaign_id, fact, category, source, superseded_by, created_at
+SELECT id, campaign_id, fact, category, source, superseded_by, created_at, player_known
 FROM world_facts
 WHERE campaign_id = sqlc.arg(campaign_id)
 ORDER BY created_at, id;
 
 -- name: ListFactsByCategory :many
-SELECT id, campaign_id, fact, category, source, superseded_by, created_at
+SELECT id, campaign_id, fact, category, source, superseded_by, created_at, player_known
 FROM world_facts
 WHERE campaign_id = sqlc.arg(campaign_id)
   AND category = sqlc.arg(category)
 ORDER BY created_at, id;
 
 -- name: ListActiveFactsByCampaign :many
-SELECT id, campaign_id, fact, category, source, superseded_by, created_at
+SELECT id, campaign_id, fact, category, source, superseded_by, created_at, player_known
 FROM world_facts
 WHERE campaign_id = sqlc.arg(campaign_id)
   AND superseded_by IS NULL
 ORDER BY created_at, id;
+
+-- name: ListPlayerKnownFacts :many
+SELECT id, campaign_id, fact, category, source, superseded_by, created_at, player_known
+FROM world_facts
+WHERE campaign_id = sqlc.arg(campaign_id)
+  AND player_known = TRUE
+  AND superseded_by IS NULL
+ORDER BY created_at, id;
+
+-- name: SetFactPlayerKnown :exec
+UPDATE world_facts
+SET player_known = TRUE
+WHERE id = sqlc.arg(id);
+
+-- name: GetFactPlayerKnown :one
+SELECT player_known
+FROM world_facts
+WHERE id = sqlc.arg(id);
 
 -- name: SupersedeFact :one
 WITH previous_fact AS (
@@ -72,7 +90,8 @@ SELECT
   world_facts.category,
   world_facts.source,
   world_facts.superseded_by,
-  world_facts.created_at
+  world_facts.created_at,
+  world_facts.player_known
 FROM world_facts
 WHERE world_facts.id = (SELECT id FROM new_fact)
   AND EXISTS (SELECT 1 FROM updated_previous);

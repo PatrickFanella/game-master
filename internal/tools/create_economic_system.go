@@ -24,6 +24,7 @@ type EconomicSystemStore interface {
 	CreateFact(ctx context.Context, arg statedb.CreateFactParams) (statedb.WorldFact, error)
 	GetFactionByID(ctx context.Context, id pgtype.UUID) (statedb.Faction, error)
 	GetLocationByID(ctx context.Context, id pgtype.UUID) (statedb.Location, error)
+	SetEconomicSystemPlayerKnown(ctx context.Context, id pgtype.UUID) error
 }
 
 // CreateEconomicSystemTool returns the create_economic_system tool definition and JSON schema.
@@ -115,6 +116,10 @@ func CreateEconomicSystemTool() llm.Tool {
 						},
 					},
 					"additionalProperties": false,
+				},
+				"reveal_to_player": map[string]any{
+					"type":        "boolean",
+					"description": "If true, the player character becomes aware of this economic system. Defaults to false.",
 				},
 			},
 			"required": []string{
@@ -255,6 +260,11 @@ func (h *CreateEconomicSystemHandler) Handle(ctx context.Context, args map[strin
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create economic system: %w", err)
+	}
+
+	revealToPlayer, _ := parseBoolArg(args, "reveal_to_player")
+	if revealToPlayer {
+		_ = h.economicStore.SetEconomicSystemPlayerKnown(ctx, economicSystem.ID)
 	}
 
 	for i, fact := range buildEconomicSystemFacts(name, currencyName, currencyDenominations, primaryResources, economicType, tradeRoutePayload) {

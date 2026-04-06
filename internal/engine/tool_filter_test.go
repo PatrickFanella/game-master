@@ -24,7 +24,7 @@ func allTestTools() []llm.Tool {
 		// exploration
 		"create_npc", "create_location", "create_city", "create_faction",
 		"create_language", "create_culture", "create_belief_system",
-		"create_economic_system", "create_lore", "establish_relationship",
+		"create_economic_system", "create_lore", "establish_relationship", "reveal_location",
 		// quest
 		"create_quest", "create_subquest", "update_quest", "complete_objective",
 		"branch_quest", "link_quest_entity",
@@ -245,8 +245,8 @@ func TestFilter_ReducesToolCount(t *testing.T) {
 	if len(got) >= len(all) {
 		t.Errorf("filtering should reduce tools: got %d, total %d", len(got), len(all))
 	}
-	if len(got) > 30 {
-		t.Errorf("filtered set too large: %d (target ~15-25)", len(got))
+	if len(got) > 35 {
+		t.Errorf("filtered set too large: %d (target ~15-30)", len(got))
 	}
 }
 
