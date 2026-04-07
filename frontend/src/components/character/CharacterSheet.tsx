@@ -5,6 +5,8 @@ import { getCampaignCharacter } from '../../api/characters';
 import { CampaignContext } from '../../context/CampaignContext';
 import { cn } from '../../lib/cn';
 import { AbilityList } from './AbilityList';
+import { FeatBrowser } from './FeatBrowser';
+import { SkillTree } from './SkillTree';
 import { StatsBlock } from './StatsBlock';
 
 interface CharacterSheetProps {
@@ -87,6 +89,13 @@ export function CharacterSheet({ campaignId, className }: CharacterSheetProps) {
         </section>
 
         <AbilityList abilities={character.abilities} />
+
+        {campaign?.campaign?.rules_mode === 'crunch' && (
+          <>
+            <FeatBrowser campaignId={activeCampaignId} />
+            <SkillTree campaignId={activeCampaignId} />
+          </>
+        )}
       </div>
     </div>
   );

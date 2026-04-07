@@ -14,6 +14,7 @@ type CampaignCreateRequest struct {
 	Genre       string   `json:"genre"`
 	Tone        string   `json:"tone"`
 	Themes      []string `json:"themes"`
+	RulesMode   string   `json:"rules_mode,omitempty"`
 }
 
 // CampaignResponse describes a campaign returned by the API.
@@ -25,6 +26,7 @@ type CampaignResponse struct {
 	Tone        string    `json:"tone"`
 	Themes      []string  `json:"themes"`
 	Status      string    `json:"status"`
+	RulesMode   string    `json:"rules_mode"`
 	CreatedBy   string    `json:"created_by"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -160,6 +162,7 @@ type StateChange struct {
 type TurnResult struct {
 	Narrative    string        `json:"narrative"`
 	StateChanges []StateChange `json:"state_changes"`
+	CombatActive bool          `json:"combat_active"`
 }
 
 // TurnResponse is an alias for TurnResult maintained for naming clarity.
@@ -252,6 +255,28 @@ type WorldBuildRequest struct {
 	Summary          string            `json:"summary"`
 	Profile          *CampaignProfile  `json:"profile"`
 	CharacterProfile *CharacterProfile `json:"character_profile"`
+	RulesMode        string            `json:"rules_mode,omitempty"`
+}
+
+// FeatResponse describes a feat granted to a character.
+type FeatResponse struct {
+	ID            string `json:"id"`
+	FeatID        string `json:"feat_id"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	BonusType     string `json:"bonus_type"`
+	BonusValue    int    `json:"bonus_value"`
+	Prerequisites string `json:"prerequisites,omitempty"`
+}
+
+// SkillResponse describes a skill allocated to a character.
+type SkillResponse struct {
+	ID          string `json:"id"`
+	SkillID     string `json:"skill_id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	BaseAbility string `json:"base_ability"`
+	Points      int    `json:"points"`
 }
 
 // WorldBuildResponse returns the created campaign plus its opening scene.

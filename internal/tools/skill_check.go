@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/PatrickFanella/game-master/internal/llm"
 )
@@ -16,6 +17,12 @@ const skillCheckToolName = "skill_check"
 // StatModifierResolver resolves a character's modifier for a given skill/stat.
 type StatModifierResolver interface {
 	GetStatModifier(ctx context.Context, characterID uuid.UUID, skill string) (int, error)
+}
+
+// FeatBonusDB is an optional database interface for looking up feat bonuses
+// during skill checks. When nil, feat bonuses are skipped.
+type FeatBonusDB interface {
+	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
 }
 
 // DiceRoller provides pseudo-random integer generation.
@@ -69,11 +76,14 @@ func SkillCheckTool() llm.Tool {
 }
 
 // RegisterSkillCheck registers the skill_check tool and handler.
-func RegisterSkillCheck(reg *Registry, resolver StatModifierResolver, roller DiceRoller) error {
+func RegisterSkillCheck(reg *Registry, resolver StatModifierResolver, roller DiceRoller, featDB ...FeatBonusDB) error {
 	if resolver == nil {
 		return errors.New("skill_check resolver is required")
 	}
 	handler := NewSkillCheckHandler(resolver, roller)
+	if len(featDB) > 0 {
+		handler.featDB = featDB[0]
+	}
 	return reg.Register(SkillCheckTool(), handler.Handle)
 }
 
@@ -81,6 +91,7 @@ func RegisterSkillCheck(reg *Registry, resolver StatModifierResolver, roller Dic
 type SkillCheckHandler struct {
 	resolver StatModifierResolver
 	roller   DiceRoller
+	featDB   FeatBonusDB
 }
 
 // NewSkillCheckHandler creates a new skill check handler.
@@ -131,6 +142,10 @@ func (h *SkillCheckHandler) Handle(ctx context.Context, args map[string]any) (*T
 	if err != nil {
 		return nil, fmt.Errorf("resolve stat modifier: %w", err)
 	}
+
+	// Look up feat bonuses that apply to this skill.
+	featBonus := h.lookupFeatBonus(ctx, characterID, skill)
+	modifier += featBonus
 
 	rolls := []int{h.rollD20()}
 	roll := rolls[0]
@@ -193,5 +208,25 @@ func buildSkillCheckNarrative(skill string, roll, modifier, total, dc int, succe
 
 func (h *SkillCheckHandler) rollD20() int {
 	return h.roller.Intn(20) + 1
+}
+
+// lookupFeatBonus queries character_feats + feat_definitions for any feat
+// whose bonus_type matches the skill being checked. Returns 0 if no feat
+// bonus applies or if the database is unavailable.
+func (h *SkillCheckHandler) lookupFeatBonus(ctx context.Context, characterID uuid.UUID, skill string) int {
+	if h.featDB == nil {
+		return 0
+	}
+
+	const q = `SELECT COALESCE(SUM(fd.bonus_value), 0)
+FROM character_feats cf
+JOIN feat_definitions fd ON fd.id = cf.feat_id
+WHERE cf.character_id = $1 AND LOWER(fd.bonus_type) = LOWER($2) AND fd.bonus_value != 0`
+
+	var bonus int
+	if err := h.featDB.QueryRow(ctx, q, characterID, skill).Scan(&bonus); err != nil {
+		return 0
+	}
+	return bonus
 }
 

@@ -64,6 +64,7 @@ export function buildCampaignWorld(request: {
   summary: string;
   profile: CampaignProfile;
   character_profile: CharacterProfile;
+  rules_mode?: string;
 }): Promise<BuildWorldResponse> {
   return apiFetch<BuildWorldResponse>(buildStartupPath('world'), {
     method: 'POST',

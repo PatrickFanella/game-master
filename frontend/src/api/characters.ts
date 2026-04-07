@@ -1,8 +1,8 @@
 import { apiFetch } from './client';
 import { buildCampaignPath } from './routes';
-import type { CharacterAbility, CharacterResponse, ItemResponse } from './types';
+import type { CharacterAbility, CharacterResponse, FeatResponse, ItemResponse, SkillResponse } from './types';
 
-function buildCharacterPath(campaignId: string, suffix?: 'inventory' | 'abilities'): string {
+function buildCharacterPath(campaignId: string, suffix?: 'inventory' | 'abilities' | 'feats' | 'skills'): string {
   return suffix ? buildCampaignPath(campaignId, 'character', suffix) : buildCampaignPath(campaignId, 'character');
 }
 
@@ -16,4 +16,12 @@ export function getCampaignCharacterInventory(campaignId: string): Promise<ItemR
 
 export function getCampaignCharacterAbilities(campaignId: string): Promise<CharacterAbility[]> {
   return apiFetch<CharacterAbility[]>(buildCharacterPath(campaignId, 'abilities'));
+}
+
+export function getCampaignCharacterFeats(campaignId: string): Promise<FeatResponse[]> {
+  return apiFetch<FeatResponse[]>(buildCharacterPath(campaignId, 'feats'));
+}
+
+export function getCampaignCharacterSkills(campaignId: string): Promise<SkillResponse[]> {
+  return apiFetch<SkillResponse[]>(buildCharacterPath(campaignId, 'skills'));
 }

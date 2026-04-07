@@ -19,6 +19,7 @@ import { CharacterGuidedForm, type CharacterGuidedFormData } from '../components
 import { ConfirmationPanel } from '../components/start/ConfirmationPanel';
 import { MethodPicker } from '../components/start/MethodPicker';
 import { ProposalPicker, type CampaignProposalOption } from '../components/start/ProposalPicker';
+import { RulesModeStep, type RulesMode } from '../components/start/RulesModeStep';
 import { AppShell } from '../components/layout/AppShell';
 import {
   buildCharacterProfileFromGuidedAttributes,
@@ -34,6 +35,7 @@ type WizardStep =
   | 'campaignNaming'
   | 'campaignAttributes'
   | 'campaignProposals'
+  | 'rulesMode'
   | 'characterMethod'
   | 'characterInterview'
   | 'characterGuided'
@@ -95,6 +97,7 @@ export function CampaignCreatePage() {
   const [campaignProfile, setCampaignProfile] = useState<CampaignProfile | null>(null);
   const [campaignName, setCampaignName] = useState('');
   const [campaignSummary, setCampaignSummary] = useState('');
+  const [rulesMode, setRulesMode] = useState<RulesMode | null>(null);
 
   const [characterMethod, setCharacterMethod] = useState<CharacterCreationMethod | null>(null);
   const [characterMethodError, setCharacterMethodError] = useState<string | null>(null);
@@ -251,7 +254,7 @@ export function CampaignCreatePage() {
       try {
         const nameResponse = await generateCampaignName(profile);
         applyCampaignSelection(profile, nameResponse.name, summary);
-        setWizardStep('characterMethod');
+        setWizardStep('rulesMode');
       } catch (error) {
         setCampaignMethodError(mutationErrorMessage(error));
         setWizardStep('campaignMethod');
@@ -299,7 +302,7 @@ export function CampaignCreatePage() {
 
   function handleProposalContinue(proposal: CampaignProposalOption) {
     applyCampaignSelection(cloneCampaignProfile(proposal.profile), proposal.name, proposal.summary);
-    setWizardStep('characterMethod');
+    setWizardStep('rulesMode');
   }
 
   async function handleCharacterMethodContinue(method: CharacterCreationMethod) {
@@ -391,6 +394,7 @@ export function CampaignCreatePage() {
         summary: campaignSummary,
         profile: campaignProfile,
         character_profile: characterProfile,
+        rules_mode: rulesMode ?? undefined,
       });
 
       const startupSeed: StartupPlaySeed = {
@@ -501,6 +505,21 @@ export function CampaignCreatePage() {
             errorMessage={campaignAttributesError}
           />
         );
+      case 'rulesMode':
+        return (
+          <RulesModeStep
+            selectedMode={rulesMode}
+            onSelectMode={setRulesMode}
+            onContinue={() => setWizardStep('characterMethod')}
+            onBack={() => {
+              if (campaignMethod === 'interview') {
+                setWizardStep('campaignMethod');
+              } else {
+                setWizardStep('campaignProposals');
+              }
+            }}
+          />
+        );
       case 'characterMethod':
         return (
           <MethodPicker<CharacterCreationMethod>
@@ -529,7 +548,7 @@ export function CampaignCreatePage() {
             onContinue={handleCharacterMethodContinue}
             onBack={() => {
               setCharacterMethodError(null);
-              setWizardStep('campaignMethod');
+              setWizardStep('rulesMode');
             }}
             continueLabel="Continue"
             continueLoadingLabel="Continuing…"
@@ -646,6 +665,12 @@ function WizardProgress({ currentStep }: { readonly currentStep: WizardStep }) {
       key: 'campaign' as const,
       label: 'Campaign setup',
       isActive: ['campaignMethod', 'campaignInterview', 'campaignNaming', 'campaignAttributes', 'campaignProposals'].includes(currentStep),
+      isComplete: ['rulesMode', 'characterMethod', 'characterInterview', 'characterGuided', 'confirmation', 'worldBuilding'].includes(currentStep),
+    },
+    {
+      key: 'rules' as const,
+      label: 'Rules mode',
+      isActive: currentStep === 'rulesMode',
       isComplete: ['characterMethod', 'characterInterview', 'characterGuided', 'confirmation', 'worldBuilding'].includes(currentStep),
     },
     {

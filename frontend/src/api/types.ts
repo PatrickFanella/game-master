@@ -4,6 +4,26 @@ export interface CampaignCreateRequest {
   genre: string;
   tone: string;
   themes: string[];
+  rules_mode?: string;
+}
+
+export interface FeatResponse {
+  id: string;
+  feat_id: string;
+  name: string;
+  description: string;
+  bonus_type: string;
+  bonus_value: number;
+  prerequisites?: string;
+}
+
+export interface SkillResponse {
+  id: string;
+  skill_id: string;
+  name: string;
+  description: string;
+  base_ability: string;
+  points: number;
 }
 
 export interface CampaignResponse {
@@ -14,6 +34,7 @@ export interface CampaignResponse {
   tone: string;
   themes: string[];
   status: string;
+  rules_mode: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -135,6 +156,7 @@ export interface StateChange {
 export interface TurnResult {
   narrative: string;
   state_changes: StateChange[];
+  combat_active: boolean;
 }
 
 export type TurnResponse = TurnResult;

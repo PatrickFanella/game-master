@@ -48,7 +48,11 @@ func registerAllTools(registry *tools.Registry, queries statedb.Querier, embedde
 	errs = appendErr(errs, tools.RegisterUpdateQuest(registry, worldSvc))
 	errs = appendErr(errs, tools.RegisterCreateNPC(registry, npcSvc, worldSvc, embedder))
 	errs = appendErr(errs, tools.RegisterGenerateName(registry, worldSvc))
-	errs = appendErr(errs, tools.RegisterSkillCheck(registry, statResolver, nil))
+	if len(timeDB) > 0 && timeDB[0] != nil {
+		errs = appendErr(errs, tools.RegisterSkillCheck(registry, statResolver, nil, timeDB[0]))
+	} else {
+		errs = appendErr(errs, tools.RegisterSkillCheck(registry, statResolver, nil))
+	}
 	errs = appendErr(errs, tools.RegisterCombatRound(registry, nil))
 	errs = appendErr(errs, tools.RegisterApplyDamage(registry))
 	errs = appendErr(errs, tools.RegisterApplyCondition(registry))
@@ -74,6 +78,9 @@ func registerAllTools(registry *tools.Registry, queries statedb.Querier, embedde
 	if len(timeDB) > 0 && timeDB[0] != nil {
 		errs = appendErr(errs, tools.RegisterAdvanceTime(registry, timeDB[0]))
 		errs = appendErr(errs, tools.RegisterRest(registry, timeDB[0]))
+		// Register crunch-mode tools (visibility controlled by PhaseToolFilter).
+		errs = appendErr(errs, tools.RegisterGrantFeat(registry, timeDB[0]))
+		errs = appendErr(errs, tools.RegisterAllocateSkill(registry, timeDB[0]))
 	}
 	return errors.Join(errs...)
 }

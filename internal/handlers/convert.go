@@ -15,6 +15,10 @@ func campaignToResponse(c statedb.Campaign) api.CampaignResponse {
 	if themes == nil {
 		themes = []string{}
 	}
+	rulesMode := c.RulesMode.String
+	if rulesMode == "" {
+		rulesMode = "narrative"
+	}
 	return api.CampaignResponse{
 		ID:          dbutil.FromPgtype(c.ID).String(),
 		Name:        c.Name,
@@ -23,6 +27,7 @@ func campaignToResponse(c statedb.Campaign) api.CampaignResponse {
 		Tone:        c.Tone.String,
 		Themes:      themes,
 		Status:      c.Status,
+		RulesMode:   rulesMode,
 		CreatedBy:   dbutil.FromPgtype(c.CreatedBy).String(),
 		CreatedAt:   c.CreatedAt.Time,
 		UpdatedAt:   c.UpdatedAt.Time,
@@ -181,6 +186,7 @@ func engineTurnResultToAPI(tr *engine.TurnResult) api.TurnResponse {
 	return api.TurnResponse{
 		Narrative:    tr.Narrative,
 		StateChanges: engineStateChangesToAPI(tr.StateChanges),
+		CombatActive: tr.CombatActive,
 	}
 }
 

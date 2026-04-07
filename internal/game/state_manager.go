@@ -219,6 +219,9 @@ func (sm *pgStateManager) GatherState(ctx context.Context, campaignID uuid.UUID)
 		}
 	}
 
+	// Derive combat flag from player status.
+	state.CombatActive = state.Player.Status == "in_combat"
+
 	// Campaign time — read via raw SQL since campaign_time is not in sqlc yet.
 	if sm.db != nil {
 		ct, err := loadCampaignTime(ctx, sm.db, pgCampaignID)

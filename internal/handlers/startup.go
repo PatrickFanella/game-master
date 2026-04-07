@@ -11,6 +11,7 @@ import (
 
 	"github.com/PatrickFanella/game-master/internal/auth"
 	"github.com/PatrickFanella/game-master/internal/llm"
+	"github.com/PatrickFanella/game-master/internal/rules"
 	"github.com/PatrickFanella/game-master/internal/world"
 	"github.com/PatrickFanella/game-master/pkg/api"
 )
@@ -311,12 +312,34 @@ func (h *Handlers) BuildWorld(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	campaignUUID := result.Campaign.ID
+
 	// Initialize campaign time to Day 1, 08:00.
 	if h.Pool != nil {
 		_, _ = h.Pool.Exec(r.Context(),
 			"INSERT INTO campaign_time (campaign_id, day, hour, minute) VALUES ($1, 1, 8, 0) ON CONFLICT (campaign_id) DO NOTHING",
-			result.Campaign.ID,
+			campaignUUID,
 		)
+	}
+
+	// Apply rules_mode if provided in the request.
+	rulesMode := strings.TrimSpace(req.RulesMode)
+	if rulesMode != "" && h.Pool != nil {
+		_, _ = h.Pool.Exec(r.Context(),
+			"UPDATE campaigns SET rules_mode = $1 WHERE id = $2",
+			rulesMode, campaignUUID,
+		)
+
+		// Seed default feats and skills for crunch mode.
+		if rulesMode == "crunch" {
+			cID := campaignUUID.Bytes
+			if err := rules.SeedDefaultFeats(r.Context(), h.Pool, cID); err != nil {
+				h.Logger.Errorf("seed default feats for %s: %v", cID, err)
+			}
+			if err := rules.SeedDefaultSkills(r.Context(), h.Pool, cID); err != nil {
+				h.Logger.Errorf("seed default skills for %s: %v", cID, err)
+			}
+		}
 	}
 
 	writeJSON(w, http.StatusOK, api.WorldBuildResponse{

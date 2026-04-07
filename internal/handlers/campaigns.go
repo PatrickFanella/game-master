@@ -75,6 +75,16 @@ func (h *Handlers) CreateCampaign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set rules_mode if provided (not in sqlc-generated INSERT params, use raw SQL).
+	rulesMode := req.RulesMode
+	if rulesMode != "" && h.Pool != nil {
+		_, _ = h.Pool.Exec(r.Context(),
+			"UPDATE campaigns SET rules_mode = $1 WHERE id = $2",
+			rulesMode, campaign.ID,
+		)
+		campaign.RulesMode = pgtype.Text{String: rulesMode, Valid: true}
+	}
+
 	writeJSON(w, http.StatusCreated, campaignToResponse(campaign))
 }
 

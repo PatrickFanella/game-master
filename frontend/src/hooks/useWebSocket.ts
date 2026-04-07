@@ -51,6 +51,7 @@ export interface UseWebSocketResult {
   error: string | null;
   events: ParsedWebSocketEvent[];
   currentStatus: WebSocketStatusPayload | null;
+  combatActive: boolean;
   sendAction: (input: string) => boolean;
 }
 
@@ -71,6 +72,7 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
   const [events, setEvents] = useState<ParsedWebSocketEvent[]>([]);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<WebSocketStatusPayload | null>(null);
+  const [combatActive, setCombatActive] = useState(false);
   const [reconnectNonce, setReconnectNonce] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -173,6 +175,11 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
 
       if (decodedEvent.kind === 'status') {
         setCurrentStatus(decodedEvent.payload);
+        if (decodedEvent.payload.stage === 'combat_start') {
+          setCombatActive(true);
+        } else if (decodedEvent.payload.stage === 'combat_end') {
+          setCombatActive(false);
+        }
         return;
       }
 
@@ -185,6 +192,9 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
         setError(null);
         setCurrentStatus(null);
         setIsAwaitingResponse(false);
+        if ('combat_active' in decodedEvent.payload) {
+          setCombatActive(Boolean(decodedEvent.payload.combat_active));
+        }
         return;
       }
 
@@ -269,9 +279,10 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
       error,
       events,
       currentStatus,
+      combatActive,
       sendAction,
     }),
-    [connectionStatus, currentStatus, error, events, isConnected, isLoading, sendAction],
+    [combatActive, connectionStatus, currentStatus, error, events, isConnected, isLoading, sendAction],
   );
 }
 
@@ -389,6 +400,7 @@ function normalizeTurnResponse(value: unknown): TurnResponseWithChoices | null {
   return {
     narrative: value.narrative,
     state_changes: stateChanges,
+    combat_active: typeof value.combat_active === 'boolean' ? value.combat_active : false,
     choices: normalizeChoices(value.choices),
   };
 }

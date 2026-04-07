@@ -257,6 +257,8 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers, p
 					r.Get("/character", h.GetCharacter)
 					r.Get("/character/inventory", h.GetCharacterInventory)
 					r.Get("/character/abilities", h.GetCharacterAbilities)
+					r.Get("/character/feats", h.GetCharacterFeats)
+					r.Get("/character/skills", h.GetCharacterSkills)
 
 					r.Get("/locations", h.ListLocations)
 					r.Get("/locations/{lid}", h.GetLocation)

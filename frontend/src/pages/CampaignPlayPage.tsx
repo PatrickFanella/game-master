@@ -6,6 +6,7 @@ import { createManualSave, getCampaign, startOverCampaign } from '../api/campaig
 import { listCampaignQuests } from '../api/quests';
 import type { CampaignResponse, OpeningSceneResponse } from '../api/types';
 import { CharacterSheet } from '../components/character/CharacterSheet';
+import { CombatView } from '../components/combat/CombatView';
 import { ExportDialog } from '../components/export/ExportDialog';
 import { ConfirmationDialog } from '../components/layout/ConfirmationDialog';
 import { InventoryPanel } from '../components/inventory/InventoryPanel';
@@ -76,7 +77,7 @@ const playTabs = [
 type CampaignPlayTab = (typeof playTabs)[number]['key'];
 type SharedNarrativeState = Pick<
   UseNarrativeResult,
-  'connectionStatus' | 'entries' | 'streamingEntry' | 'suggestedChoices' | 'currentStatus' | 'isLoading' | 'error' | 'sendAction'
+  'connectionStatus' | 'entries' | 'streamingEntry' | 'suggestedChoices' | 'currentStatus' | 'combatActive' | 'isLoading' | 'error' | 'sendAction'
 >;
 
 interface SeededNarrativeState {
@@ -318,7 +319,7 @@ function NarrativeTab({
   readonly seededNarrative: SeededNarrativeState;
 }) {
   const { campaign } = useCampaign();
-  const { connectionStatus, streamingEntry, currentStatus, isLoading, error, sendAction } = narrative;
+  const { connectionStatus, streamingEntry, currentStatus, combatActive, isLoading, error, sendAction } = narrative;
   const suggestedChoices = useMemo(() => {
     if (narrative.suggestedChoices.length > 0) {
       return narrative.suggestedChoices;
@@ -330,6 +331,35 @@ function NarrativeTab({
 
     return seededNarrative.suggestedChoices;
   }, [narrative.entries.length, narrative.suggestedChoices, seededNarrative.suggestedChoices]);
+
+  // Issue #410: Only show combat UI in light/crunch rules modes.
+  const rulesMode = campaign?.rules_mode ?? 'narrative';
+  const showCombatUI = combatActive && rulesMode !== 'narrative';
+
+  if (showCombatUI) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-2 border-ruby/30 bg-charcoal px-5 py-4">
+          <div>
+            <h2 className="font-heading text-lg font-semibold uppercase tracking-wide text-ruby">Combat</h2>
+            <p className="mt-1 text-sm text-pewter">{campaign?.name ?? 'Campaign'} · active combat encounter</p>
+          </div>
+          <ConnectionBadge status={connectionStatus} isLoading={isLoading} />
+        </div>
+
+        <CombatView
+          entries={seededNarrative.entries}
+          streamingEntry={streamingEntry ?? null}
+          onAction={sendAction}
+          isLoading={isLoading}
+        />
+
+        <ThinkingIndicator status={currentStatus} />
+
+        {error ? <ErrorPanel message={error} /> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">

@@ -93,6 +93,8 @@ type TurnResult struct {
 	// StateChanges describes modifications made to the game state as a
 	// result of this turn.
 	StateChanges []StateChange
+	// CombatActive indicates whether combat is active after this turn.
+	CombatActive bool
 }
 
 // AppliedToolCall records a single tool invocation that occurred while

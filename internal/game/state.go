@@ -28,6 +28,7 @@ type GameState struct {
 	WorldFacts                 []domain.WorldFact
 	Time                       *CampaignTime
 	RulesMode                  string
+	CombatActive               bool
 }
 
 // CreateCampaignParams holds parameters for creating a new campaign.

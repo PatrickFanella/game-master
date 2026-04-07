@@ -159,10 +159,23 @@ func (e *Engine) ProcessTurn(ctx context.Context, campaignID uuid.UUID, playerIn
 	}
 
 	narrative, choices := extractChoices(narrative)
+
+	// Derive combat state: start with pre-turn state, then adjust based on tools used.
+	combatActive := state.CombatActive
+	for _, atc := range applied {
+		switch atc.Tool {
+		case "initiate_combat":
+			combatActive = true
+		case "resolve_combat":
+			combatActive = false
+		}
+	}
+
 	result := &TurnResult{
 		Narrative:        narrative,
 		AppliedToolCalls: applied,
 		Choices:          choices,
+		CombatActive:     combatActive,
 	}
 
 	toolCallsJSON, err := marshalAppliedToolCalls(applied)
@@ -267,6 +280,16 @@ func (e *Engine) ProcessTurnStream(ctx context.Context, campaignID uuid.UUID, pl
 		if err != nil {
 			ch <- StreamEvent{Type: "error", Err: err}
 			return
+		}
+
+		// Emit combat lifecycle status events based on applied tool calls.
+		for _, atc := range result.AppliedToolCalls {
+			switch atc.Tool {
+			case "initiate_combat":
+				ch <- StreamEvent{Type: "status", Status: &api.StatusPayload{Stage: "combat_start", Description: "Combat has begun!"}}
+			case "resolve_combat":
+				ch <- StreamEvent{Type: "status", Status: &api.StatusPayload{Stage: "combat_end", Description: "Combat has ended."}}
+			}
 		}
 
 		ch <- StreamEvent{Type: "status", Status: &api.StatusPayload{Stage: "finalizing", Description: "Finalizing turn..."}}

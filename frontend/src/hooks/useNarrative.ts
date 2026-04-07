@@ -27,6 +27,7 @@ export interface UseNarrativeResult {
   latestResult: TurnResponseWithChoices | null;
   suggestedChoices: NarrativeChoice[];
   currentStatus: WebSocketStatusPayload | null;
+  combatActive: boolean;
   isLoading: boolean;
   error: string | null;
   sendAction: (input: string) => boolean;
@@ -34,7 +35,7 @@ export interface UseNarrativeResult {
 
 export function useNarrative(): UseNarrativeResult {
   const { campaignId } = useCampaign();
-  const { connectionStatus, error: socketError, events, isLoading, currentStatus, sendAction: sendSocketAction } = useWebSocket(campaignId);
+  const { connectionStatus, error: socketError, events, isLoading, currentStatus, combatActive, sendAction: sendSocketAction } = useWebSocket(campaignId);
   const [entries, setEntries] = useState<NarrativeEntry[]>([]);
   const [streamingChunks, setStreamingChunks] = useState<string[]>([]);
   const [pendingTimestamp, setPendingTimestamp] = useState<string | null>(null);
@@ -215,6 +216,7 @@ export function useNarrative(): UseNarrativeResult {
     latestResult,
     suggestedChoices,
     currentStatus,
+    combatActive,
     isLoading,
     error,
     sendAction,
