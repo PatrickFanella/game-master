@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/PatrickFanella/game-master/internal/game"
 	"github.com/PatrickFanella/game-master/internal/llm"
+	"github.com/PatrickFanella/game-master/internal/tools"
 )
 
 // GamePhase represents the current phase of gameplay, used to select which
@@ -34,72 +35,15 @@ type ToolFilter interface {
 }
 
 // PhaseToolFilter implements ToolFilter by selecting tools based on game phase,
-// quest state, and progression proximity.
-type PhaseToolFilter struct{}
-
-// baseTools are always available regardless of game phase.
-var baseTools = map[string]struct{}{
-	"skill_check":     {},
-	"roll_dice":       {},
-	"move_player":     {},
-	"describe_scene":  {},
-	"present_choices": {},
-	"npc_dialogue":    {},
-	"establish_fact":  {},
-	"revise_fact":     {},
-	"update_npc":      {},
-	"add_item":        {},
-	"remove_item":     {},
-	"modify_item":     {},
-	"create_item":     {},
-	"generate_name":   {},
-	"search_memory":   {},
+// quest state, and progression proximity. It reads tool categories from the
+// Registry's metadata rather than hardcoded maps.
+type PhaseToolFilter struct {
+	registry *tools.Registry
 }
 
-// combatTools are added when combat is active.
-var combatTools = map[string]struct{}{
-	"initiate_combat":      {},
-	"combat_round":         {},
-	"apply_damage":         {},
-	"apply_condition":      {},
-	"resolve_combat":       {},
-	"add_ability":          {},
-	"remove_ability":       {},
-	"update_player_status": {},
-}
-
-// explorationTools are added during non-combat phases.
-var explorationTools = map[string]struct{}{
-	"create_npc":             {},
-	"create_location":        {},
-	"create_city":            {},
-	"create_faction":         {},
-	"create_language":        {},
-	"create_culture":         {},
-	"create_belief_system":   {},
-	"create_economic_system": {},
-	"create_lore":            {},
-	"establish_relationship": {},
-	"reveal_location":        {},
-	"initiate_combat":        {},
-}
-
-// questTools are added when quests are relevant.
-var questTools = map[string]struct{}{
-	"create_quest":       {},
-	"create_subquest":    {},
-	"update_quest":       {},
-	"complete_objective": {},
-	"branch_quest":       {},
-	"link_quest_entity":  {},
-}
-
-// progressionTools are added near level thresholds.
-var progressionTools = map[string]struct{}{
-	"add_experience":       {},
-	"level_up":             {},
-	"update_player_stats":  {},
-	"update_player_status": {},
+// NewPhaseToolFilter creates a PhaseToolFilter backed by the given registry.
+func NewPhaseToolFilter(registry *tools.Registry) *PhaseToolFilter {
+	return &PhaseToolFilter{registry: registry}
 }
 
 // DetectPhase examines game state and returns the current game phase.
@@ -113,7 +57,7 @@ func DetectPhase(state *game.GameState) GamePhase {
 	return PhaseExploration
 }
 
-// xpThresholds maps level → total XP required.
+// xpThresholds maps level -> total XP required.
 var xpThresholds = []int{0, 100, 300, 600, 1000, 1500, 2100, 2800, 3600, 4500, 5500}
 
 // nearLevelThreshold returns true if the player has earned at least 50% of
@@ -130,8 +74,8 @@ func nearLevelThreshold(state *game.GameState) bool {
 	return xp >= nextThreshold/2
 }
 
-// narrativeExclude lists tools removed in narrative mode.
-var narrativeExclude = map[string]struct{}{
+// narrativeExcludeTools lists tool names removed in narrative mode.
+var narrativeExcludeTools = map[string]struct{}{
 	"initiate_combat": {},
 	"combat_round":    {},
 	"apply_damage":    {},
@@ -141,8 +85,8 @@ var narrativeExclude = map[string]struct{}{
 	"level_up":        {},
 }
 
-// crunchExtra lists additional tools available in crunch mode.
-var crunchExtra = map[string]struct{}{
+// crunchOnlyTools lists tool names only available in crunch mode.
+var crunchOnlyTools = map[string]struct{}{
 	"grant_feat":     {},
 	"allocate_skill": {},
 }
@@ -156,35 +100,46 @@ func (f *PhaseToolFilter) Filter(state *game.GameState, allTools []llm.Tool) []l
 	phase := DetectPhase(state)
 	allowed := make(map[string]struct{}, 30)
 
-	// Always include base tools.
-	for name := range baseTools {
-		allowed[name] = struct{}{}
+	// Build allowed set from registry metadata.
+	for _, tool := range allTools {
+		meta, hasMeta := f.registry.GetMeta(tool.Name)
+		if !hasMeta {
+			// Tools without metadata are always allowed (backward compat).
+			allowed[tool.Name] = struct{}{}
+			continue
+		}
+		switch meta.Category {
+		case tools.CategoryBase:
+			// Always include base tools.
+			allowed[tool.Name] = struct{}{}
+		case tools.CategoryCombat:
+			if phase == PhaseCombat {
+				allowed[tool.Name] = struct{}{}
+			}
+		case tools.CategoryExploration:
+			if phase == PhaseExploration {
+				allowed[tool.Name] = struct{}{}
+			}
+		case tools.CategoryQuest:
+			if len(state.ActiveQuests) > 0 || len(state.NearbyNPCs) > 0 {
+				allowed[tool.Name] = struct{}{}
+			}
+		case tools.CategoryProgression:
+			// add_experience is always available; full set near level-up.
+			if tool.Name == "add_experience" || nearLevelThreshold(state) {
+				allowed[tool.Name] = struct{}{}
+			}
+		}
 	}
 
-	switch phase {
-	case PhaseCombat:
-		for name := range combatTools {
-			allowed[name] = struct{}{}
-		}
-	default:
-		for name := range explorationTools {
-			allowed[name] = struct{}{}
-		}
+	// Handle tools with dual category membership: initiate_combat is in both
+	// combat and exploration categories, and update_player_status is in both
+	// combat and progression categories in the original design.
+	if phase == PhaseCombat {
+		allowed["initiate_combat"] = struct{}{}
 	}
-
-	// Quest tools when quests exist or NPCs are nearby (quest triggers).
-	if len(state.ActiveQuests) > 0 || len(state.NearbyNPCs) > 0 {
-		for name := range questTools {
-			allowed[name] = struct{}{}
-		}
-	}
-
-	// Progression: always allow add_experience; full set near level-up.
-	allowed["add_experience"] = struct{}{}
 	if nearLevelThreshold(state) {
-		for name := range progressionTools {
-			allowed[name] = struct{}{}
-		}
+		allowed["update_player_status"] = struct{}{}
 	}
 
 	// Apply rules_mode filtering.
@@ -195,13 +150,13 @@ func (f *PhaseToolFilter) Filter(state *game.GameState, allTools []llm.Tool) []l
 
 	switch rulesMode {
 	case "narrative":
-		// Remove combat and progression tools in narrative mode.
-		for name := range narrativeExclude {
+		// Remove narrative-excluded tools.
+		for name := range narrativeExcludeTools {
 			delete(allowed, name)
 		}
 	case "crunch":
-		// Add feat/skill tools in crunch mode.
-		for name := range crunchExtra {
+		// Add crunch-only tools.
+		for name := range crunchOnlyTools {
 			allowed[name] = struct{}{}
 		}
 	}

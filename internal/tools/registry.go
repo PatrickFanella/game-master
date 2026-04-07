@@ -26,11 +26,15 @@ type Handler func(ctx context.Context, args map[string]any) (*ToolResult, error)
 type Registry struct {
 	tools    []llm.Tool
 	handlers map[string]Handler
+	metas    map[string]ToolMeta
 }
 
 // NewRegistry creates an empty tool registry.
 func NewRegistry() *Registry {
-	return &Registry{handlers: make(map[string]Handler)}
+	return &Registry{
+		handlers: make(map[string]Handler),
+		metas:    make(map[string]ToolMeta),
+	}
 }
 
 // Register adds a tool definition and its handler.
@@ -51,6 +55,53 @@ func (r *Registry) Register(tool llm.Tool, handler Handler) error {
 	r.tools = append(r.tools, tool)
 	r.handlers[tool.Name] = handler
 	return nil
+}
+
+// RegisterWithMeta adds a tool definition, its handler, and associated metadata.
+func (r *Registry) RegisterWithMeta(meta ToolMeta, handler Handler) error {
+	if err := r.Register(meta.Definition, handler); err != nil {
+		return err
+	}
+	r.metas[meta.Definition.Name] = meta
+	return nil
+}
+
+// SetMeta associates metadata with an already-registered tool. This is useful
+// when a tool is registered via a legacy RegisterX helper and metadata must be
+// attached afterward. Returns an error if the tool name is not registered.
+func (r *Registry) SetMeta(meta ToolMeta) error {
+	if r == nil {
+		return errors.New("tool registry is nil")
+	}
+	if _, ok := r.handlers[meta.Name]; !ok {
+		return fmt.Errorf("cannot set meta for unregistered tool %q", meta.Name)
+	}
+	r.metas[meta.Name] = meta
+	return nil
+}
+
+// GetMeta returns the metadata for a tool by name.
+func (r *Registry) GetMeta(name string) (ToolMeta, bool) {
+	if r == nil {
+		return ToolMeta{}, false
+	}
+	m, ok := r.metas[name]
+	return m, ok
+}
+
+// ListMeta returns metadata for all registered tools that have metadata.
+func (r *Registry) ListMeta() []ToolMeta {
+	if r == nil || len(r.metas) == 0 {
+		return nil
+	}
+	out := make([]ToolMeta, 0, len(r.metas))
+	// Return in registration order by iterating over the tools slice.
+	for _, t := range r.tools {
+		if m, ok := r.metas[t.Name]; ok {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // List returns registered tool definitions in registration order,

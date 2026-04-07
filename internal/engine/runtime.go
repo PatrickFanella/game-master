@@ -91,14 +91,14 @@ func New(db statedb.DBTX, provider llm.Provider, llmCfg config.LLMConfig, opts .
 	if e.logger == nil {
 		e.logger = slog.Default()
 	}
-	if e.toolFilter == nil {
-		e.toolFilter = &PhaseToolFilter{}
-	}
-
 	registry := tools.NewRegistry()
 	// Pass db as TimeStore for the advance_time tool (DBTX satisfies TimeStore).
 	if err := registerAllTools(registry, queries, e.embedder, e.searcher, db); err != nil {
 		return nil, fmt.Errorf("register tools: %w", err)
+	}
+
+	if e.toolFilter == nil {
+		e.toolFilter = NewPhaseToolFilter(registry)
 	}
 
 	e.assembler = assembly.NewContextAssembler(registry, assembly.WithTokenBudget(llmCfg.ContextTokenBudget()))

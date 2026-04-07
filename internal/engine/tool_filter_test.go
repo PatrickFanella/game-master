@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/uuid"
@@ -8,7 +9,75 @@ import (
 	"github.com/PatrickFanella/game-master/internal/domain"
 	"github.com/PatrickFanella/game-master/internal/game"
 	"github.com/PatrickFanella/game-master/internal/llm"
+	"github.com/PatrickFanella/game-master/internal/tools"
 )
+
+// testRegistry returns a *tools.Registry with metadata set for every tool
+// used in the test suite. The handlers are no-ops since tests only exercise
+// the filtering logic.
+func testRegistry() *tools.Registry {
+	noop := func(_ context.Context, _ map[string]any) (*tools.ToolResult, error) {
+		return &tools.ToolResult{Success: true}, nil
+	}
+
+	metas := []tools.ToolMeta{
+		// base
+		{Name: "skill_check", Category: tools.CategoryBase},
+		{Name: "roll_dice", Category: tools.CategoryBase},
+		{Name: "move_player", Category: tools.CategoryBase},
+		{Name: "describe_scene", Category: tools.CategoryBase},
+		{Name: "present_choices", Category: tools.CategoryBase},
+		{Name: "npc_dialogue", Category: tools.CategoryBase},
+		{Name: "establish_fact", Category: tools.CategoryBase},
+		{Name: "revise_fact", Category: tools.CategoryBase},
+		{Name: "update_npc", Category: tools.CategoryBase},
+		{Name: "add_item", Category: tools.CategoryBase},
+		{Name: "remove_item", Category: tools.CategoryBase},
+		{Name: "modify_item", Category: tools.CategoryBase},
+		{Name: "create_item", Category: tools.CategoryBase},
+		{Name: "generate_name", Category: tools.CategoryBase},
+		{Name: "search_memory", Category: tools.CategoryBase},
+		// combat (initiate_combat is exploration; dual-membership handled by filter)
+		{Name: "initiate_combat", Category: tools.CategoryExploration},
+		{Name: "combat_round", Category: tools.CategoryCombat},
+		{Name: "apply_damage", Category: tools.CategoryCombat},
+		{Name: "apply_condition", Category: tools.CategoryCombat},
+		{Name: "resolve_combat", Category: tools.CategoryCombat},
+		{Name: "add_ability", Category: tools.CategoryCombat},
+		{Name: "remove_ability", Category: tools.CategoryCombat},
+		{Name: "update_player_status", Category: tools.CategoryCombat},
+		// exploration
+		{Name: "create_npc", Category: tools.CategoryExploration},
+		{Name: "create_location", Category: tools.CategoryExploration},
+		{Name: "create_city", Category: tools.CategoryExploration},
+		{Name: "create_faction", Category: tools.CategoryExploration},
+		{Name: "create_language", Category: tools.CategoryExploration},
+		{Name: "create_culture", Category: tools.CategoryExploration},
+		{Name: "create_belief_system", Category: tools.CategoryExploration},
+		{Name: "create_economic_system", Category: tools.CategoryExploration},
+		{Name: "create_lore", Category: tools.CategoryExploration},
+		{Name: "establish_relationship", Category: tools.CategoryExploration},
+		{Name: "reveal_location", Category: tools.CategoryExploration},
+		// quest
+		{Name: "create_quest", Category: tools.CategoryQuest},
+		{Name: "create_subquest", Category: tools.CategoryQuest},
+		{Name: "update_quest", Category: tools.CategoryQuest},
+		{Name: "complete_objective", Category: tools.CategoryQuest},
+		{Name: "branch_quest", Category: tools.CategoryQuest},
+		{Name: "link_quest_entity", Category: tools.CategoryQuest},
+		// progression
+		{Name: "add_experience", Category: tools.CategoryProgression},
+		{Name: "level_up", Category: tools.CategoryProgression},
+		{Name: "update_player_stats", Category: tools.CategoryProgression},
+	}
+
+	reg := tools.NewRegistry()
+	for _, m := range metas {
+		m.Definition = llm.Tool{Name: m.Name}
+		_ = reg.RegisterWithMeta(m, noop)
+	}
+	return reg
+}
 
 // allTestTools returns a superset of tool names to simulate the full registry.
 func allTestTools() []llm.Tool {
@@ -109,7 +178,7 @@ func TestDetectPhase_Combat(t *testing.T) {
 // --- FilterTools: nil state returns all ---
 
 func TestFilter_NilState_ReturnsAll(t *testing.T) {
-	f := &PhaseToolFilter{}
+	f := NewPhaseToolFilter(testRegistry())
 	all := allTestTools()
 	got := f.Filter(nil, all)
 	if len(got) != len(all) {
@@ -120,7 +189,7 @@ func TestFilter_NilState_ReturnsAll(t *testing.T) {
 // --- FilterTools: base tools always present ---
 
 func TestFilter_BaseToolsAlwaysPresent(t *testing.T) {
-	f := &PhaseToolFilter{}
+	f := NewPhaseToolFilter(testRegistry())
 	state := &game.GameState{Player: domain.PlayerCharacter{Status: "active"}}
 	got := f.Filter(state, allTestTools())
 
@@ -134,16 +203,22 @@ func TestFilter_BaseToolsAlwaysPresent(t *testing.T) {
 // --- FilterTools: combat phase ---
 
 func TestFilter_CombatPhase_HasCombatTools(t *testing.T) {
-	f := &PhaseToolFilter{}
-	state := &game.GameState{Player: domain.PlayerCharacter{Status: "in_combat"}}
+	f := NewPhaseToolFilter(testRegistry())
+	state := &game.GameState{
+		Player:    domain.PlayerCharacter{Status: "in_combat"},
+		RulesMode: "light",
+	}
 	got := f.Filter(state, allTestTools())
 
 	hasAll(t, got, "combat_round", "apply_damage", "apply_condition", "resolve_combat")
 }
 
 func TestFilter_CombatPhase_NoExplorationTools(t *testing.T) {
-	f := &PhaseToolFilter{}
-	state := &game.GameState{Player: domain.PlayerCharacter{Status: "in_combat"}}
+	f := NewPhaseToolFilter(testRegistry())
+	state := &game.GameState{
+		Player:    domain.PlayerCharacter{Status: "in_combat"},
+		RulesMode: "light",
+	}
 	got := f.Filter(state, allTestTools())
 
 	hasNone(t, got, "create_npc", "create_location", "create_faction", "create_language")
@@ -152,8 +227,11 @@ func TestFilter_CombatPhase_NoExplorationTools(t *testing.T) {
 // --- FilterTools: exploration phase ---
 
 func TestFilter_Exploration_HasWorldBuildingTools(t *testing.T) {
-	f := &PhaseToolFilter{}
-	state := &game.GameState{Player: domain.PlayerCharacter{Status: "active"}}
+	f := NewPhaseToolFilter(testRegistry())
+	state := &game.GameState{
+		Player:    domain.PlayerCharacter{Status: "active"},
+		RulesMode: "light",
+	}
 	got := f.Filter(state, allTestTools())
 
 	hasAll(t, got, "create_npc", "create_location", "create_faction",
@@ -161,7 +239,7 @@ func TestFilter_Exploration_HasWorldBuildingTools(t *testing.T) {
 }
 
 func TestFilter_Exploration_NoCombatRoundTools(t *testing.T) {
-	f := &PhaseToolFilter{}
+	f := NewPhaseToolFilter(testRegistry())
 	state := &game.GameState{Player: domain.PlayerCharacter{Status: "active"}}
 	got := f.Filter(state, allTestTools())
 
@@ -171,7 +249,7 @@ func TestFilter_Exploration_NoCombatRoundTools(t *testing.T) {
 // --- FilterTools: quest tools ---
 
 func TestFilter_QuestToolsWhenActiveQuests(t *testing.T) {
-	f := &PhaseToolFilter{}
+	f := NewPhaseToolFilter(testRegistry())
 	state := &game.GameState{
 		Player:       domain.PlayerCharacter{Status: "active"},
 		ActiveQuests: []domain.Quest{{ID: uuid.New(), Title: "Find the sword"}},
@@ -182,7 +260,7 @@ func TestFilter_QuestToolsWhenActiveQuests(t *testing.T) {
 }
 
 func TestFilter_QuestToolsWhenNPCsPresent(t *testing.T) {
-	f := &PhaseToolFilter{}
+	f := NewPhaseToolFilter(testRegistry())
 	state := &game.GameState{
 		Player:     domain.PlayerCharacter{Status: "active"},
 		NearbyNPCs: []domain.NPC{{ID: uuid.New(), Name: "Bartender"}},
@@ -193,7 +271,7 @@ func TestFilter_QuestToolsWhenNPCsPresent(t *testing.T) {
 }
 
 func TestFilter_NoQuestToolsWhenNoQuestsOrNPCs(t *testing.T) {
-	f := &PhaseToolFilter{}
+	f := NewPhaseToolFilter(testRegistry())
 	state := &game.GameState{Player: domain.PlayerCharacter{Status: "active"}}
 	got := f.Filter(state, allTestTools())
 
@@ -203,9 +281,10 @@ func TestFilter_NoQuestToolsWhenNoQuestsOrNPCs(t *testing.T) {
 // --- FilterTools: progression tools ---
 
 func TestFilter_AddExperienceAlwaysPresent(t *testing.T) {
-	f := &PhaseToolFilter{}
+	f := NewPhaseToolFilter(testRegistry())
 	state := &game.GameState{
-		Player: domain.PlayerCharacter{Status: "active", Level: 1, Experience: 0},
+		Player:    domain.PlayerCharacter{Status: "active", Level: 1, Experience: 0},
+		RulesMode: "light",
 	}
 	got := f.Filter(state, allTestTools())
 
@@ -213,10 +292,11 @@ func TestFilter_AddExperienceAlwaysPresent(t *testing.T) {
 }
 
 func TestFilter_ProgressionToolsNearLevelUp(t *testing.T) {
-	f := &PhaseToolFilter{}
+	f := NewPhaseToolFilter(testRegistry())
 	// Level 1 threshold is 100, 50% = 50 XP
 	state := &game.GameState{
-		Player: domain.PlayerCharacter{Status: "active", Level: 1, Experience: 60},
+		Player:    domain.PlayerCharacter{Status: "active", Level: 1, Experience: 60},
+		RulesMode: "light",
 	}
 	got := f.Filter(state, allTestTools())
 
@@ -224,7 +304,7 @@ func TestFilter_ProgressionToolsNearLevelUp(t *testing.T) {
 }
 
 func TestFilter_NoProgressionToolsFarFromLevelUp(t *testing.T) {
-	f := &PhaseToolFilter{}
+	f := NewPhaseToolFilter(testRegistry())
 	// Level 1 needs 100 XP, player has 10 (well below 50%)
 	state := &game.GameState{
 		Player: domain.PlayerCharacter{Status: "active", Level: 1, Experience: 10},
@@ -237,7 +317,7 @@ func TestFilter_NoProgressionToolsFarFromLevelUp(t *testing.T) {
 // --- FilterTools: tool count reduction ---
 
 func TestFilter_ReducesToolCount(t *testing.T) {
-	f := &PhaseToolFilter{}
+	f := NewPhaseToolFilter(testRegistry())
 	all := allTestTools()
 	state := &game.GameState{Player: domain.PlayerCharacter{Status: "active"}}
 	got := f.Filter(state, all)
