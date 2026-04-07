@@ -244,3 +244,84 @@ export interface BuildWorldResponse {
   campaign: CampaignResponse;
   opening_scene: OpeningSceneResponse;
 }
+
+// NPC Panel types
+export interface EncounteredNPCResponse {
+  id: string;
+  campaign_id: string;
+  name: string;
+  description: string;
+  disposition?: number;
+  alive: boolean;
+  faction_id?: string;
+}
+
+export interface DialogueEntry {
+  turn_number: number;
+  player_input: string;
+  llm_response: string;
+  created_at: string;
+}
+
+// Facts/Lore types
+export interface FactResponse {
+  id: string;
+  campaign_id: string;
+  fact: string;
+  category: string;
+  source: string;
+  superseded_by?: string;
+  player_known: boolean;
+  created_at: string;
+}
+
+// Codex types
+export interface LanguageResponse {
+  id: string;
+  campaign_id: string;
+  name: string;
+  description: string;
+  player_known: boolean;
+  created_at: string;
+}
+
+export interface CultureResponse {
+  id: string;
+  campaign_id: string;
+  name: string;
+  language_id?: string;
+  belief_system_id?: string;
+  player_known: boolean;
+  created_at: string;
+}
+
+export interface BeliefSystemResponse {
+  id: string;
+  campaign_id: string;
+  name: string;
+  player_known: boolean;
+  created_at: string;
+}
+
+export interface EconomicSystemResponse {
+  id: string;
+  campaign_id: string;
+  name: string;
+  player_known: boolean;
+  created_at: string;
+}
+
+// Relationships types
+export interface RelationshipResponse {
+  id: string;
+  campaign_id: string;
+  source_entity_type: string;
+  source_entity_id: string;
+  target_entity_type: string;
+  target_entity_id: string;
+  relationship_type: string;
+  description: string;
+  strength?: number;
+  player_aware: boolean;
+  created_at: string;
+}

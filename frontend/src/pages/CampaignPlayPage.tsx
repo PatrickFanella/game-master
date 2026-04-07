@@ -13,7 +13,9 @@ import { ChoiceList } from '../components/narrative/ChoiceList';
 import { NarrativePanel } from '../components/narrative/NarrativePanel';
 import type { NarrativeEntryItem } from '../components/narrative/NarrativeEntry';
 import { PlayerInput } from '../components/narrative/PlayerInput';
+import { NPCPanel } from '../components/npcs/NPCPanel';
 import { QuestPanel } from '../components/quests/QuestPanel';
+import { WorldPanel } from '../components/world/WorldPanel';
 import { CampaignContext, useCampaignState } from '../context/CampaignContext';
 import { useCampaign } from '../hooks/useCampaign';
 import { useNarrative, type UseNarrativeResult } from '../hooks/useNarrative';
@@ -34,6 +36,18 @@ const playTabs = [
     label: 'Quests',
     activeTone: 'bg-sapphire text-obsidian',
     hoverTone: 'border border-sapphire/20 bg-charcoal text-champagne/70 hover:border-sapphire hover:text-sapphire hover:bg-sapphire/5',
+  },
+  {
+    key: 'npcs',
+    label: 'NPCs',
+    activeTone: 'bg-gold text-obsidian',
+    hoverTone: 'border border-gold/20 bg-charcoal text-champagne/70 hover:border-gold hover:text-gold hover:bg-gold/5',
+  },
+  {
+    key: 'world',
+    label: 'World',
+    activeTone: 'bg-jade text-obsidian',
+    hoverTone: 'border border-jade/20 bg-charcoal text-champagne/70 hover:border-jade hover:text-jade hover:bg-jade/5',
   },
   {
     key: 'logs',
@@ -197,6 +211,10 @@ function PlayTabContent({
       return <InventoryPanel />;
     case 'quests':
       return <QuestPanel campaignId={campaignId} />;
+    case 'npcs':
+      return <NPCPanel campaignId={campaignId} />;
+    case 'world':
+      return <WorldPanel campaignId={campaignId} />;
     case 'logs':
       return (
         <LogPanel

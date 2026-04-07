@@ -13,6 +13,12 @@ const ENTITY_TYPE_TO_CACHE_SEGMENT: Record<string, string> = {
   quest: 'quests',
   location: 'locations',
   npc: 'npcs',
+  world_fact: 'facts',
+  language: 'codex-languages',
+  culture: 'codex-cultures',
+  belief_system: 'codex-beliefs',
+  economic_system: 'codex-economies',
+  entity_relationship: 'relationships',
 };
 
 /**
