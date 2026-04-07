@@ -29,6 +29,16 @@ SET
 WHERE id = $1
 RETURNING id, name, created_at, updated_at;
 
+-- name: CreateUserWithAuth :one
+INSERT INTO users (name, email, password_hash)
+VALUES ($1, $2, $3)
+RETURNING id, name, email, password_hash, created_at, updated_at;
+
+-- name: GetUserByEmail :one
+SELECT id, name, email, password_hash, created_at, updated_at
+FROM users
+WHERE email = $1;
+
 -- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = $1;

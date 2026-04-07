@@ -88,8 +88,12 @@ func run(args []string) int {
 		engine.WithLogger(slog.Default().WithGroup("engine")),
 	}
 	if cfg.LLM.Provider == "ollama" {
+		embedEndpoint := cfg.LLM.Ollama.EmbeddingEndpoint
+		if embedEndpoint == "" {
+			embedEndpoint = cfg.LLM.Ollama.Endpoint
+		}
 		embedder := memory.NewOllamaEmbedder(
-			cfg.LLM.Ollama.Endpoint, cfg.LLM.Ollama.EmbeddingModel,
+			embedEndpoint, cfg.LLM.Ollama.EmbeddingModel,
 			memory.WithOllamaEmbedderTimeout(cfg.LLM.Ollama.RequestTimeout()),
 		)
 		searcher := memory.NewSearcher(embedder, queries)
@@ -106,7 +110,7 @@ func run(args []string) int {
 		logger.Errorf("create engine: %v", err)
 		return 1
 	}
-	router := newRouterWithProvider(logger, gameEngine, queries, provider, defaultUserID)
+	router := newRouterWithProvider(logger, gameEngine, queries, provider, pool, defaultUserID, cfg)
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	server := &http.Server{
@@ -162,13 +166,13 @@ func parseConfigPath(args []string, defaultPath string) (string, error) {
 	return configPath, nil
 }
 
-func newRouterWithProvider(logger *log.Logger, gameEngine engine.GameEngine, queries statedb.Querier, provider llm.Provider, defaultUserID uuid.UUID) http.Handler {
+func newRouterWithProvider(logger *log.Logger, gameEngine engine.GameEngine, queries statedb.Querier, provider llm.Provider, pool *pgxpool.Pool, defaultUserID uuid.UUID, cfg config.Config) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(loggingMiddleware(logger))
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:*", "http://127.0.0.1:*"},
+		AllowedOrigins:   []string{"http://localhost:*", "http://127.0.0.1:*", "https://gm.subcult.tv", "http://gm.subcult.tv"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"X-Request-Id"},
@@ -182,12 +186,18 @@ func newRouterWithProvider(logger *log.Logger, gameEngine engine.GameEngine, que
 	})
 
 	h := handlers.New(gameEngine, queries, logger, provider)
-	registerAPIRoutes(logger, r, h, defaultUserID)
+	registerAPIRoutes(logger, r, h, pool, defaultUserID, cfg)
 	return r
 }
 
-func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers, defaultUserID uuid.UUID) {
-	authMW := auth.NewNoOpMiddleware(defaultUserID)
+func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers, pool *pgxpool.Pool, defaultUserID uuid.UUID, cfg config.Config) {
+	// Choose auth middleware: JWT if a secret is configured, NoOp otherwise (TUI).
+	var authMW auth.AuthMiddleware
+	if cfg.Server.JWTSecret != "" {
+		authMW = auth.NewJWTMiddleware(cfg.Server.JWTSecret)
+	} else {
+		authMW = auth.NewNoOpMiddleware(defaultUserID)
+	}
 
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -198,9 +208,26 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers, d
 		})
 
 		r.Route("/v1", func(r chi.Router) {
-			r.Use(authMW.Authenticate)
+			// Public auth routes (no token required).
+			if cfg.Server.JWTSecret != "" {
+				r.Route("/auth", func(r chi.Router) {
+					authH := auth.NewAuthHandlers(auth.NewDBAuthQuerier(pool), cfg.Server.JWTSecret)
+					r.Post("/register", authH.Register)
+					r.Post("/login", authH.Login)
+				})
+			}
 
-			r.Route("/campaigns", func(r chi.Router) {
+			// All remaining routes require authentication.
+			r.Group(func(r chi.Router) {
+				r.Use(authMW.Authenticate)
+
+				// Authenticated auth routes.
+				if cfg.Server.JWTSecret != "" {
+					authH := auth.NewAuthHandlers(auth.NewDBAuthQuerier(pool), cfg.Server.JWTSecret)
+					r.Get("/auth/me", authH.Me)
+				}
+
+				r.Route("/campaigns", func(r chi.Router) {
 				r.Get("/", h.ListCampaigns)
 				r.Post("/", h.CreateCampaign)
 				r.Route("/start", func(r chi.Router) {
@@ -248,6 +275,7 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers, d
 					r.Post("/action", h.ProcessAction)
 					r.Get("/ws", h.HandleWebSocket)
 				})
+			})
 			})
 		})
 	})

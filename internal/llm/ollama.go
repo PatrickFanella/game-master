@@ -35,7 +35,7 @@ type OllamaClient struct {
 	client  *http.Client
 }
 
-const defaultOllamaNumCtx = 131072
+const defaultOllamaNumCtx = 16384
 
 func boolPtr(b bool) *bool { return &b }
 

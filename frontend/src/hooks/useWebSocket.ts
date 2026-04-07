@@ -54,7 +54,9 @@ type OutboundActionEnvelope = {
 
 const SOCKET_UNAVAILABLE_MESSAGE = 'Live connection unavailable.';
 const MALFORMED_MESSAGE_ERROR = 'Received a malformed live update from the server.';
-const RECONNECT_DELAY_MS = 750;
+const RECONNECT_BASE_DELAY_MS = 1000;
+const RECONNECT_MAX_DELAY_MS = 30000;
+const RECONNECT_MAX_ATTEMPTS = 10;
 
 export function useWebSocket(campaignId: string | null | undefined): UseWebSocketResult {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
@@ -64,6 +66,7 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
   const [reconnectNonce, setReconnectNonce] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptsRef = useRef(0);
 
   useEffect(() => {
     const activeCampaignId = campaignId?.trim() ?? '';
@@ -102,13 +105,24 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
         return;
       }
 
+      reconnectAttemptsRef.current += 1;
+      if (reconnectAttemptsRef.current > RECONNECT_MAX_ATTEMPTS) {
+        setError('Connection lost. Refresh the page to reconnect.');
+        return;
+      }
+
+      const delay = Math.min(
+        RECONNECT_BASE_DELAY_MS * Math.pow(2, reconnectAttemptsRef.current - 1),
+        RECONNECT_MAX_DELAY_MS,
+      );
+
       reconnectTimerRef.current = setTimeout(() => {
         if (!allowReconnect) {
           return;
         }
 
         setReconnectNonce((current) => current + 1);
-      }, RECONNECT_DELAY_MS);
+      }, delay);
     };
 
     const handleOpen = () => {
@@ -123,6 +137,7 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
 
       setConnectionStatus('open');
       setError(null);
+      reconnectAttemptsRef.current = 0;
     };
 
     const handleClose = () => {

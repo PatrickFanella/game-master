@@ -22,6 +22,7 @@ type DBConfig struct {
 // OllamaConfig holds Ollama-specific LLM settings.
 type OllamaConfig struct {
 	Endpoint           string `koanf:"endpoint"`
+	EmbeddingEndpoint  string `koanf:"embeddingendpoint"`
 	Model              string `koanf:"model"`
 	EmbeddingModel     string `koanf:"embeddingmodel"`
 	ContextTokenBudget int    `koanf:"contexttokenbudget"`
@@ -63,7 +64,8 @@ func (c LLMConfig) ContextTokenBudget() int {
 
 // ServerConfig holds HTTP server settings.
 type ServerConfig struct {
-	Port int `koanf:"port"`
+	Port      int    `koanf:"port"`
+	JWTSecret string `koanf:"jwtsecret"`
 }
 
 // Config is the top-level configuration, composed of per-concern slices.
@@ -93,13 +95,15 @@ func Load(path string) (Config, error) {
 		"db.url":                        "postgres://game_master:game_master@localhost:5432/game_master?sslmode=disable",
 		"llm.provider":                  "ollama",
 		"llm.ollama.endpoint":           "http://localhost:11434",
-		"llm.ollama.model":              "llama3.2",
+		"llm.ollama.model":              "qwen3:14b",
+		"llm.ollama.embeddingendpoint": "",
 		"llm.ollama.embeddingmodel":     "nomic-embed-text",
 		"llm.ollama.contexttokenbudget": 8000,
 		"llm.ollama.timeoutseconds":     180,
 		"llm.claude.model":              "claude-sonnet-4-6",
 		"llm.claude.contexttokenbudget": 8000,
 		"server.port":                   8080,
+		"server.jwtsecret":              "",
 	}
 
 	if err := k.Load(confmap.Provider(defaults, "."), nil); err != nil {

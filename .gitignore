@@ -17,6 +17,6 @@ dist/
 
 .pi-lens/
 .logs/
-logs
+/logs
 frontend/node_modules/
 frontend/dist/

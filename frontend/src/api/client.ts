@@ -1,5 +1,4 @@
 const DEFAULT_API_BASE = '/api/v1';
-const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 const API_BASE = normalizeBase(import.meta.env.VITE_API_BASE ?? DEFAULT_API_BASE);
 
@@ -54,7 +53,11 @@ export async function apiFetch<TResponse>(path: string, init: APIRequestInit = {
   }
 
   requestHeaders.set('Accept', 'application/json');
-  requestHeaders.set('X-User-ID', DEFAULT_USER_ID);
+
+  const token = localStorage.getItem('gm_token');
+  if (token) {
+    requestHeaders.set('Authorization', `Bearer ${token}`);
+  }
 
   const response = await fetch(resolvePath(path), {
     credentials: 'include',
