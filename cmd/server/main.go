@@ -289,12 +289,14 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers, p
 					r.Post("/start-over", savesH.StartOver)
 					r.Get("/time", savesH.GetTime)
 
-					journalH := journal.NewHandlers(journal.NewStore(pool))
+					journalStore := journal.NewStore(pool)
+					journalH := journal.NewHandlersWithSummarizer(journalStore, journal.NewSummarizer(h.Provider, journalStore))
 					r.Route("/journal", func(r chi.Router) {
 						r.Get("/summaries", journalH.ListSummaries)
 						r.Get("/entries", journalH.ListEntries)
 						r.Post("/entries", journalH.CreateEntry)
 						r.Delete("/entries/{eid}", journalH.DeleteEntry)
+						r.Post("/summarize", journalH.Summarize)
 					})
 				})
 			})

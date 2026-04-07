@@ -165,6 +165,13 @@ type TurnResult struct {
 // TurnResponse is an alias for TurnResult maintained for naming clarity.
 type TurnResponse = TurnResult
 
+// StatusPayload describes a processing stage event sent over the WebSocket.
+type StatusPayload struct {
+	Stage       string `json:"stage"`
+	Tool        string `json:"tool,omitempty"`
+	Description string `json:"description"`
+}
+
 // WebSocketMessageEnvelope describes a real-time API message wrapper.
 type WebSocketMessageEnvelope struct {
 	Type      string          `json:"type"`

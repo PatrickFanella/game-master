@@ -10,12 +10,18 @@ import (
 
 // Handlers provides HTTP handlers for session summaries and journal entries.
 type Handlers struct {
-	store *Store
+	store      *Store
+	summarizer *Summarizer
 }
 
 // NewHandlers creates Handlers backed by the given store.
 func NewHandlers(store *Store) *Handlers {
 	return &Handlers{store: store}
+}
+
+// NewHandlersWithSummarizer creates Handlers with an optional summarizer for manual summarize endpoints.
+func NewHandlersWithSummarizer(store *Store, summarizer *Summarizer) *Handlers {
+	return &Handlers{store: store, summarizer: summarizer}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -160,4 +166,48 @@ func (h *Handlers) DeleteEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type summarizeRequest struct {
+	FromTurn *int `json:"from_turn"`
+	ToTurn   *int `json:"to_turn"`
+}
+
+// Summarize handles POST /api/v1/campaigns/{id}/journal/summarize.
+func (h *Handlers) Summarize(w http.ResponseWriter, r *http.Request) {
+	if h.summarizer == nil {
+		writeError(w, http.StatusServiceUnavailable, "summarization is not available")
+		return
+	}
+
+	campaignID, err := campaignIDFromURL(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid campaign id")
+		return
+	}
+
+	var req summarizeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Allow empty body — defaults to summarizing all unsummarized turns.
+		req = summarizeRequest{}
+	}
+
+	var summary *Summary
+	if req.FromTurn != nil && req.ToTurn != nil {
+		summary, err = h.summarizer.Summarize(r.Context(), campaignID, *req.FromTurn, *req.ToTurn)
+	} else {
+		summary, err = h.summarizer.SummarizeUnsummarized(r.Context(), campaignID)
+	}
+
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to generate summary")
+		return
+	}
+
+	if summary == nil {
+		writeJSON(w, http.StatusOK, map[string]string{"message": "no unsummarized turns found"})
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, summaryToJSON(*summary))
 }

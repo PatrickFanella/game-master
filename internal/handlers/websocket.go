@@ -108,6 +108,13 @@ func (h *Handlers) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 					break
 				}
 				envelope.Payload = resultPayload
+			case "status":
+				envelope.Type = "status"
+				if event.Status != nil {
+					envelope.Payload, _ = json.Marshal(event.Status)
+				} else {
+					continue
+				}
 			case "error":
 				envelope.Type = "error"
 				errMsg := "an internal error occurred"

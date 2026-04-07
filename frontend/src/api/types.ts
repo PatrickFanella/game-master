@@ -153,6 +153,32 @@ export interface WebSocketErrorPayload {
   error: string;
 }
 
+export interface WebSocketStatusPayload {
+  stage: string;
+  tool?: string;
+  description: string;
+}
+
+// Journal types
+
+export interface SessionSummaryResponse {
+  id: string;
+  campaign_id: string;
+  from_turn: number;
+  to_turn: number;
+  summary: string;
+  created_at: string;
+}
+
+export interface JournalEntryResponse {
+  id: string;
+  campaign_id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export interface CampaignProfile {
   genre: string;

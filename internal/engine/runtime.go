@@ -16,23 +16,26 @@ import (
 	"github.com/PatrickFanella/game-master/internal/domain"
 	"github.com/PatrickFanella/game-master/internal/game"
 	"github.com/PatrickFanella/game-master/internal/llm"
+	"github.com/PatrickFanella/game-master/internal/journal"
 	"github.com/PatrickFanella/game-master/internal/saves"
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 	"github.com/PatrickFanella/game-master/internal/tools"
+	"github.com/PatrickFanella/game-master/pkg/api"
 )
 
 // Engine is the concrete GameEngine implementation used by the TUI.
 type Engine struct {
-	logger     *slog.Logger
-	state      game.StateManager
-	queries    statedb.Querier
-	assembler  *assembly.ContextAssembler
-	processor  *TurnProcessor
-	tier3      *assembly.Tier3Retriever
-	toolFilter ToolFilter
-	embedder   tools.Embedder
-	searcher   tools.SearchMemorySearcher
-	saveStore  *saves.Store
+	logger      *slog.Logger
+	state       game.StateManager
+	queries     statedb.Querier
+	assembler   *assembly.ContextAssembler
+	processor   *TurnProcessor
+	tier3       *assembly.Tier3Retriever
+	toolFilter  ToolFilter
+	embedder    tools.Embedder
+	searcher    tools.SearchMemorySearcher
+	saveStore   *saves.Store
+	summarizer  *journal.Summarizer
 }
 
 const recentTurnLimit = 10
@@ -62,6 +65,11 @@ func WithSearcher(s tools.SearchMemorySearcher) Option {
 // WithSaveStore attaches a saves.Store for auto-save after each turn.
 func WithSaveStore(s *saves.Store) Option {
 	return func(e *Engine) { e.saveStore = s }
+}
+
+// WithSummarizer attaches a journal summarizer for auto-summarization after turns.
+func WithSummarizer(s *journal.Summarizer) Option {
+	return func(e *Engine) { e.summarizer = s }
 }
 
 // WithLogger sets the structured logger for the engine and its subsystems.
@@ -179,6 +187,7 @@ func (e *Engine) ProcessTurn(ctx context.Context, campaignID uuid.UUID, playerIn
 
 	e.snapshotQuestsIfNeeded(ctx, campaignID, applied)
 	e.autoSaveIfNeeded(ctx, campaignID, log.TurnNumber)
+	e.autoSummarizeIfNeeded(ctx, campaignID, log.TurnNumber)
 
 	e.logger.Info("process turn completed", "campaign_id", campaignID, "duration_ms", time.Since(started).Milliseconds(), "narrative_len", len(result.Narrative), "choices", len(result.Choices), "tool_calls", len(result.AppliedToolCalls))
 	return result, nil
@@ -235,7 +244,7 @@ func (e *Engine) LoadCampaign(ctx context.Context, campaignID uuid.UUID) error {
 // In this initial implementation the full narrative is sent as a single
 // chunk followed by the complete TurnResult.
 func (e *Engine) ProcessTurnStream(ctx context.Context, campaignID uuid.UUID, playerInput string) (<-chan StreamEvent, error) {
-	ch := make(chan StreamEvent, 2)
+	ch := make(chan StreamEvent, 16)
 	go func() {
 		defer close(ch)
 		defer func() {
@@ -243,15 +252,54 @@ func (e *Engine) ProcessTurnStream(ctx context.Context, campaignID uuid.UUID, pl
 				ch <- StreamEvent{Type: "error", Err: fmt.Errorf("process turn panic: %v", r)}
 			}
 		}()
+
+		// Emit gathering status.
+		ch <- StreamEvent{Type: "status", Status: &api.StatusPayload{Stage: "gathering", Description: "Gathering world state..."}}
+
+		// Wire the turn processor's status callback to forward events.
+		origCallback := e.processor.StatusCallback
+		e.processor.StatusCallback = func(s api.StatusPayload) {
+			ch <- StreamEvent{Type: "status", Status: &s}
+		}
+		defer func() { e.processor.StatusCallback = origCallback }()
+
 		result, err := e.ProcessTurn(ctx, campaignID, playerInput)
 		if err != nil {
 			ch <- StreamEvent{Type: "error", Err: err}
 			return
 		}
+
+		ch <- StreamEvent{Type: "status", Status: &api.StatusPayload{Stage: "finalizing", Description: "Finalizing turn..."}}
 		ch <- StreamEvent{Type: "chunk", Text: result.Narrative}
 		ch <- StreamEvent{Type: "result", Result: result}
 	}()
 	return ch, nil
+}
+
+// autoSummarizeIfNeeded triggers async summarization every 10 turns.
+func (e *Engine) autoSummarizeIfNeeded(ctx context.Context, campaignID uuid.UUID, turnNumber int) {
+	if e.summarizer == nil {
+		return
+	}
+	if turnNumber%10 != 0 {
+		return
+	}
+
+	fromTurn := turnNumber - 9
+	if fromTurn < 1 {
+		fromTurn = 1
+	}
+	toTurn := turnNumber
+
+	go func() {
+		// Use a background context since the request context may be cancelled.
+		bgCtx := context.Background()
+		if _, err := e.summarizer.Summarize(bgCtx, campaignID, fromTurn, toTurn); err != nil {
+			e.logger.Warn("auto-summarize: failed", "campaign_id", campaignID, "from_turn", fromTurn, "to_turn", toTurn, "error", err)
+		} else {
+			e.logger.Info("auto-summarize: completed", "campaign_id", campaignID, "from_turn", fromTurn, "to_turn", toTurn)
+		}
+	}()
 }
 
 func nextTurnNumber(logs []domain.SessionLog) int {

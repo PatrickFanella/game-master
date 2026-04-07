@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { getSessionHistory } from '../api/campaigns';
 import type { StateChange } from '../api/types';
+import type { WebSocketStatusPayload } from '../api/types';
 import { useCampaign } from './useCampaign';
 import { useWebSocket, type ConnectionStatus, type NarrativeChoice, type TurnResponseWithChoices } from './useWebSocket';
 
@@ -25,6 +26,7 @@ export interface UseNarrativeResult {
   streamingEntry: NarrativeEntry | null;
   latestResult: TurnResponseWithChoices | null;
   suggestedChoices: NarrativeChoice[];
+  currentStatus: WebSocketStatusPayload | null;
   isLoading: boolean;
   error: string | null;
   sendAction: (input: string) => boolean;
@@ -32,7 +34,7 @@ export interface UseNarrativeResult {
 
 export function useNarrative(): UseNarrativeResult {
   const { campaignId } = useCampaign();
-  const { connectionStatus, error: socketError, events, isLoading, sendAction: sendSocketAction } = useWebSocket(campaignId);
+  const { connectionStatus, error: socketError, events, isLoading, currentStatus, sendAction: sendSocketAction } = useWebSocket(campaignId);
   const [entries, setEntries] = useState<NarrativeEntry[]>([]);
   const [streamingChunks, setStreamingChunks] = useState<string[]>([]);
   const [pendingTimestamp, setPendingTimestamp] = useState<string | null>(null);
@@ -134,6 +136,10 @@ export function useNarrative(): UseNarrativeResult {
         continue;
       }
 
+      if (event.kind === 'status') {
+        continue;
+      }
+
       setStreamingChunks([]);
       setPendingTimestamp(null);
       setSuggestedChoices([]);
@@ -208,6 +214,7 @@ export function useNarrative(): UseNarrativeResult {
     streamingEntry,
     latestResult,
     suggestedChoices,
+    currentStatus,
     isLoading,
     error,
     sendAction,

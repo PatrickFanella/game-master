@@ -9,6 +9,7 @@ import (
 
 	"github.com/PatrickFanella/game-master/internal/llm"
 	"github.com/PatrickFanella/game-master/internal/tools"
+	"github.com/PatrickFanella/game-master/pkg/api"
 )
 
 // TurnProcessor handles the tool-call portion of the turn pipeline with
@@ -16,11 +17,18 @@ import (
 // it sends the error back to the LLM and retries once. If the retry also
 // fails the tool call is skipped; narrative text and all successful tool
 // calls from the same response are still returned.
+// StatusCallback is an optional function called when the turn processor
+// transitions between processing stages. It is safe to set to nil.
+type StatusCallback func(api.StatusPayload)
+
+// TurnProcessor handles the tool-call portion of the turn pipeline with
+// built-in error recovery and optional status callbacks.
 type TurnProcessor struct {
-	logger    *slog.Logger
-	provider  llm.Provider
-	registry  *tools.Registry
-	validator *tools.Validator
+	logger         *slog.Logger
+	provider       llm.Provider
+	registry       *tools.Registry
+	validator      *tools.Validator
+	StatusCallback StatusCallback
 }
 
 // NewTurnProcessor creates a TurnProcessor backed by the given LLM provider,
@@ -68,6 +76,7 @@ func (tp *TurnProcessor) ProcessWithRecovery(
 ) (narrative string, applied []AppliedToolCall, err error) {
 	started := time.Now()
 	tp.logger.Debug("turn processor started", "messages", len(messages), "tools", len(availableTools))
+	tp.emitStatus(api.StatusPayload{Stage: "thinking", Description: "Generating response..."})
 	resp, err := tp.provider.Complete(ctx, messages, availableTools)
 	if err != nil {
 		tp.logger.Error("turn processor initial llm call failed", "duration_ms", time.Since(started).Milliseconds(), "error", err)
@@ -86,8 +95,10 @@ func (tp *TurnProcessor) ProcessWithRecovery(
 		allowed[t.Name] = struct{}{}
 	}
 
+	tp.emitStatus(api.StatusPayload{Stage: "tools", Description: "Executing tool calls..."})
 	assistantContent := resp.Content
 	for _, tc := range resp.ToolCalls {
+		tp.emitStatus(api.StatusPayload{Stage: "tool_execution", Tool: tc.Name, Description: fmt.Sprintf("Executing %s...", tc.Name)})
 		tp.logger.Debug("attempting tool call", "tool", tc.Name, "tool_call_id", tc.ID)
 		result, execErr := tp.attemptToolCall(ctx, tc, allowed)
 		if execErr == nil {
@@ -267,6 +278,13 @@ func (tp *TurnProcessor) requestContinuation(
 	}
 	tp.logger.Debug("continuation call completed", "narrative_len", len(resp.Content), "tool_calls", len(resp.ToolCalls))
 	return resp.Content, nil
+}
+
+// emitStatus calls the status callback if set.
+func (tp *TurnProcessor) emitStatus(s api.StatusPayload) {
+	if tp.StatusCallback != nil {
+		tp.StatusCallback(s)
+	}
 }
 
 // buildAppliedToolCall converts a raw tool call and its result into the

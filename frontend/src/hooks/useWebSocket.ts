@@ -8,6 +8,7 @@ import type {
   WebSocketChunkPayload,
   WebSocketErrorPayload,
   WebSocketMessageEnvelope,
+  WebSocketStatusPayload,
 } from '../api/types';
 
 export interface NarrativeChoice {
@@ -36,6 +37,11 @@ export type ParsedWebSocketEvent =
       kind: 'error';
       envelope: WebSocketMessageEnvelope<WebSocketErrorPayload>;
       payload: WebSocketErrorPayload;
+    }
+  | {
+      kind: 'status';
+      envelope: WebSocketMessageEnvelope<WebSocketStatusPayload>;
+      payload: WebSocketStatusPayload;
     };
 
 export interface UseWebSocketResult {
@@ -44,6 +50,7 @@ export interface UseWebSocketResult {
   isLoading: boolean;
   error: string | null;
   events: ParsedWebSocketEvent[];
+  currentStatus: WebSocketStatusPayload | null;
   sendAction: (input: string) => boolean;
 }
 
@@ -63,6 +70,7 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<ParsedWebSocketEvent[]>([]);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<WebSocketStatusPayload | null>(null);
   const [reconnectNonce, setReconnectNonce] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -80,6 +88,7 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
       setEvents([]);
       setError(null);
       setIsAwaitingResponse(false);
+      setCurrentStatus(null);
       setConnectionStatus('idle');
       socketRef.current = null;
       return undefined;
@@ -162,6 +171,11 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
 
       setEvents((current) => [...current, decodedEvent]);
 
+      if (decodedEvent.kind === 'status') {
+        setCurrentStatus(decodedEvent.payload);
+        return;
+      }
+
       if (decodedEvent.kind === 'chunk') {
         setError(null);
         return;
@@ -169,11 +183,13 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
 
       if (decodedEvent.kind === 'result') {
         setError(null);
+        setCurrentStatus(null);
         setIsAwaitingResponse(false);
         return;
       }
 
       setError(decodedEvent.payload.error);
+      setCurrentStatus(null);
       setIsAwaitingResponse(false);
     };
 
@@ -252,9 +268,10 @@ export function useWebSocket(campaignId: string | null | undefined): UseWebSocke
       isLoading,
       error,
       events,
+      currentStatus,
       sendAction,
     }),
-    [connectionStatus, error, events, isConnected, isLoading, sendAction],
+    [connectionStatus, currentStatus, error, events, isConnected, isLoading, sendAction],
   );
 }
 
@@ -312,6 +329,19 @@ function decodeWebSocketEvent(raw: string): ParsedWebSocketEvent | null {
         payload: resultPayload,
       };
     }
+    case 'status':
+      if (!isStatusPayload(parsed.payload)) {
+        return null;
+      }
+
+      return {
+        kind: 'status',
+        envelope: {
+          ...parsed,
+          payload: parsed.payload,
+        },
+        payload: parsed.payload,
+      };
     case 'error':
       if (!isErrorPayload(parsed.payload)) {
         return null;
@@ -340,6 +370,10 @@ function isChunkPayload(value: unknown): value is WebSocketChunkPayload {
 
 function isErrorPayload(value: unknown): value is WebSocketErrorPayload {
   return isRecord(value) && typeof value.error === 'string';
+}
+
+function isStatusPayload(value: unknown): value is WebSocketStatusPayload {
+  return isRecord(value) && typeof value.stage === 'string' && typeof value.description === 'string';
 }
 
 function normalizeTurnResponse(value: unknown): TurnResponseWithChoices | null {

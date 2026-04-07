@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/PatrickFanella/game-master/internal/domain"
+	"github.com/PatrickFanella/game-master/pkg/api"
 )
 
 // GameEngine is the primary interface consumed by the TUI and API server.
@@ -63,8 +64,8 @@ type GameEngine interface {
 
 // StreamEvent carries either a narrative chunk or the final turn result.
 type StreamEvent struct {
-// Type is "chunk" for narrative fragments, "result" for the final outcome,
-// or "error" when streaming fails (check Err).
+	// Type is "chunk" for narrative fragments, "result" for the final outcome,
+	// "status" for processing stage updates, or "error" when streaming fails.
 	Type string
 	// Text is the narrative fragment (when Type is "chunk").
 	Text string
@@ -72,6 +73,8 @@ type StreamEvent struct {
 	Result *TurnResult
 	// Err is set if an error occurred during streaming.
 	Err error
+	// Status carries processing stage information (when Type is "status").
+	Status *api.StatusPayload
 }
 
 // ---------------------------------------------------------------------------

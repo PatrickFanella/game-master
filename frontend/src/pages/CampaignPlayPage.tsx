@@ -8,6 +8,7 @@ import type { CampaignResponse, OpeningSceneResponse } from '../api/types';
 import { CharacterSheet } from '../components/character/CharacterSheet';
 import { ConfirmationDialog } from '../components/layout/ConfirmationDialog';
 import { InventoryPanel } from '../components/inventory/InventoryPanel';
+import { JournalPanel } from '../components/journal/JournalPanel';
 import { AppShell } from '../components/layout/AppShell';
 import { TabBar } from '../components/layout/TabBar';
 import { LogPanel } from '../components/logs/LogPanel';
@@ -16,6 +17,7 @@ import { NarrativePanel } from '../components/narrative/NarrativePanel';
 import type { NarrativeEntryItem } from '../components/narrative/NarrativeEntry';
 import { PlayerInput } from '../components/narrative/PlayerInput';
 import { NPCPanel } from '../components/npcs/NPCPanel';
+import { ThinkingIndicator } from '../components/layout/ThinkingIndicator';
 import { TimeWidget } from '../components/layout/TimeWidget';
 import { TurnNotifications } from '../components/layout/TurnNotifications';
 import { SavesList } from '../components/saves/SavesList';
@@ -57,6 +59,12 @@ const playTabs = [
     hoverTone: 'border border-jade/20 bg-charcoal text-champagne/70 hover:border-jade hover:text-jade hover:bg-jade/5',
   },
   {
+    key: 'journal',
+    label: 'Journal',
+    activeTone: 'bg-gold text-obsidian',
+    hoverTone: 'border border-gold/20 bg-charcoal text-champagne/70 hover:border-gold hover:text-gold hover:bg-gold/5',
+  },
+  {
     key: 'logs',
     label: 'Logs',
     activeTone: 'bg-pewter text-obsidian',
@@ -67,7 +75,7 @@ const playTabs = [
 type CampaignPlayTab = (typeof playTabs)[number]['key'];
 type SharedNarrativeState = Pick<
   UseNarrativeResult,
-  'connectionStatus' | 'entries' | 'streamingEntry' | 'suggestedChoices' | 'isLoading' | 'error' | 'sendAction'
+  'connectionStatus' | 'entries' | 'streamingEntry' | 'suggestedChoices' | 'currentStatus' | 'isLoading' | 'error' | 'sendAction'
 >;
 
 interface SeededNarrativeState {
@@ -281,6 +289,8 @@ function PlayTabContent({
       return <NPCPanel campaignId={campaignId} />;
     case 'world':
       return <WorldPanel campaignId={campaignId} />;
+    case 'journal':
+      return <JournalPanel campaignId={campaignId} />;
     case 'logs':
       return (
         <LogPanel
@@ -305,7 +315,7 @@ function NarrativeTab({
   readonly seededNarrative: SeededNarrativeState;
 }) {
   const { campaign } = useCampaign();
-  const { connectionStatus, streamingEntry, isLoading, error, sendAction } = narrative;
+  const { connectionStatus, streamingEntry, currentStatus, isLoading, error, sendAction } = narrative;
   const suggestedChoices = useMemo(() => {
     if (narrative.suggestedChoices.length > 0) {
       return narrative.suggestedChoices;
@@ -350,6 +360,8 @@ function NarrativeTab({
           }}
           disabled={isLoading}
         />
+
+        <ThinkingIndicator status={currentStatus} />
 
         <PlayerInput onSendAction={sendAction} disabled={connectionStatus === 'connecting'} isLoading={isLoading} autoFocus />
 

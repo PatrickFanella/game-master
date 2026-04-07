@@ -83,6 +83,85 @@ func (s *Store) ListSummaries(ctx context.Context, campaignID uuid.UUID) ([]Summ
 	return results, rows.Err()
 }
 
+const createSummarySQL = `
+INSERT INTO session_summaries (campaign_id, from_turn, to_turn, summary)
+VALUES ($1, $2, $3, $4)
+RETURNING id, campaign_id, from_turn, to_turn, summary, created_at
+`
+
+// CreateSummary inserts a new session summary and returns it.
+func (s *Store) CreateSummary(ctx context.Context, campaignID uuid.UUID, fromTurn, toTurn int, summaryText string) (Summary, error) {
+	pgCID := pgtype.UUID{Bytes: campaignID, Valid: campaignID != uuid.Nil}
+	row := s.db.QueryRow(ctx, createSummarySQL, pgCID, fromTurn, toTurn, summaryText)
+	var sm Summary
+	var pgID, pgCampaignID pgtype.UUID
+	var pgCreatedAt pgtype.Timestamptz
+	err := row.Scan(&pgID, &pgCampaignID, &sm.FromTurn, &sm.ToTurn, &sm.Summary, &pgCreatedAt)
+	if err != nil {
+		return Summary{}, err
+	}
+	sm.ID = uuid.UUID(pgID.Bytes)
+	sm.CampaignID = uuid.UUID(pgCampaignID.Bytes)
+	if pgCreatedAt.Valid {
+		sm.CreatedAt = pgCreatedAt.Time
+	}
+	return sm, nil
+}
+
+const listSessionLogsByRangeSQL = `
+SELECT turn_number, player_input, input_type, llm_response, created_at
+FROM session_logs
+WHERE campaign_id = $1 AND turn_number >= $2 AND turn_number <= $3
+ORDER BY turn_number ASC
+`
+
+// SessionLogRow represents a minimal session log row for summarization.
+type SessionLogRow struct {
+	TurnNumber  int
+	PlayerInput string
+	InputType   string
+	LLMResponse string
+	CreatedAt   time.Time
+}
+
+// ListSessionLogsByRange returns session logs within the given turn range.
+func (s *Store) ListSessionLogsByRange(ctx context.Context, campaignID uuid.UUID, fromTurn, toTurn int) ([]SessionLogRow, error) {
+	pgCID := pgtype.UUID{Bytes: campaignID, Valid: campaignID != uuid.Nil}
+	rows, err := s.db.Query(ctx, listSessionLogsByRangeSQL, pgCID, fromTurn, toTurn)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []SessionLogRow
+	for rows.Next() {
+		var row SessionLogRow
+		var pgCreatedAt pgtype.Timestamptz
+		if err := rows.Scan(&row.TurnNumber, &row.PlayerInput, &row.InputType, &row.LLMResponse, &pgCreatedAt); err != nil {
+			return nil, err
+		}
+		if pgCreatedAt.Valid {
+			row.CreatedAt = pgCreatedAt.Time
+		}
+		results = append(results, row)
+	}
+	return results, rows.Err()
+}
+
+// MaxSummarizedTurn returns the highest to_turn value in session_summaries, or 0 if none exist.
+func (s *Store) MaxSummarizedTurn(ctx context.Context, campaignID uuid.UUID) (int, error) {
+	pgCID := pgtype.UUID{Bytes: campaignID, Valid: campaignID != uuid.Nil}
+	var maxTurn *int
+	err := s.db.QueryRow(ctx, `SELECT MAX(to_turn) FROM session_summaries WHERE campaign_id = $1`, pgCID).Scan(&maxTurn)
+	if err != nil {
+		return 0, err
+	}
+	if maxTurn == nil {
+		return 0, nil
+	}
+	return *maxTurn, nil
+}
+
 const listEntriesSQL = `
 SELECT id, campaign_id, title, content, created_at, updated_at
 FROM player_journal_entries
