@@ -14,39 +14,56 @@ import (
 	statedb "github.com/PatrickFanella/game-master/internal/state/sqlc"
 )
 
-// Handlers holds shared dependencies for all HTTP handlers.
-type Handlers struct {
-	Engine          engine.GameEngine
-	Queries         statedb.Querier
-	Logger          *log.Logger
-	Provider        llm.Provider
-	Pool            db.DBTX
-	startupSessions *startupSessionStore
+// CampaignHandlers handles campaign CRUD and session history.
+type CampaignHandlers struct {
+	Engine  engine.GameEngine
+	Queries statedb.Querier
+	Logger  *log.Logger
+	Pool    db.DBTX
 }
 
-// New creates a Handlers with the given dependencies.
-func New(eng engine.GameEngine, queries statedb.Querier, logger *log.Logger, providers ...llm.Provider) *Handlers {
+// CharacterHandlers handles character data, feats, and skills.
+type CharacterHandlers struct {
+	Queries statedb.Querier
+	Logger  *log.Logger
+	Pool    db.DBTX
+}
+
+// WorldHandlers handles NPCs, locations, quests, facts, codex, relationships, and map.
+type WorldHandlers struct {
+	Queries statedb.Querier
+	Logger  *log.Logger
+}
+
+// ActionHandlers handles turn processing and WebSocket connections.
+type ActionHandlers struct {
+	Engine   engine.GameEngine
+	Queries  statedb.Querier
+	Provider llm.Provider
+	Logger   *log.Logger
+}
+
+// StartupHandlers handles campaign creation wizard (interviews, proposals, world build).
+type StartupHandlers struct {
+	Provider llm.Provider
+	Queries  statedb.Querier
+	Logger   *log.Logger
+	Pool     db.DBTX
+	sessions *startupSessionStore
+}
+
+// NewStartupHandlers creates a StartupHandlers with an initialized session store.
+func NewStartupHandlers(provider llm.Provider, queries statedb.Querier, logger *log.Logger, pool db.DBTX) *StartupHandlers {
 	if logger == nil {
 		logger = log.Default()
 	}
-	var provider llm.Provider
-	if len(providers) > 0 {
-		provider = providers[0]
+	return &StartupHandlers{
+		Provider: provider,
+		Queries:  queries,
+		Logger:   logger,
+		Pool:     pool,
+		sessions: newStartupSessionStore(),
 	}
-	return &Handlers{
-		Engine:          eng,
-		Queries:         queries,
-		Logger:          logger,
-		Provider:        provider,
-		startupSessions: newStartupSessionStore(),
-	}
-}
-
-// NewWithPool creates a Handlers with a database pool for raw SQL operations.
-func NewWithPool(eng engine.GameEngine, queries statedb.Querier, logger *log.Logger, pool db.DBTX, providers ...llm.Provider) *Handlers {
-	h := New(eng, queries, logger, providers...)
-	h.Pool = pool
-	return h
 }
 
 // writeJSON writes a JSON response with the given status code.

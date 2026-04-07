@@ -56,7 +56,7 @@ func (s *wsStubEngine) ProcessTurnStream(_ context.Context, _ uuid.UUID, _ strin
 	return ch, nil
 }
 
-func newWSRouter(h *Handlers) *chi.Mux {
+func newWSRouter(h *ActionHandlers) *chi.Mux {
 	r := chi.NewRouter()
 	authMW := auth.NewNoOpMiddleware(uuid.MustParse("00000000-0000-0000-0000-000000000001"))
 	r.Use(authMW.Authenticate)
@@ -67,12 +67,12 @@ func newWSRouter(h *Handlers) *chi.Mux {
 }
 
 // dialWS starts a test server and dials its WebSocket endpoint.
-func dialWS(t *testing.T, h *Handlers, campaignID string) (*websocket.Conn, *httptest.Server) {
+func dialWS(t *testing.T, h *ActionHandlers, campaignID string) (*websocket.Conn, *httptest.Server) {
 	t.Helper()
 	return dialWSWithOptions(t, h, campaignID, nil)
 }
 
-func dialWSWithOptions(t *testing.T, h *Handlers, campaignID string, opts *websocket.DialOptions) (*websocket.Conn, *httptest.Server) {
+func dialWSWithOptions(t *testing.T, h *ActionHandlers, campaignID string, opts *websocket.DialOptions) (*websocket.Conn, *httptest.Server) {
 	t.Helper()
 	srv := httptest.NewServer(newWSRouter(h))
 	t.Cleanup(srv.Close)
@@ -130,7 +130,7 @@ func TestHandleWebSocket_Success(t *testing.T) {
 			}},
 		},
 	}
-	h := New(eng, nil, log.Default())
+	h := &ActionHandlers{Engine: eng, Logger: log.Default()}
 	campaignID := uuid.New().String()
 	conn, _ := dialWS(t, h, campaignID)
 
@@ -176,7 +176,7 @@ func TestHandleWebSocket_Success(t *testing.T) {
 }
 
 func TestHandleWebSocket_AllowsFrontendDevOrigin(t *testing.T) {
-	h := New(&wsStubEngine{}, nil, log.Default())
+	h := &ActionHandlers{Engine: &wsStubEngine{}, Logger: log.Default()}
 	conn, _ := dialWSWithOptions(t, h, uuid.New().String(), &websocket.DialOptions{
 		HTTPHeader: http.Header{
 			"Origin": []string{"http://127.0.0.1:5173"},
@@ -189,7 +189,7 @@ func TestHandleWebSocket_AllowsFrontendDevOrigin(t *testing.T) {
 }
 
 func TestHandleWebSocket_InvalidCampaignID(t *testing.T) {
-	h := New(&wsStubEngine{}, nil, log.Default())
+	h := &ActionHandlers{Engine: &wsStubEngine{}, Logger: log.Default()}
 	srv := httptest.NewServer(newWSRouter(h))
 	defer srv.Close()
 
@@ -207,7 +207,7 @@ func TestHandleWebSocket_InvalidCampaignID(t *testing.T) {
 
 func TestHandleWebSocket_EmptyInput(t *testing.T) {
 	eng := &wsStubEngine{}
-	h := New(eng, nil, log.Default())
+	h := &ActionHandlers{Engine: eng, Logger: log.Default()}
 	campaignID := uuid.New().String()
 	conn, _ := dialWS(t, h, campaignID)
 
@@ -233,7 +233,7 @@ func TestHandleWebSocket_StreamError(t *testing.T) {
 	eng := &wsStubEngine{
 		streamErr: errors.New("llm unavailable"),
 	}
-	h := New(eng, nil, log.Default())
+	h := &ActionHandlers{Engine: eng, Logger: log.Default()}
 	campaignID := uuid.New().String()
 	conn, _ := dialWS(t, h, campaignID)
 
@@ -257,7 +257,7 @@ func TestHandleWebSocket_StreamError(t *testing.T) {
 
 func TestHandleWebSocket_GracefulClose(t *testing.T) {
 	eng := &wsStubEngine{}
-	h := New(eng, nil, log.Default())
+	h := &ActionHandlers{Engine: eng, Logger: log.Default()}
 	campaignID := uuid.New().String()
 	conn, _ := dialWS(t, h, campaignID)
 
@@ -275,7 +275,7 @@ func TestHandleWebSocket_StreamErrorEvent(t *testing.T) {
 				{Type: "error", Err: nil},
 			},
 		}
-		h := New(eng, nil, log.Default())
+		h := &ActionHandlers{Engine: eng, Logger: log.Default()}
 		campaignID := uuid.New().String()
 		conn, _ := dialWS(t, h, campaignID)
 
@@ -303,7 +303,7 @@ func TestHandleWebSocket_StreamErrorEvent(t *testing.T) {
 				{Type: "error", Err: errors.New("db timeout")},
 			},
 		}
-		h := New(eng, nil, log.Default())
+		h := &ActionHandlers{Engine: eng, Logger: log.Default()}
 		campaignID := uuid.New().String()
 		conn, _ := dialWS(t, h, campaignID)
 

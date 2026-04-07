@@ -32,7 +32,7 @@ var websocketAcceptOptions = &websocket.AcceptOptions{
 }
 
 // HandleWebSocket upgrades to WebSocket and streams game events to the client.
-func (h *Handlers) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+func (h *ActionHandlers) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))

@@ -50,7 +50,7 @@ func (s *stubEngine) ProcessTurnStream(_ context.Context, _ uuid.UUID, _ string)
 	return ch, nil
 }
 
-func newActionRouter(h *Handlers) *chi.Mux {
+func newActionRouter(h *ActionHandlers) *chi.Mux {
 	r := chi.NewRouter()
 	authMW := auth.NewNoOpMiddleware(uuid.MustParse("00000000-0000-0000-0000-000000000001"))
 	r.Use(authMW.Authenticate)
@@ -66,7 +66,7 @@ func TestProcessAction_Success(t *testing.T) {
 			Narrative: "You enter the dark forest.",
 		},
 	}
-	h := New(eng, nil, log.Default())
+	h := &ActionHandlers{Engine: eng, Logger: log.Default()}
 	router := newActionRouter(h)
 
 	campaignID := uuid.New().String()
@@ -90,7 +90,7 @@ func TestProcessAction_Success(t *testing.T) {
 }
 
 func TestProcessAction_EmptyInput(t *testing.T) {
-	h := New(&stubEngine{}, nil, log.Default())
+	h := &ActionHandlers{Engine: &stubEngine{}, Logger: log.Default()}
 	router := newActionRouter(h)
 
 	campaignID := uuid.New().String()
@@ -114,7 +114,7 @@ func TestProcessAction_EmptyInput(t *testing.T) {
 }
 
 func TestProcessAction_InvalidCampaignID(t *testing.T) {
-	h := New(&stubEngine{}, nil, log.Default())
+	h := &ActionHandlers{Engine: &stubEngine{}, Logger: log.Default()}
 	router := newActionRouter(h)
 
 	body, _ := json.Marshal(api.ActionRequest{Input: "look around"})
@@ -130,7 +130,7 @@ func TestProcessAction_InvalidCampaignID(t *testing.T) {
 
 func TestProcessAction_EngineError(t *testing.T) {
 	eng := &stubEngine{turnErr: errors.New("llm timeout")}
-	h := New(eng, nil, log.Default())
+	h := &ActionHandlers{Engine: eng, Logger: log.Default()}
 	router := newActionRouter(h)
 
 	campaignID := uuid.New().String()

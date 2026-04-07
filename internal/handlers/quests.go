@@ -13,7 +13,7 @@ import (
 )
 
 // ListQuests returns quests for a campaign, optionally filtered by type or status.
-func (h *Handlers) ListQuests(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListQuests(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))
@@ -51,7 +51,7 @@ func (h *Handlers) ListQuests(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetQuest returns a single quest with its objectives.
-func (h *Handlers) GetQuest(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) GetQuest(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))

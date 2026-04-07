@@ -169,29 +169,33 @@ func testRouter(t *testing.T, eng engine.GameEngine) (http.Handler, *statedb.Que
 	queries := statedb.New(testPool)
 	logger := clog.New(os.Stderr)
 	logger.SetLevel(clog.ErrorLevel)
-	h := handlers.New(eng, queries, logger)
+
+	campaignH := &handlers.CampaignHandlers{Engine: eng, Queries: queries, Logger: logger}
+	charH := &handlers.CharacterHandlers{Queries: queries, Logger: logger}
+	worldH := &handlers.WorldHandlers{Queries: queries, Logger: logger}
+	actionH := &handlers.ActionHandlers{Engine: eng, Queries: queries, Logger: logger}
 
 	r := chi.NewRouter()
 	authMW := auth.NewNoOpMiddleware(testUserID)
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(authMW.Authenticate)
 		r.Route("/campaigns", func(r chi.Router) {
-			r.Get("/", h.ListCampaigns)
-			r.Post("/", h.CreateCampaign)
+			r.Get("/", campaignH.ListCampaigns)
+			r.Post("/", campaignH.CreateCampaign)
 			r.Route("/{id}", func(r chi.Router) {
-				r.Get("/", h.GetCampaign)
-				r.Put("/", h.UpdateCampaign)
-				r.Delete("/", h.DeleteCampaign)
-				r.Get("/character", h.GetCharacter)
-				r.Get("/character/inventory", h.GetCharacterInventory)
-				r.Get("/character/abilities", h.GetCharacterAbilities)
-				r.Get("/locations", h.ListLocations)
-				r.Get("/locations/{lid}", h.GetLocation)
-				r.Get("/npcs", h.ListNPCs)
-				r.Get("/npcs/{nid}", h.GetNPC)
-				r.Get("/quests", h.ListQuests)
-				r.Get("/quests/{qid}", h.GetQuest)
-				r.Post("/action", h.ProcessAction)
+				r.Get("/", campaignH.GetCampaign)
+				r.Put("/", campaignH.UpdateCampaign)
+				r.Delete("/", campaignH.DeleteCampaign)
+				r.Get("/character", charH.GetCharacter)
+				r.Get("/character/inventory", charH.GetCharacterInventory)
+				r.Get("/character/abilities", charH.GetCharacterAbilities)
+				r.Get("/locations", worldH.ListLocations)
+				r.Get("/locations/{lid}", worldH.GetLocation)
+				r.Get("/npcs", worldH.ListNPCs)
+				r.Get("/npcs/{nid}", worldH.GetNPC)
+				r.Get("/quests", worldH.ListQuests)
+				r.Get("/quests/{qid}", worldH.GetQuest)
+				r.Post("/action", actionH.ProcessAction)
 			})
 		})
 	})

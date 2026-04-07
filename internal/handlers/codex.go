@@ -8,7 +8,7 @@ import (
 )
 
 // ListKnownLanguages returns player-known languages.
-func (h *Handlers) ListKnownLanguages(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListKnownLanguages(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -27,7 +27,7 @@ func (h *Handlers) ListKnownLanguages(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListKnownCultures returns player-known cultures.
-func (h *Handlers) ListKnownCultures(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListKnownCultures(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -46,7 +46,7 @@ func (h *Handlers) ListKnownCultures(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListKnownBeliefSystems returns player-known belief systems.
-func (h *Handlers) ListKnownBeliefSystems(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListKnownBeliefSystems(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -65,7 +65,7 @@ func (h *Handlers) ListKnownBeliefSystems(w http.ResponseWriter, r *http.Request
 }
 
 // ListKnownEconomicSystems returns player-known economic systems.
-func (h *Handlers) ListKnownEconomicSystems(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListKnownEconomicSystems(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())

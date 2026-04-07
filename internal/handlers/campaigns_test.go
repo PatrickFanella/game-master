@@ -65,8 +65,8 @@ func (s *stubQuerier) GetCampaignByID(_ context.Context, id pgtype.UUID) (stated
 }
 
 // newTestRouter builds a chi router with auth middleware and campaign routes
-// wired to the given Handlers.
-func newTestRouter(h *Handlers) *chi.Mux {
+// wired to the given CampaignHandlers.
+func newTestRouter(h *CampaignHandlers) *chi.Mux {
 	r := chi.NewRouter()
 	authMW := auth.NewNoOpMiddleware(uuid.MustParse("00000000-0000-0000-0000-000000000001"))
 	r.Use(authMW.Authenticate)
@@ -92,7 +92,7 @@ func TestListCampaigns_Success(t *testing.T) {
 			},
 		},
 	}
-	h := New(nil, q, log.Default())
+	h := &CampaignHandlers{Queries: q, Logger: log.Default()}
 	router := newTestRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/campaigns", nil)
@@ -120,7 +120,7 @@ func TestListCampaigns_Success(t *testing.T) {
 
 func TestCreateCampaign_Success(t *testing.T) {
 	q := &stubQuerier{}
-	h := New(nil, q, log.Default())
+	h := &CampaignHandlers{Queries: q, Logger: log.Default()}
 	router := newTestRouter(h)
 
 	body, _ := json.Marshal(api.CampaignCreateRequest{
@@ -153,7 +153,7 @@ func TestGetCampaign_NotFound(t *testing.T) {
 	q := &stubQuerier{
 		campaignByID: map[string]statedb.Campaign{},
 	}
-	h := New(nil, q, log.Default())
+	h := &CampaignHandlers{Queries: q, Logger: log.Default()}
 	router := newTestRouter(h)
 
 	missingID := uuid.New().String()
@@ -176,7 +176,7 @@ func TestGetCampaign_NotFound(t *testing.T) {
 
 func TestGetCampaign_InvalidID(t *testing.T) {
 	q := &stubQuerier{campaignByID: map[string]statedb.Campaign{}}
-	h := New(nil, q, log.Default())
+	h := &CampaignHandlers{Queries: q, Logger: log.Default()}
 	router := newTestRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/campaigns/not-a-uuid", nil)

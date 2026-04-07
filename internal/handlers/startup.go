@@ -71,23 +71,23 @@ func (s *startupSessionStore) deleteCharacterSession(id string) {
 	delete(s.characterSessions, id)
 }
 
-func (h *Handlers) StartCampaignInterview(w http.ResponseWriter, r *http.Request) {
+func (h *StartupHandlers) StartCampaignInterview(w http.ResponseWriter, r *http.Request) {
 	provider, ok := h.requireProvider(w)
 	if !ok {
 		return
 	}
 
 	iv := world.NewInterviewer(provider)
-	sessionID := h.startupSessions.createCampaignSession(iv)
+	sessionID := h.sessions.createCampaignSession(iv)
 	result, err := iv.Start(r.Context())
 	if err != nil {
-		h.startupSessions.deleteCampaignSession(sessionID)
+		h.sessions.deleteCampaignSession(sessionID)
 		h.Logger.Errorf("start campaign interview: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to start campaign interview")
 		return
 	}
 	if result.Done {
-		h.startupSessions.deleteCampaignSession(sessionID)
+		h.sessions.deleteCampaignSession(sessionID)
 	}
 
 	writeJSON(w, http.StatusOK, api.CampaignInterviewResponse{
@@ -98,7 +98,7 @@ func (h *Handlers) StartCampaignInterview(w http.ResponseWriter, r *http.Request
 	})
 }
 
-func (h *Handlers) StepCampaignInterview(w http.ResponseWriter, r *http.Request) {
+func (h *StartupHandlers) StepCampaignInterview(w http.ResponseWriter, r *http.Request) {
 	var req api.InterviewStepRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -111,7 +111,7 @@ func (h *Handlers) StepCampaignInterview(w http.ResponseWriter, r *http.Request)
 	}
 
 	sessionID := chi.URLParam(r, "sessionID")
-	iv, ok := h.startupSessions.campaignSession(sessionID)
+	iv, ok := h.sessions.campaignSession(sessionID)
 	if !ok {
 		writeError(w, http.StatusNotFound, "campaign interview session not found")
 		return
@@ -124,7 +124,7 @@ func (h *Handlers) StepCampaignInterview(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if result.Done {
-		h.startupSessions.deleteCampaignSession(sessionID)
+		h.sessions.deleteCampaignSession(sessionID)
 	}
 
 	writeJSON(w, http.StatusOK, api.CampaignInterviewResponse{
@@ -135,7 +135,7 @@ func (h *Handlers) StepCampaignInterview(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-func (h *Handlers) GenerateCampaignProposals(w http.ResponseWriter, r *http.Request) {
+func (h *StartupHandlers) GenerateCampaignProposals(w http.ResponseWriter, r *http.Request) {
 	provider, ok := h.requireProvider(w)
 	if !ok {
 		return
@@ -166,7 +166,7 @@ func (h *Handlers) GenerateCampaignProposals(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func (h *Handlers) GenerateCampaignName(w http.ResponseWriter, r *http.Request) {
+func (h *StartupHandlers) GenerateCampaignName(w http.ResponseWriter, r *http.Request) {
 	provider, ok := h.requireProvider(w)
 	if !ok {
 		return
@@ -191,7 +191,7 @@ func (h *Handlers) GenerateCampaignName(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, api.CampaignNameResponse{Name: name})
 }
 
-func (h *Handlers) StartCharacterInterview(w http.ResponseWriter, r *http.Request) {
+func (h *StartupHandlers) StartCharacterInterview(w http.ResponseWriter, r *http.Request) {
 	provider, ok := h.requireProvider(w)
 	if !ok {
 		return
@@ -208,16 +208,16 @@ func (h *Handlers) StartCharacterInterview(w http.ResponseWriter, r *http.Reques
 	}
 
 	iv := world.NewCharacterInterviewer(provider, req.CampaignProfile)
-	sessionID := h.startupSessions.createCharacterSession(iv)
+	sessionID := h.sessions.createCharacterSession(iv)
 	result, err := iv.Start(r.Context())
 	if err != nil {
-		h.startupSessions.deleteCharacterSession(sessionID)
+		h.sessions.deleteCharacterSession(sessionID)
 		h.Logger.Errorf("start character interview: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to start character interview")
 		return
 	}
 	if result.Done {
-		h.startupSessions.deleteCharacterSession(sessionID)
+		h.sessions.deleteCharacterSession(sessionID)
 	}
 
 	writeJSON(w, http.StatusOK, api.CharacterInterviewResponse{
@@ -228,7 +228,7 @@ func (h *Handlers) StartCharacterInterview(w http.ResponseWriter, r *http.Reques
 	})
 }
 
-func (h *Handlers) StepCharacterInterview(w http.ResponseWriter, r *http.Request) {
+func (h *StartupHandlers) StepCharacterInterview(w http.ResponseWriter, r *http.Request) {
 	var req api.InterviewStepRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -241,7 +241,7 @@ func (h *Handlers) StepCharacterInterview(w http.ResponseWriter, r *http.Request
 	}
 
 	sessionID := chi.URLParam(r, "sessionID")
-	iv, ok := h.startupSessions.characterSession(sessionID)
+	iv, ok := h.sessions.characterSession(sessionID)
 	if !ok {
 		writeError(w, http.StatusNotFound, "character interview session not found")
 		return
@@ -254,7 +254,7 @@ func (h *Handlers) StepCharacterInterview(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if result.Done {
-		h.startupSessions.deleteCharacterSession(sessionID)
+		h.sessions.deleteCharacterSession(sessionID)
 	}
 
 	writeJSON(w, http.StatusOK, api.CharacterInterviewResponse{
@@ -265,7 +265,7 @@ func (h *Handlers) StepCharacterInterview(w http.ResponseWriter, r *http.Request
 	})
 }
 
-func (h *Handlers) BuildWorld(w http.ResponseWriter, r *http.Request) {
+func (h *StartupHandlers) BuildWorld(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserFromContext(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "authentication required")
@@ -351,7 +351,7 @@ func (h *Handlers) BuildWorld(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handlers) requireProvider(w http.ResponseWriter) (llm.Provider, bool) {
+func (h *StartupHandlers) requireProvider(w http.ResponseWriter) (llm.Provider, bool) {
 	if h.Provider == nil {
 		writeError(w, http.StatusInternalServerError, "llm provider is not configured")
 		return nil, false

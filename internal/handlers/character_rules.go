@@ -9,7 +9,7 @@ import (
 )
 
 // GetCharacterFeats returns the feats granted to the player character in a campaign.
-func (h *Handlers) GetCharacterFeats(w http.ResponseWriter, r *http.Request) {
+func (h *CharacterHandlers) GetCharacterFeats(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))
@@ -59,7 +59,7 @@ func (h *Handlers) GetCharacterFeats(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetCharacterSkills returns the skills allocated to the player character in a campaign.
-func (h *Handlers) GetCharacterSkills(w http.ResponseWriter, r *http.Request) {
+func (h *CharacterHandlers) GetCharacterSkills(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))

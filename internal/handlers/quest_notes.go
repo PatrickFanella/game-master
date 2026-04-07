@@ -15,7 +15,7 @@ import (
 )
 
 // ListQuestNotes returns all notes for a quest.
-func (h *Handlers) ListQuestNotes(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListQuestNotes(w http.ResponseWriter, r *http.Request) {
 	questID, err := uuid.Parse(chi.URLParam(r, "qid"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid quest id: %v", err))
@@ -40,7 +40,7 @@ func (h *Handlers) ListQuestNotes(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateQuestNote adds a new note to a quest.
-func (h *Handlers) CreateQuestNote(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) CreateQuestNote(w http.ResponseWriter, r *http.Request) {
 	questID, err := uuid.Parse(chi.URLParam(r, "qid"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid quest id: %v", err))
@@ -74,7 +74,7 @@ func (h *Handlers) CreateQuestNote(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteQuestNote removes a note from a quest.
-func (h *Handlers) DeleteQuestNote(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) DeleteQuestNote(w http.ResponseWriter, r *http.Request) {
 	questID, err := uuid.Parse(chi.URLParam(r, "qid"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid quest id: %v", err))
@@ -98,7 +98,7 @@ func (h *Handlers) DeleteQuestNote(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListQuestHistory returns state snapshots for a quest.
-func (h *Handlers) ListQuestHistory(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListQuestHistory(w http.ResponseWriter, r *http.Request) {
 	questID, err := uuid.Parse(chi.URLParam(r, "qid"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid quest id: %v", err))

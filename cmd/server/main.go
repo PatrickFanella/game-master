@@ -191,12 +191,16 @@ func newRouterWithProvider(logger *log.Logger, gameEngine engine.GameEngine, que
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	h := handlers.NewWithPool(gameEngine, queries, logger, pool, provider)
-	registerAPIRoutes(logger, r, h, pool, defaultUserID, cfg, saveStore)
+	campaignH := &handlers.CampaignHandlers{Engine: gameEngine, Queries: queries, Logger: logger, Pool: pool}
+	charH := &handlers.CharacterHandlers{Queries: queries, Logger: logger, Pool: pool}
+	worldH := &handlers.WorldHandlers{Queries: queries, Logger: logger}
+	actionH := &handlers.ActionHandlers{Engine: gameEngine, Queries: queries, Provider: provider, Logger: logger}
+	startupH := handlers.NewStartupHandlers(provider, queries, logger, pool)
+	registerAPIRoutes(logger, r, campaignH, charH, worldH, actionH, startupH, pool, defaultUserID, cfg, saveStore, provider)
 	return r
 }
 
-func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers, pool *pgxpool.Pool, defaultUserID uuid.UUID, cfg config.Config, saveStore *saves.Store) {
+func registerAPIRoutes(logger *log.Logger, r chi.Router, campaignH *handlers.CampaignHandlers, charH *handlers.CharacterHandlers, worldH *handlers.WorldHandlers, actionH *handlers.ActionHandlers, startupH *handlers.StartupHandlers, pool *pgxpool.Pool, defaultUserID uuid.UUID, cfg config.Config, saveStore *saves.Store, provider llm.Provider) {
 	// Choose auth middleware: JWT if a secret is configured, NoOp otherwise (TUI).
 	var authMW auth.AuthMiddleware
 	if cfg.Server.JWTSecret != "" {
@@ -209,7 +213,7 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers, p
 		r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 			writeJSON(logger, w, http.StatusOK, map[string]any{
 				"status":       "ok",
-				"engine_ready": h.Engine != nil,
+				"engine_ready": campaignH.Engine != nil,
 			})
 		})
 
@@ -237,54 +241,54 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers, p
 				}
 
 				r.Route("/campaigns", func(r chi.Router) {
-				r.Get("/", h.ListCampaigns)
-				r.Post("/", h.CreateCampaign)
+				r.Get("/", campaignH.ListCampaigns)
+				r.Post("/", campaignH.CreateCampaign)
 				r.Route("/start", func(r chi.Router) {
-					r.Post("/campaign-interview", h.StartCampaignInterview)
-					r.Post("/campaign-interview/{sessionID}", h.StepCampaignInterview)
-					r.Post("/proposals", h.GenerateCampaignProposals)
-					r.Post("/name", h.GenerateCampaignName)
-					r.Post("/character-interview", h.StartCharacterInterview)
-					r.Post("/character-interview/{sessionID}", h.StepCharacterInterview)
-					r.Post("/world", h.BuildWorld)
+					r.Post("/campaign-interview", startupH.StartCampaignInterview)
+					r.Post("/campaign-interview/{sessionID}", startupH.StepCampaignInterview)
+					r.Post("/proposals", startupH.GenerateCampaignProposals)
+					r.Post("/name", startupH.GenerateCampaignName)
+					r.Post("/character-interview", startupH.StartCharacterInterview)
+					r.Post("/character-interview/{sessionID}", startupH.StepCharacterInterview)
+					r.Post("/world", startupH.BuildWorld)
 				})
 				r.Route("/{id}", func(r chi.Router) {
-					r.Get("/", h.GetCampaign)
-					r.Put("/", h.UpdateCampaign)
-					r.Delete("/", h.DeleteCampaign)
-					r.Get("/history", h.GetSessionHistory)
+					r.Get("/", campaignH.GetCampaign)
+					r.Put("/", campaignH.UpdateCampaign)
+					r.Delete("/", campaignH.DeleteCampaign)
+					r.Get("/history", campaignH.GetSessionHistory)
 
-					r.Get("/character", h.GetCharacter)
-					r.Get("/character/inventory", h.GetCharacterInventory)
-					r.Get("/character/abilities", h.GetCharacterAbilities)
-					r.Get("/character/feats", h.GetCharacterFeats)
-					r.Get("/character/skills", h.GetCharacterSkills)
+					r.Get("/character", charH.GetCharacter)
+					r.Get("/character/inventory", charH.GetCharacterInventory)
+					r.Get("/character/abilities", charH.GetCharacterAbilities)
+					r.Get("/character/feats", charH.GetCharacterFeats)
+					r.Get("/character/skills", charH.GetCharacterSkills)
 
-					r.Get("/locations", h.ListLocations)
-					r.Get("/locations/{lid}", h.GetLocation)
+					r.Get("/locations", worldH.ListLocations)
+					r.Get("/locations/{lid}", worldH.GetLocation)
 
-					r.Get("/npcs/encountered", h.ListEncounteredNPCs)
-					r.Get("/npcs", h.ListNPCs)
-					r.Get("/npcs/{nid}/dialogue", h.GetNPCDialogue)
-					r.Get("/npcs/{nid}", h.GetNPC)
+					r.Get("/npcs/encountered", worldH.ListEncounteredNPCs)
+					r.Get("/npcs", worldH.ListNPCs)
+					r.Get("/npcs/{nid}/dialogue", worldH.GetNPCDialogue)
+					r.Get("/npcs/{nid}", worldH.GetNPC)
 
-					r.Get("/quests", h.ListQuests)
-					r.Get("/quests/{qid}", h.GetQuest)
-					r.Get("/quests/{qid}/notes", h.ListQuestNotes)
-					r.Post("/quests/{qid}/notes", h.CreateQuestNote)
-					r.Delete("/quests/{qid}/notes/{noteID}", h.DeleteQuestNote)
-					r.Get("/quests/{qid}/history", h.ListQuestHistory)
+					r.Get("/quests", worldH.ListQuests)
+					r.Get("/quests/{qid}", worldH.GetQuest)
+					r.Get("/quests/{qid}/notes", worldH.ListQuestNotes)
+					r.Post("/quests/{qid}/notes", worldH.CreateQuestNote)
+					r.Delete("/quests/{qid}/notes/{noteID}", worldH.DeleteQuestNote)
+					r.Get("/quests/{qid}/history", worldH.ListQuestHistory)
 
-					r.Get("/facts", h.ListKnownFacts)
-					r.Get("/relationships", h.ListAwareRelationships)
-					r.Get("/codex/languages", h.ListKnownLanguages)
-					r.Get("/codex/cultures", h.ListKnownCultures)
-					r.Get("/codex/beliefs", h.ListKnownBeliefSystems)
-					r.Get("/codex/economies", h.ListKnownEconomicSystems)
-					r.Get("/map", h.GetMapData)
+					r.Get("/facts", worldH.ListKnownFacts)
+					r.Get("/relationships", worldH.ListAwareRelationships)
+					r.Get("/codex/languages", worldH.ListKnownLanguages)
+					r.Get("/codex/cultures", worldH.ListKnownCultures)
+					r.Get("/codex/beliefs", worldH.ListKnownBeliefSystems)
+					r.Get("/codex/economies", worldH.ListKnownEconomicSystems)
+					r.Get("/map", worldH.GetMapData)
 
-					r.Post("/action", h.ProcessAction)
-					r.Get("/ws", h.HandleWebSocket)
+					r.Post("/action", actionH.ProcessAction)
+					r.Get("/ws", actionH.HandleWebSocket)
 
 					savesH := saves.NewHandlers(saveStore)
 					r.Post("/saves", savesH.ManualSave)
@@ -298,7 +302,7 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, h *handlers.Handlers, p
 					r.Get("/export/character", exportH.ExportCharacterSheet)
 
 					journalStore := journal.NewStore(pool)
-					journalH := journal.NewHandlersWithSummarizer(journalStore, journal.NewSummarizer(h.Provider, journalStore))
+					journalH := journal.NewHandlersWithSummarizer(journalStore, journal.NewSummarizer(provider, journalStore))
 					r.Route("/journal", func(r chi.Router) {
 						r.Get("/summaries", journalH.ListSummaries)
 						r.Get("/entries", journalH.ListEntries)

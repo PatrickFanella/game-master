@@ -14,7 +14,7 @@ import (
 )
 
 // ListCampaigns returns all campaigns owned by the authenticated user.
-func (h *Handlers) ListCampaigns(w http.ResponseWriter, r *http.Request) {
+func (h *CampaignHandlers) ListCampaigns(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserFromContext(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "authentication required")
@@ -38,7 +38,7 @@ func (h *Handlers) ListCampaigns(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateCampaign creates a new campaign for the authenticated user.
-func (h *Handlers) CreateCampaign(w http.ResponseWriter, r *http.Request) {
+func (h *CampaignHandlers) CreateCampaign(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserFromContext(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "authentication required")
@@ -89,7 +89,7 @@ func (h *Handlers) CreateCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetCampaign returns a single campaign by ID.
-func (h *Handlers) GetCampaign(w http.ResponseWriter, r *http.Request) {
+func (h *CampaignHandlers) GetCampaign(w http.ResponseWriter, r *http.Request) {
 	id, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))
@@ -108,7 +108,7 @@ func (h *Handlers) GetCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateCampaign updates an existing campaign.
-func (h *Handlers) UpdateCampaign(w http.ResponseWriter, r *http.Request) {
+func (h *CampaignHandlers) UpdateCampaign(w http.ResponseWriter, r *http.Request) {
 	id, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))
@@ -144,7 +144,7 @@ func (h *Handlers) UpdateCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetSessionHistory returns the turn history for a campaign.
-func (h *Handlers) GetSessionHistory(w http.ResponseWriter, r *http.Request) {
+func (h *CampaignHandlers) GetSessionHistory(w http.ResponseWriter, r *http.Request) {
 	id, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))
@@ -166,7 +166,7 @@ func (h *Handlers) GetSessionHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteCampaign deletes a campaign by ID.
-func (h *Handlers) DeleteCampaign(w http.ResponseWriter, r *http.Request) {
+func (h *CampaignHandlers) DeleteCampaign(w http.ResponseWriter, r *http.Request) {
 	id, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))

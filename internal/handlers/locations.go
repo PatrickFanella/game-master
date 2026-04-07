@@ -13,7 +13,7 @@ import (
 )
 
 // ListLocations returns all locations for a campaign.
-func (h *Handlers) ListLocations(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListLocations(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))
@@ -35,7 +35,7 @@ func (h *Handlers) ListLocations(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetLocation returns a single location with its connections.
-func (h *Handlers) GetLocation(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) GetLocation(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))

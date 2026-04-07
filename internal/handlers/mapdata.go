@@ -11,7 +11,7 @@ import (
 )
 
 // GetMapData returns player-known/visited locations with connections.
-func (h *Handlers) GetMapData(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) GetMapData(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())

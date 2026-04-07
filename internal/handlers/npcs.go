@@ -13,7 +13,7 @@ import (
 )
 
 // ListNPCs returns all NPCs for a campaign.
-func (h *Handlers) ListNPCs(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListNPCs(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))
@@ -35,7 +35,7 @@ func (h *Handlers) ListNPCs(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetNPC returns a single NPC by ID.
-func (h *Handlers) GetNPC(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) GetNPC(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))

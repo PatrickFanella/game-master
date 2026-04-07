@@ -8,7 +8,7 @@ import (
 )
 
 // ListKnownFacts returns player-known, non-superseded facts.
-func (h *Handlers) ListKnownFacts(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListKnownFacts(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())

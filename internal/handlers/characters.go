@@ -10,7 +10,7 @@ import (
 )
 
 // GetCharacter returns the player character for a campaign.
-func (h *Handlers) GetCharacter(w http.ResponseWriter, r *http.Request) {
+func (h *CharacterHandlers) GetCharacter(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))
@@ -32,7 +32,7 @@ func (h *Handlers) GetCharacter(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetCharacterInventory returns the inventory items for the player character.
-func (h *Handlers) GetCharacterInventory(w http.ResponseWriter, r *http.Request) {
+func (h *CharacterHandlers) GetCharacterInventory(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))
@@ -63,7 +63,7 @@ func (h *Handlers) GetCharacterInventory(w http.ResponseWriter, r *http.Request)
 }
 
 // GetCharacterAbilities returns the abilities for the player character.
-func (h *Handlers) GetCharacterAbilities(w http.ResponseWriter, r *http.Request) {
+func (h *CharacterHandlers) GetCharacterAbilities(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))

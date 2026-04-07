@@ -9,7 +9,7 @@ import (
 )
 
 // ProcessAction handles a player turn action.
-func (h *Handlers) ProcessAction(w http.ResponseWriter, r *http.Request) {
+func (h *ActionHandlers) ProcessAction(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid campaign id: %v", err))

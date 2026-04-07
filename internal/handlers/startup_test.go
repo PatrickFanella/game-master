@@ -122,7 +122,7 @@ func (s *startupStubQuerier) ListLocationsByCampaign(ctx context.Context, campai
 	return nil, nil
 }
 
-func newStartupRouter(h *Handlers, authenticated bool) *chi.Mux {
+func newStartupRouter(h *StartupHandlers, authenticated bool) *chi.Mux {
 	r := chi.NewRouter()
 	if authenticated {
 		authMW := auth.NewNoOpMiddleware(uuid.MustParse("00000000-0000-0000-0000-000000000001"))
@@ -159,7 +159,7 @@ func TestCampaignInterview_StartAndStep(t *testing.T) {
 			}},
 		}},
 	)
-	h := New(nil, nil, log.Default(), provider)
+	h := NewStartupHandlers(provider, nil, log.Default(), nil)
 	router := newStartupRouter(h, true)
 
 	startReq := httptest.NewRequest(http.MethodPost, "/api/v1/campaigns/start/campaign-interview", bytes.NewBufferString(`{}`))
@@ -204,7 +204,7 @@ func TestCampaignInterview_StartAndStep(t *testing.T) {
 
 func TestGenerateCampaignProposals_Success(t *testing.T) {
 	provider := newStartupScriptedProvider(t, startupScriptedResponse{resp: &llm.Response{Content: `{"proposals":[{"name":"Ashfall","summary":"A frontier fortress holds the line against ancient horrors.","profile":{"genre":"dark fantasy","tone":"grim","themes":["survival","duty"],"world_type":"volcanic frontier","danger_level":"high","political_complexity":"moderate"}}]}`}})
-	h := New(nil, nil, log.Default(), provider)
+	h := NewStartupHandlers(provider, nil, log.Default(), nil)
 	router := newStartupRouter(h, true)
 
 	body := mustStartupJSON(t, api.CampaignProposalsRequest{Genre: "fantasy", SettingStyle: "frontier", Tone: "grim"})
@@ -230,7 +230,7 @@ func TestGenerateCampaignProposals_Success(t *testing.T) {
 
 func TestGenerateCampaignName_Success(t *testing.T) {
 	provider := newStartupScriptedProvider(t, startupScriptedResponse{resp: &llm.Response{Content: `{"name":"Ashfall"}`}})
-	h := New(nil, nil, log.Default(), provider)
+	h := NewStartupHandlers(provider, nil, log.Default(), nil)
 	router := newStartupRouter(h, true)
 
 	body := mustStartupJSON(t, api.CampaignNameRequest{Profile: &api.CampaignProfile{Genre: "dark fantasy", Tone: "grim", Themes: []string{"survival"}, WorldType: "frontier", DangerLevel: "high", PoliticalComplexity: "moderate"}})
@@ -268,7 +268,7 @@ func TestCharacterInterview_StartAndStep(t *testing.T) {
 			}},
 		}},
 	)
-	h := New(nil, nil, log.Default(), provider)
+	h := NewStartupHandlers(provider, nil, log.Default(), nil)
 	router := newStartupRouter(h, true)
 
 	startBody := mustStartupJSON(t, api.CharacterInterviewStartRequest{CampaignProfile: &api.CampaignProfile{Genre: "dark fantasy", Tone: "grim", Themes: []string{"survival"}, WorldType: "frontier", DangerLevel: "high", PoliticalComplexity: "moderate"}})
@@ -355,7 +355,7 @@ func TestBuildWorld_Success(t *testing.T) {
 			return []statedb.Location{{ID: dbutil.ToPgtype(locationID), Name: "Ironhold"}}, nil
 		},
 	}
-	h := New(nil, queries, log.Default(), provider)
+	h := NewStartupHandlers(provider, queries, log.Default(), nil)
 	router := newStartupRouter(h, true)
 
 	body := mustStartupJSON(t, api.WorldBuildRequest{
@@ -400,7 +400,7 @@ func TestBuildWorld_Success(t *testing.T) {
 }
 
 func TestCampaignInterview_UnknownSession(t *testing.T) {
-	h := New(nil, nil, log.Default(), newStartupScriptedProvider(t))
+	h := NewStartupHandlers(newStartupScriptedProvider(t), nil, log.Default(), nil)
 	router := newStartupRouter(h, true)
 
 	body := mustStartupJSON(t, api.InterviewStepRequest{Input: "hello"})
@@ -415,7 +415,7 @@ func TestCampaignInterview_UnknownSession(t *testing.T) {
 
 func TestCampaignInterview_EmptyInput(t *testing.T) {
 	provider := newStartupScriptedProvider(t, startupScriptedResponse{resp: &llm.Response{Content: "What kind of world do you want to explore?"}})
-	h := New(nil, nil, log.Default(), provider)
+	h := NewStartupHandlers(provider, nil, log.Default(), nil)
 	router := newStartupRouter(h, true)
 
 	startReq := httptest.NewRequest(http.MethodPost, "/api/v1/campaigns/start/campaign-interview", bytes.NewBufferString(`{}`))
@@ -435,7 +435,7 @@ func TestCampaignInterview_EmptyInput(t *testing.T) {
 }
 
 func TestGenerateCampaignProposals_MissingProvider(t *testing.T) {
-	h := New(nil, nil, log.Default())
+	h := NewStartupHandlers(nil, nil, log.Default(), nil)
 	router := newStartupRouter(h, true)
 
 	body := mustStartupJSON(t, api.CampaignProposalsRequest{Genre: "fantasy", SettingStyle: "frontier", Tone: "grim"})
@@ -450,7 +450,7 @@ func TestGenerateCampaignProposals_MissingProvider(t *testing.T) {
 
 func TestBuildWorld_RequiresAuth(t *testing.T) {
 	provider := newStartupScriptedProvider(t)
-	h := New(nil, &startupStubQuerier{}, log.Default(), provider)
+	h := NewStartupHandlers(provider, &startupStubQuerier{}, log.Default(), nil)
 	router := newStartupRouter(h, false)
 
 	body := mustStartupJSON(t, api.WorldBuildRequest{Profile: &api.CampaignProfile{}, CharacterProfile: &api.CharacterProfile{}})

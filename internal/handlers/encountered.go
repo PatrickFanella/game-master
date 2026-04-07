@@ -14,7 +14,7 @@ import (
 )
 
 // ListEncounteredNPCs returns NPCs that appear in session logs (npcs_involved).
-func (h *Handlers) ListEncounteredNPCs(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) ListEncounteredNPCs(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -68,7 +68,7 @@ func (h *Handlers) ListEncounteredNPCs(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetNPCDialogue returns session log entries that involved a specific NPC.
-func (h *Handlers) GetNPCDialogue(w http.ResponseWriter, r *http.Request) {
+func (h *WorldHandlers) GetNPCDialogue(w http.ResponseWriter, r *http.Request) {
 	campaignID, err := campaignIDFromURL(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
