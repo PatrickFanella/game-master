@@ -1,0 +1,20 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - paragraph [ref=e6]: Game Master
+      - heading "Sign In" [level=1] [ref=e7]
+      - paragraph [ref=e8]: Enter your credentials to continue your adventure.
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - text: Email
+        - textbox "Email" [active] [ref=e11]:
+          - /placeholder: adventurer@example.com
+      - generic [ref=e12]:
+        - text: Password
+        - textbox "Password" [ref=e13]:
+          - /placeholder: Enter your password
+      - button "Sign In" [ref=e14]
+    - paragraph [ref=e15]:
+      - text: No account yet?
+      - link "Create one" [ref=e16] [cursor=pointer]:
+        - /url: /register

@@ -1,0 +1,21 @@
+{
+  "createStatus": 201,
+  "created": {
+    "id": "a9e8e10b-a8ff-46e2-85de-853e5bb4436d",
+    "name": "Final QA Campaign Login Path",
+    "description": "",
+    "genre": "",
+    "tone": "",
+    "themes": [],
+    "status": "active",
+    "rules_mode": "narrative",
+    "created_by": "df97ea83-bfff-4312-bac9-05922ac6bb1b",
+    "created_at": "2026-04-22T00:38:47.521798Z",
+    "updated_at": "2026-04-22T00:38:47.521798Z"
+  },
+  "wsUrl": "wss://edda.subcult.tv/api/v1/campaigns/a9e8e10b-a8ff-46e2-85de-853e5bb4436d/ws",
+  "wsResult": {
+    "ok": true,
+    "stage": "open"
+  }
+}

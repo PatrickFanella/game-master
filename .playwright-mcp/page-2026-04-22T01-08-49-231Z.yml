@@ -1,0 +1,57 @@
+- main [ref=e5]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - paragraph [ref=e9]: Game Master
+        - button "F F3 Final QA" [ref=e11]:
+          - generic [ref=e12]: F
+          - generic [ref=e13]: F3 Final QA
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - heading "Campaigns" [level=1] [ref=e16]
+          - paragraph [ref=e17]: Pick up an existing campaign or start a new one.
+        - link "New campaign" [ref=e19] [cursor=pointer]:
+          - /url: /new
+    - generic [ref=e21]:
+      - article [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - generic [ref=e25]:
+              - heading "F3 QA Campaign" [level=2] [ref=e26]
+              - paragraph [ref=e27]: active
+            - generic [ref=e28]: Unspecified genre
+          - paragraph [ref=e29]: No description yet.
+          - generic [ref=e30]:
+            - generic [ref=e31]:
+              - term [ref=e32]: Tone
+              - definition [ref=e33]: Not set
+            - generic [ref=e34]:
+              - term [ref=e35]: Themes
+              - definition [ref=e36]: None yet
+        - generic [ref=e37]:
+          - link "Open campaign" [ref=e38] [cursor=pointer]:
+            - /url: /play/ea42efb8-b3ac-40c1-9163-da9c5dacf986
+          - link "Replay" [ref=e39] [cursor=pointer]:
+            - /url: /replay/ea42efb8-b3ac-40c1-9163-da9c5dacf986
+          - button "Delete" [ref=e40]
+      - article [ref=e41]:
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - generic [ref=e44]:
+              - heading "F3 QA Message Campaign" [level=2] [ref=e45]
+              - paragraph [ref=e46]: active
+            - generic [ref=e47]: Unspecified genre
+          - paragraph [ref=e48]: No description yet.
+          - generic [ref=e49]:
+            - generic [ref=e50]:
+              - term [ref=e51]: Tone
+              - definition [ref=e52]: Not set
+            - generic [ref=e53]:
+              - term [ref=e54]: Themes
+              - definition [ref=e55]: None yet
+        - generic [ref=e56]:
+          - link "Open campaign" [ref=e57] [cursor=pointer]:
+            - /url: /play/63f91e4f-2a3e-49e5-b2e9-ec04e6b71ed2
+          - link "Replay" [ref=e58] [cursor=pointer]:
+            - /url: /replay/63f91e4f-2a3e-49e5-b2e9-ec04e6b71ed2
+          - button "Delete" [ref=e59]

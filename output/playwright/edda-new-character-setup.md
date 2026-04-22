@@ -1,0 +1,57 @@
+- main [ref=e55]:
+  - generic [ref=e56]:
+    - generic [ref=e57]:
+      - generic [ref=e58]:
+        - paragraph [ref=e59]: Game Master
+        - button "F F3 Final QA" [ref=e61]:
+          - generic [ref=e62]: F
+          - generic [ref=e63]: F3 Final QA
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - heading "Start a new campaign" [level=1] [ref=e66]
+          - paragraph [ref=e67]: "Replace the old flat create form with the TUI-style startup wizard: frame the campaign, shape the hero, confirm the setup, then hand off straight into the opening scene."
+        - link "Back to campaigns" [ref=e69] [cursor=pointer]:
+          - /url: /
+    - generic [ref=e71]:
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]: "01"
+          - generic [ref=e76]: Campaign setup
+        - generic [ref=e77]:
+          - generic [ref=e78]: "02"
+          - generic [ref=e79]: Rules mode
+        - generic [ref=e80]:
+          - generic [ref=e81]: "03"
+          - generic [ref=e82]: Character setup
+        - generic [ref=e83]:
+          - generic [ref=e84]: "04"
+          - generic [ref=e85]: Confirmation
+        - generic [ref=e86]:
+          - generic [ref=e87]: "05"
+          - generic [ref=e88]: World handoff
+      - generic [ref=e317]:
+        - generic [ref=e318]:
+          - paragraph [ref=e319]: Rules mode
+          - generic [ref=e320]:
+            - heading "Choose the rules mode" [level=2] [ref=e321]
+            - paragraph [ref=e322]: Decide how much mechanical crunch the campaign uses. This shapes which tools the game master has available and how encounters play out.
+        - generic [ref=e323]:
+          - button "Pure storytelling Narrative Pure storytelling. No dice, no HP tracking. The world responds to your words." [ref=e324]:
+            - generic [ref=e325]:
+              - paragraph [ref=e327]: Pure storytelling
+              - heading "Narrative" [level=3] [ref=e329]
+              - paragraph [ref=e330]: Pure storytelling. No dice, no HP tracking. The world responds to your words.
+          - button "Balanced play Light Rules Balanced play. Dice rolls add tension, HP matters, but the story leads." [ref=e331]:
+            - generic [ref=e332]:
+              - paragraph [ref=e334]: Balanced play
+              - heading "Light Rules" [level=3] [ref=e336]
+              - paragraph [ref=e337]: Balanced play. Dice rolls add tension, HP matters, but the story leads.
+          - button "Full mechanics Crunch Full mechanics. D&D 5e-style feats, skills, initiative, and tactical combat." [ref=e338]:
+            - generic [ref=e339]:
+              - paragraph [ref=e341]: Full mechanics
+              - heading "Crunch" [level=3] [ref=e343]
+              - paragraph [ref=e344]: Full mechanics. D&D 5e-style feats, skills, initiative, and tactical combat.
+        - generic [ref=e345]: Select a rules mode before continuing.
+        - generic [ref=e346]:
+          - button "Back" [ref=e347]
+          - button "Continue" [disabled] [ref=e348]

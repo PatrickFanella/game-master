@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -9,6 +10,10 @@ import (
 )
 
 type userIDContextKey struct{}
+
+const AuthCookieName = "gm_token"
+
+var errInvalidAuthorizationHeader = errors.New("invalid authorization header format")
 
 // AuthMiddleware defines middleware that authenticates a request and enriches context.
 type AuthMiddleware interface {
@@ -55,15 +60,14 @@ func NewJWTMiddleware(secret string) AuthMiddleware {
 // the user ID in request context. Returns 401 if the token is missing or invalid.
 func (m *JWTMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, `{"error":"missing authorization header"}`, http.StatusUnauthorized)
-			return
-		}
+		token, err := tokenFromRequest(r)
+		if err != nil {
+			if errors.Is(err, errInvalidAuthorizationHeader) {
+				http.Error(w, `{"error":"invalid authorization header format"}`, http.StatusUnauthorized)
+				return
+			}
 
-		token, found := strings.CutPrefix(authHeader, "Bearer ")
-		if !found || token == "" {
-			http.Error(w, `{"error":"invalid authorization header format"}`, http.StatusUnauthorized)
+			http.Error(w, `{"error":"missing authorization header"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -76,6 +80,37 @@ func (m *JWTMiddleware) Authenticate(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), userIDContextKey{}, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func tokenFromRequest(r *http.Request) (string, error) {
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	if authHeader != "" {
+		token, found := strings.CutPrefix(authHeader, "Bearer ")
+		if !found || token == "" {
+			return "", errInvalidAuthorizationHeader
+		}
+		return token, nil
+	}
+
+	if !isWebSocketUpgradeRequest(r) {
+		return "", http.ErrNoCookie
+	}
+
+	cookie, err := r.Cookie(AuthCookieName)
+	if err != nil {
+		return "", err
+	}
+
+	token := strings.TrimSpace(cookie.Value)
+	if token == "" {
+		return "", http.ErrNoCookie
+	}
+
+	return token, nil
+}
+
+func isWebSocketUpgradeRequest(r *http.Request) bool {
+	return strings.EqualFold(strings.TrimSpace(r.Header.Get("Upgrade")), "websocket")
 }
 
 // ---------------------------------------------------------------------------

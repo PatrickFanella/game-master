@@ -1,0 +1,7 @@
+[POST] https://edda.subcult.tv/api/v1/auth/register => [201] 
+[GET] https://edda.subcult.tv/api/v1/campaigns => [200] 
+[POST] https://edda.subcult.tv/api/v1/campaigns/start/proposals => [200] 
+[POST] https://edda.subcult.tv/api/v1/campaigns/start/world => [200] 
+[GET] https://edda.subcult.tv/api/v1/campaigns/97b796e8-0741-4efc-8405-29d0d4b7ccc4/time => [200] 
+[GET] https://edda.subcult.tv/api/v1/campaigns/97b796e8-0741-4efc-8405-29d0d4b7ccc4/history => [200] 
+[GET] https://edda.subcult.tv/api/v1/campaigns/97b796e8-0741-4efc-8405-29d0d4b7ccc4/quests => [200] 

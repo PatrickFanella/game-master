@@ -1,0 +1,21 @@
+{
+  "createStatus": 201,
+  "created": {
+    "id": "63f91e4f-2a3e-49e5-b2e9-ec04e6b71ed2",
+    "name": "F3 QA Message Campaign",
+    "description": "",
+    "genre": "",
+    "tone": "",
+    "themes": [],
+    "status": "active",
+    "rules_mode": "narrative",
+    "created_by": "682e3e39-cae2-493e-8d58-64af4324c055",
+    "created_at": "2026-04-22T01:06:32.766167Z",
+    "updated_at": "2026-04-22T01:06:32.766167Z"
+  },
+  "wsUrl": "wss://edda.subcult.tv/api/v1/campaigns/63f91e4f-2a3e-49e5-b2e9-ec04e6b71ed2/ws",
+  "wsResult": {
+    "ok": false,
+    "stage": "timeout"
+  }
+}

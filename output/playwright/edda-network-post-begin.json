@@ -1,0 +1,4 @@
+[POST] https://edda.subcult.tv/api/v1/auth/register => [201] 
+[GET] https://edda.subcult.tv/api/v1/campaigns => [200] 
+[POST] https://edda.subcult.tv/api/v1/campaigns/start/proposals => [200] 
+[POST] https://edda.subcult.tv/api/v1/campaigns/start/world

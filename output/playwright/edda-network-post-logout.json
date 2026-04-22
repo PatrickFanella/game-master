@@ -1,0 +1,2 @@
+[GET] https://edda.subcult.tv/api/v1/auth/me => [200] 
+[GET] https://edda.subcult.tv/api/v1/campaigns => [200] 

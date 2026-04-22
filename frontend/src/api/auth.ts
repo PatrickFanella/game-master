@@ -18,6 +18,7 @@ export interface AuthError {
 async function authFetch<T>(path: string, body: Record<string, string>): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(body),
   });
@@ -41,6 +42,7 @@ export function login(email: string, password: string): Promise<AuthResponse> {
 
 export async function getMe(token: string): Promise<{ user: AuthUser }> {
   const res = await fetch(`${API_BASE}/auth/me`, {
+    credentials: 'include',
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
   });
 
@@ -49,4 +51,11 @@ export async function getMe(token: string): Promise<{ user: AuthUser }> {
   }
 
   return res.json() as Promise<{ user: AuthUser }>;
+}
+
+export async function logout(): Promise<void> {
+  await fetch(`${API_BASE}/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+  });
 }

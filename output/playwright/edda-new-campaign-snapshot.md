@@ -1,0 +1,46 @@
+- main [ref=e55]:
+  - generic [ref=e56]:
+    - generic [ref=e57]:
+      - generic [ref=e58]:
+        - paragraph [ref=e59]: Game Master
+        - button "F F3 Final QA" [ref=e61]:
+          - generic [ref=e62]: F
+          - generic [ref=e63]: F3 Final QA
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - heading "Start a new campaign" [level=1] [ref=e66]
+          - paragraph [ref=e67]: "Replace the old flat create form with the TUI-style startup wizard: frame the campaign, shape the hero, confirm the setup, then hand off straight into the opening scene."
+        - link "Back to campaigns" [ref=e69] [cursor=pointer]:
+          - /url: /
+    - generic [ref=e71]:
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]: "01"
+          - generic [ref=e76]: Campaign setup
+        - generic [ref=e77]:
+          - generic [ref=e78]: "02"
+          - generic [ref=e79]: Rules mode
+        - generic [ref=e80]:
+          - generic [ref=e81]: "03"
+          - generic [ref=e82]: Character setup
+        - generic [ref=e83]:
+          - generic [ref=e84]: "04"
+          - generic [ref=e85]: Confirmation
+        - generic [ref=e86]:
+          - generic [ref=e87]: "05"
+          - generic [ref=e88]: World handoff
+      - generic [ref=e89]:
+        - generic [ref=e90]:
+          - paragraph [ref=e91]: Start game
+          - generic [ref=e92]:
+            - heading "Choose how to frame the campaign" [level=2] [ref=e93]
+            - paragraph [ref=e94]: "Mirror the TUI startup workflow: either talk through the campaign with the guide or lock genre, setting style, and tone before generating proposals."
+        - generic [ref=e95]:
+          - button "Conversational Campaign interview Answer guided questions and let the interview extract the full campaign profile and generate a fitting campaign name." [ref=e96]:
+            - paragraph [ref=e97]: Conversational
+            - generic [ref=e99]
+          - button "Guided picks Attribute selection Choose genre, setting style, and tone first, then review generated campaign proposals before moving on." [ref=e103]:
+            - paragraph [ref=e104]: Guided picks
+            - generic [ref=e106]
+        - paragraph [ref=e110]: Going back later will let you switch methods, but choosing a different path resets downstream campaign and character decisions.
+        - button "Continue" [disabled] [ref=e112]

@@ -10,8 +10,9 @@ export function UserMenu() {
 
   if (!user) return null;
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    setOpen(false);
+    await logout();
     navigate('/login', { replace: true });
   }
 
@@ -41,7 +42,11 @@ export function UserMenu() {
             </div>
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void handleLogout();
+              }}
               className="w-full px-4 py-3 text-left text-sm text-champagne/80 transition-colors hover:bg-ruby/10 hover:text-ruby"
             >
               Sign out

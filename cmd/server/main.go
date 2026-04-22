@@ -178,7 +178,7 @@ func newRouterWithProvider(logger *log.Logger, gameEngine engine.GameEngine, que
 	r.Use(loggingMiddleware(logger))
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:*", "http://127.0.0.1:*", "https://gm.subcult.tv", "http://gm.subcult.tv"},
+		AllowedOrigins:   []string{"http://localhost:*", "http://127.0.0.1:*", "https://gm.subcult.tv", "http://gm.subcult.tv", "https://edda.subcult.tv"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"X-Request-Id"},
@@ -210,6 +210,8 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, campaignH *handlers.Cam
 	}
 
 	r.Route("/api", func(r chi.Router) {
+		r.Use(disableCacheMiddleware)
+
 		r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 			writeJSON(logger, w, http.StatusOK, map[string]any{
 				"status":       "ok",
@@ -224,7 +226,8 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, campaignH *handlers.Cam
 					authH := auth.NewAuthHandlers(auth.NewDBAuthQuerier(pool), cfg.Server.JWTSecret)
 					r.Post("/register", authH.Register)
 					r.Post("/login", authH.Login)
-					r.Post("/logout", func(w http.ResponseWriter, _ *http.Request) {
+					r.Post("/logout", func(w http.ResponseWriter, req *http.Request) {
+						auth.ClearSessionCookie(w, req)
 						w.WriteHeader(http.StatusNoContent)
 					})
 				})
@@ -241,79 +244,91 @@ func registerAPIRoutes(logger *log.Logger, r chi.Router, campaignH *handlers.Cam
 				}
 
 				r.Route("/campaigns", func(r chi.Router) {
-				r.Get("/", campaignH.ListCampaigns)
-				r.Post("/", campaignH.CreateCampaign)
-				r.Route("/start", func(r chi.Router) {
-					r.Post("/campaign-interview", startupH.StartCampaignInterview)
-					r.Post("/campaign-interview/{sessionID}", startupH.StepCampaignInterview)
-					r.Post("/proposals", startupH.GenerateCampaignProposals)
-					r.Post("/name", startupH.GenerateCampaignName)
-					r.Post("/character-interview", startupH.StartCharacterInterview)
-					r.Post("/character-interview/{sessionID}", startupH.StepCharacterInterview)
-					r.Post("/world", startupH.BuildWorld)
-				})
-				r.Route("/{id}", func(r chi.Router) {
-					r.Get("/", campaignH.GetCampaign)
-					r.Put("/", campaignH.UpdateCampaign)
-					r.Delete("/", campaignH.DeleteCampaign)
-					r.Get("/history", campaignH.GetSessionHistory)
+					r.Get("/", campaignH.ListCampaigns)
+					r.Post("/", campaignH.CreateCampaign)
+					r.Route("/start", func(r chi.Router) {
+						r.Post("/campaign-interview", startupH.StartCampaignInterview)
+						r.Post("/campaign-interview/{sessionID}", startupH.StepCampaignInterview)
+						r.Post("/proposals", startupH.GenerateCampaignProposals)
+						r.Post("/name", startupH.GenerateCampaignName)
+						r.Post("/character-interview", startupH.StartCharacterInterview)
+						r.Post("/character-interview/{sessionID}", startupH.StepCharacterInterview)
+						r.Post("/world", startupH.BuildWorld)
+					})
+					r.Route("/{id}", func(r chi.Router) {
+						r.Get("/", campaignH.GetCampaign)
+						r.Put("/", campaignH.UpdateCampaign)
+						r.Delete("/", campaignH.DeleteCampaign)
+						r.Get("/history", campaignH.GetSessionHistory)
 
-					r.Get("/character", charH.GetCharacter)
-					r.Get("/character/inventory", charH.GetCharacterInventory)
-					r.Get("/character/abilities", charH.GetCharacterAbilities)
-					r.Get("/character/feats", charH.GetCharacterFeats)
-					r.Get("/character/skills", charH.GetCharacterSkills)
+						r.Get("/character", charH.GetCharacter)
+						r.Get("/character/inventory", charH.GetCharacterInventory)
+						r.Get("/character/abilities", charH.GetCharacterAbilities)
+						r.Get("/character/feats", charH.GetCharacterFeats)
+						r.Get("/character/skills", charH.GetCharacterSkills)
 
-					r.Get("/locations", worldH.ListLocations)
-					r.Get("/locations/{lid}", worldH.GetLocation)
+						r.Get("/locations", worldH.ListLocations)
+						r.Get("/locations/{lid}", worldH.GetLocation)
 
-					r.Get("/npcs/encountered", worldH.ListEncounteredNPCs)
-					r.Get("/npcs", worldH.ListNPCs)
-					r.Get("/npcs/{nid}/dialogue", worldH.GetNPCDialogue)
-					r.Get("/npcs/{nid}", worldH.GetNPC)
+						r.Get("/npcs/encountered", worldH.ListEncounteredNPCs)
+						r.Get("/npcs", worldH.ListNPCs)
+						r.Get("/npcs/{nid}/dialogue", worldH.GetNPCDialogue)
+						r.Get("/npcs/{nid}", worldH.GetNPC)
 
-					r.Get("/quests", worldH.ListQuests)
-					r.Get("/quests/{qid}", worldH.GetQuest)
-					r.Get("/quests/{qid}/notes", worldH.ListQuestNotes)
-					r.Post("/quests/{qid}/notes", worldH.CreateQuestNote)
-					r.Delete("/quests/{qid}/notes/{noteID}", worldH.DeleteQuestNote)
-					r.Get("/quests/{qid}/history", worldH.ListQuestHistory)
+						r.Get("/quests", worldH.ListQuests)
+						r.Get("/quests/{qid}", worldH.GetQuest)
+						r.Get("/quests/{qid}/notes", worldH.ListQuestNotes)
+						r.Post("/quests/{qid}/notes", worldH.CreateQuestNote)
+						r.Delete("/quests/{qid}/notes/{noteID}", worldH.DeleteQuestNote)
+						r.Get("/quests/{qid}/history", worldH.ListQuestHistory)
 
-					r.Get("/facts", worldH.ListKnownFacts)
-					r.Get("/relationships", worldH.ListAwareRelationships)
-					r.Get("/codex/languages", worldH.ListKnownLanguages)
-					r.Get("/codex/cultures", worldH.ListKnownCultures)
-					r.Get("/codex/beliefs", worldH.ListKnownBeliefSystems)
-					r.Get("/codex/economies", worldH.ListKnownEconomicSystems)
-					r.Get("/map", worldH.GetMapData)
+						r.Get("/facts", worldH.ListKnownFacts)
+						r.Get("/relationships", worldH.ListAwareRelationships)
+						r.Get("/codex/languages", worldH.ListKnownLanguages)
+						r.Get("/codex/cultures", worldH.ListKnownCultures)
+						r.Get("/codex/beliefs", worldH.ListKnownBeliefSystems)
+						r.Get("/codex/economies", worldH.ListKnownEconomicSystems)
+						r.Get("/map", worldH.GetMapData)
 
-					r.Post("/action", actionH.ProcessAction)
-					r.Get("/ws", actionH.HandleWebSocket)
+						r.Post("/action", actionH.ProcessAction)
+						r.Get("/ws", actionH.HandleWebSocket)
 
-					savesH := saves.NewHandlers(saveStore)
-					r.Post("/saves", savesH.ManualSave)
-					r.Get("/saves", savesH.ListSaves)
-					r.Post("/start-over", savesH.StartOver)
-					r.Get("/time", savesH.GetTime)
+						savesH := saves.NewHandlers(saveStore)
+						r.Post("/saves", savesH.ManualSave)
+						r.Get("/saves", savesH.ListSaves)
+						r.Post("/start-over", savesH.StartOver)
+						r.Get("/time", savesH.GetTime)
 
-					exportH := export.NewHandlers(export.NewStore(pool))
-					r.Get("/export/json", exportH.ExportJSON)
-					r.Get("/export/transcript", exportH.ExportTranscript)
-					r.Get("/export/character", exportH.ExportCharacterSheet)
+						exportH := export.NewHandlers(export.NewStore(pool))
+						r.Get("/export/json", exportH.ExportJSON)
+						r.Get("/export/transcript", exportH.ExportTranscript)
+						r.Get("/export/character", exportH.ExportCharacterSheet)
 
-					journalStore := journal.NewStore(pool)
-					journalH := journal.NewHandlersWithSummarizer(journalStore, journal.NewSummarizer(provider, journalStore))
-					r.Route("/journal", func(r chi.Router) {
-						r.Get("/summaries", journalH.ListSummaries)
-						r.Get("/entries", journalH.ListEntries)
-						r.Post("/entries", journalH.CreateEntry)
-						r.Delete("/entries/{eid}", journalH.DeleteEntry)
-						r.Post("/summarize", journalH.Summarize)
+						journalStore := journal.NewStore(pool)
+						journalH := journal.NewHandlersWithSummarizer(journalStore, journal.NewSummarizer(provider, journalStore))
+						r.Route("/journal", func(r chi.Router) {
+							r.Get("/summaries", journalH.ListSummaries)
+							r.Get("/entries", journalH.ListEntries)
+							r.Post("/entries", journalH.CreateEntry)
+							r.Delete("/entries/{eid}", journalH.DeleteEntry)
+							r.Post("/summarize", journalH.Summarize)
+						})
 					})
 				})
 			})
-			})
 		})
+	})
+}
+
+func disableCacheMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		headers := w.Header()
+		headers.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, s-maxage=0")
+		headers.Set("Pragma", "no-cache")
+		headers.Set("Expires", "0")
+		headers.Set("Surrogate-Control", "no-store")
+
+		next.ServeHTTP(w, r)
 	})
 }
 

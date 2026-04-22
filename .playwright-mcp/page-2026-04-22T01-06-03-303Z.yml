@@ -1,0 +1,15 @@
+- main [ref=e17]:
+  - generic [ref=e18]:
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: Game Master
+        - button "F F3 Final QA" [ref=e23]:
+          - generic [ref=e24]: F
+          - generic [ref=e25]: F3 Final QA
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - heading "Campaigns" [level=1] [ref=e28]
+          - paragraph [ref=e29]: Pick up an existing campaign or start a new one.
+        - link "New campaign" [ref=e31] [cursor=pointer]:
+          - /url: /new
+    - generic [ref=e33]: Loading campaigns…

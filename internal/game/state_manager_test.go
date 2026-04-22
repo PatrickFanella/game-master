@@ -149,6 +149,10 @@ func (m *mockQuerier) DeleteUser(_ context.Context, _ pgtype.UUID) error {
 	return nil
 }
 
+func (m *mockQuerier) DeleteQuestNote(_ context.Context, _ statedb.DeleteQuestNoteParams) error {
+	return nil
+}
+
 func (m *mockQuerier) Ping(_ context.Context) (int32, error) {
 	return 1, nil
 }
@@ -167,6 +171,14 @@ func (m *mockQuerier) CreateCulture(_ context.Context, _ statedb.CreateCulturePa
 
 func (m *mockQuerier) CreateEconomicSystem(_ context.Context, _ statedb.CreateEconomicSystemParams) (statedb.EconomicSystem, error) {
 	return statedb.EconomicSystem{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) CreateQuestHistoryEntry(_ context.Context, _ statedb.CreateQuestHistoryEntryParams) (statedb.QuestHistory, error) {
+	return statedb.QuestHistory{}, nil
+}
+
+func (m *mockQuerier) CreateQuestNote(_ context.Context, _ statedb.CreateQuestNoteParams) (statedb.QuestNote, error) {
+	return statedb.QuestNote{}, nil
 }
 
 func (m *mockQuerier) GetCampaignByID(_ context.Context, _ pgtype.UUID) (statedb.Campaign, error) {
@@ -206,6 +218,14 @@ func (m *mockQuerier) GetEconomicSystemByID(_ context.Context, _ pgtype.UUID) (s
 }
 
 func (m *mockQuerier) ListCampaignsByUser(_ context.Context, _ pgtype.UUID) ([]statedb.Campaign, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListQuestHistory(_ context.Context, _ pgtype.UUID) ([]statedb.QuestHistory, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) ListQuestNotes(_ context.Context, _ pgtype.UUID) ([]statedb.QuestNote, error) {
 	return nil, nil
 }
 

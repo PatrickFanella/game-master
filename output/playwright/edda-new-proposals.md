@@ -1,0 +1,52 @@
+- main [ref=e55]:
+  - generic [ref=e56]:
+    - generic [ref=e57]:
+      - generic [ref=e58]:
+        - paragraph [ref=e59]: Game Master
+        - button "F F3 Final QA" [ref=e61]:
+          - generic [ref=e62]: F
+          - generic [ref=e63]: F3 Final QA
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - heading "Start a new campaign" [level=1] [ref=e66]
+          - paragraph [ref=e67]: "Replace the old flat create form with the TUI-style startup wizard: frame the campaign, shape the hero, confirm the setup, then hand off straight into the opening scene."
+        - link "Back to campaigns" [ref=e69] [cursor=pointer]:
+          - /url: /
+    - generic [ref=e71]:
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]: "01"
+          - generic [ref=e76]: Campaign setup
+        - generic [ref=e77]:
+          - generic [ref=e78]: "02"
+          - generic [ref=e79]: Rules mode
+        - generic [ref=e80]:
+          - generic [ref=e81]: "03"
+          - generic [ref=e82]: Character setup
+        - generic [ref=e83]:
+          - generic [ref=e84]: "04"
+          - generic [ref=e85]: Confirmation
+        - generic [ref=e86]:
+          - generic [ref=e87]: "05"
+          - generic [ref=e88]: World handoff
+      - generic [ref=e254]:
+        - generic [ref=e255]:
+          - paragraph [ref=e256]: Campaign proposals
+          - generic [ref=e257]:
+            - heading "Choose your campaign" [level=2] [ref=e258]
+            - paragraph [ref=e259]: Review the generated campaign proposals and pick the one you want to carry into character creation.
+        - generic [ref=e260]:
+          - generic [ref=e261]:
+            - button "Proposal 1 Shattered Realms of Aetherion A fractured continent where ancient magic has shattered the land into floating islands, each ruled by warring elemental titans. Players must navigate treacherous skies and forgotten ruins to restore balance before the world collapses into chaos." [ref=e262]:
+              - generic [ref=e264]
+            - button "Proposal 2 The Celestial Expanse A vast, star-scorched wilderness where the heavens are dying. Players are celestial wanderers tasked with uncovering the source of the cosmic decay while battling rogue constellations and ancient star-faring civilizations." [ref=e270]:
+              - generic [ref=e272]
+            - button "Proposal 3 The Primal Wilds of Varkara An untamed continent where primordial gods slumber beneath ancient forests and volcanic peaks. Players must survive savage wildlife, tribal conflicts, and awakening deities to prevent the world from being consumed by chaos." [ref=e278]:
+              - generic [ref=e280]
+          - complementary [ref=e286]:
+            - generic [ref=e287]:
+              - paragraph [ref=e288]: Awaiting selection
+              - paragraph [ref=e289]: Select a proposal to inspect its genre, world shape, and campaign pressures before continuing.
+        - generic [ref=e290]:
+          - button "Back" [ref=e291]
+          - button "Continue with proposal" [disabled] [ref=e292]

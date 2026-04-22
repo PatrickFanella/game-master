@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 
-import { getMe } from '../api/auth';
+import { getMe, logout as logoutRequest } from '../api/auth';
 
 const TOKEN_KEY = 'gm_token';
 const USER_KEY = 'gm_user';
@@ -18,7 +18,7 @@ export interface AuthContextValue {
   readonly isAuthenticated: boolean;
   readonly isLoading: boolean;
   readonly setSession: (token: string, user: AuthUser) => void;
-  readonly logout: () => void;
+  readonly logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -71,11 +71,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setUser(newUser);
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setToken(null);
     setUser(null);
+
+    try {
+      await logoutRequest();
+    } catch {
+      // Local auth state must still clear even if the network request fails.
+    }
   }, []);
 
   const value = useMemo<AuthContextValue>(

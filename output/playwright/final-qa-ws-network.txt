@@ -1,0 +1,9 @@
+[GET] https://edda.subcult.tv/api/v1/auth/me => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZjk3ZWE4My1iZmZmLTQzMTItYmFjOS0wNTkyMmFjNmJiMWIiLCJleHAiOjE3Nzc0MjI5MjksImlhdCI6MTc3NjgxODEyOX0.ShiDVn-DtoIdRMiDfATH80WWp-oGYzuDfyhdB0O5wzQ
+    referer: https://edda.subcult.tv/campaigns/6eb7f331-2c21-4581-8722-b9ccbe292fb1
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0

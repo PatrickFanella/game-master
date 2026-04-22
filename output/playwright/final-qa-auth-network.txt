@@ -1,0 +1,39 @@
+[POST] https://edda.subcult.tv/api/v1/auth/login => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    referer: https://edda.subcult.tv/login
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    content-type: application/json
+    sec-ch-ua-mobile: ?0
+  Request body: {"email":"final-qa-20260422-0035@example.com","password":"finalqa123"}
+[GET] https://edda.subcult.tv/api/v1/campaigns => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZjk3ZWE4My1iZmZmLTQzMTItYmFjOS0wNTkyMmFjNmJiMWIiLCJleHAiOjE3Nzc0MjMxMTEsImlhdCI6MTc3NjgxODMxMX0.ebUgHJkog7CV5Hq6H2jHY-Ri4lD7x4i7gJtVpyB1jbE
+    referer: https://edda.subcult.tv/
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0
+[POST] https://edda.subcult.tv/api/v1/campaigns => [201] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZjk3ZWE4My1iZmZmLTQzMTItYmFjOS0wNTkyMmFjNmJiMWIiLCJleHAiOjE3Nzc0MjMxMTEsImlhdCI6MTc3NjgxODMxMX0.ebUgHJkog7CV5Hq6H2jHY-Ri4lD7x4i7gJtVpyB1jbE
+    referer: https://edda.subcult.tv/
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    content-type: application/json
+    sec-ch-ua-mobile: ?0
+  Request body: {"name":"Final QA Campaign Login Path","description":"","genre":"","tone":"","themes":[],"rules_mode":"narrative"}
+[POST] https://edda.subcult.tv/api/v1/campaigns
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZjk3ZWE4My1iZmZmLTQzMTItYmFjOS0wNTkyMmFjNmJiMWIiLCJleHAiOjE3Nzc0MjMxMTEsImlhdCI6MTc3NjgxODMxMX0.ebUgHJkog7CV5Hq6H2jHY-Ri4lD7x4i7gJtVpyB1jbE
+    referer: https://edda.subcult.tv/
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    content-type: application/json
+    sec-ch-ua-mobile: ?0
+  Request body: {"name":"Final QA Message Campaign","description":"","genre":"","tone":"","themes":[],"rules_mode":"narrative"}

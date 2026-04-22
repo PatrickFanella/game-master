@@ -156,13 +156,19 @@ func TestProcessTurnStream_Error(t *testing.T) {
 		events = append(events, ev)
 	}
 
-	if len(events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(events))
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
 	}
-	if events[0].Type != "error" {
-		t.Fatalf("expected error event, got %q", events[0].Type)
+	if events[0].Type != "status" {
+		t.Fatalf("expected initial status event, got %q", events[0].Type)
 	}
-	if events[0].Err == nil {
+	if events[0].Status == nil || events[0].Status.Stage != "gathering" {
+		t.Fatalf("expected gathering status event, got %+v", events[0].Status)
+	}
+	if events[1].Type != "error" {
+		t.Fatalf("expected error event, got %q", events[1].Type)
+	}
+	if events[1].Err == nil {
 		t.Fatal("expected non-nil Err on error event")
 	}
 }

@@ -1,0 +1,29 @@
+- main [ref=e17]:
+  - generic [ref=e18]:
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: Game Master
+        - button "F F3 Final QA" [ref=e23]:
+          - generic [ref=e24]: F
+          - generic [ref=e25]: F3 Final QA
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - heading "Campaigns" [level=1] [ref=e28]
+          - paragraph [ref=e29]: Pick up an existing campaign or start a new one.
+        - link "New campaign" [ref=e31] [cursor=pointer]:
+          - /url: /new
+    - article [ref=e34]:
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]
+          - generic [ref=e40]: High Fantasy
+        - paragraph [ref=e41]: A fractured continent where ancient magic has shattered the land into floating islands, each ruled by warring elemental titans. Players must navigate treacherous skies and forgotten ruins to restore balance before the world collapses into chaos.
+        - generic [ref=e42]:
+          - generic [ref=e43]
+          - generic [ref=e46]
+      - generic [ref=e49]:
+        - link "Open campaign" [ref=e50] [cursor=pointer]:
+          - /url: /play/97b796e8-0741-4efc-8405-29d0d4b7ccc4
+        - link "Replay" [ref=e51] [cursor=pointer]:
+          - /url: /replay/97b796e8-0741-4efc-8405-29d0d4b7ccc4
+        - button "Delete" [ref=e52]

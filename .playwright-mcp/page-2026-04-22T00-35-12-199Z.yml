@@ -1,0 +1,24 @@
+- main [ref=e17]:
+  - generic [ref=e18]:
+    - generic [ref=e19]:
+      - paragraph [ref=e20]: Game Master
+      - heading "Create Account" [level=1] [ref=e21]
+      - paragraph [ref=e22]: Register to begin your journey.
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - text: Name
+        - textbox "Name" [active] [ref=e25]:
+          - /placeholder: Your adventurer name
+      - generic [ref=e26]:
+        - text: Email
+        - textbox "Email" [ref=e27]:
+          - /placeholder: adventurer@example.com
+      - generic [ref=e28]:
+        - text: Password
+        - textbox "Password" [ref=e29]:
+          - /placeholder: At least 6 characters
+      - button "Create Account" [ref=e30]
+    - paragraph [ref=e31]:
+      - text: Already have an account?
+      - link "Sign in" [ref=e32] [cursor=pointer]:
+        - /url: /login

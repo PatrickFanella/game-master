@@ -1,0 +1,108 @@
+- main [ref=e55]:
+  - generic [ref=e56]:
+    - generic [ref=e57]:
+      - generic [ref=e58]:
+        - paragraph [ref=e59]: Game Master
+        - button "F F3 Final QA" [ref=e61]:
+          - generic [ref=e62]: F
+          - generic [ref=e63]: F3 Final QA
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - heading "Start a new campaign" [level=1] [ref=e66]
+          - paragraph [ref=e67]: "Replace the old flat create form with the TUI-style startup wizard: frame the campaign, shape the hero, confirm the setup, then hand off straight into the opening scene."
+        - link "Back to campaigns" [ref=e69] [cursor=pointer]:
+          - /url: /
+    - generic [ref=e71]:
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]: "01"
+          - generic [ref=e76]: Campaign setup
+        - generic [ref=e77]:
+          - generic [ref=e78]: "02"
+          - generic [ref=e79]: Rules mode
+        - generic [ref=e80]:
+          - generic [ref=e81]: "03"
+          - generic [ref=e82]: Character setup
+        - generic [ref=e83]:
+          - generic [ref=e84]: "04"
+          - generic [ref=e85]: Confirmation
+        - generic [ref=e86]:
+          - generic [ref=e87]: "05"
+          - generic [ref=e88]: World handoff
+      - generic [ref=e374]:
+        - generic [ref=e375]:
+          - paragraph [ref=e376]: Step 5 · Guided character
+          - heading "Build your adventurer" [level=2] [ref=e377]
+          - paragraph [ref=e378]: "Mirror the TUI flow: lock in name, race, class, background, and alignment before the final confirmation step."
+        - generic [ref=e379]:
+          - generic [ref=e380]:
+            - generic [ref=e381]:
+              - text: Character name
+              - textbox "Character name Required." [active] [ref=e382]:
+                - /placeholder: Aela Nightwind
+                - text: Aela Nightwind
+              - paragraph [ref=e383]: Required.
+            - generic [ref=e384]:
+              - text: Race
+              - combobox "Race" [ref=e385]:
+                - option "Choose a race" [disabled]
+                - option "Human"
+                - option "Elf" [selected]
+                - option "Dwarf"
+                - option "Halfling"
+                - option "Gnome"
+                - option "Half-Elf"
+                - option "Half-Orc"
+                - option "Tiefling"
+                - option "Dragonborn"
+            - generic [ref=e386]:
+              - text: Class
+              - combobox "Class" [ref=e387]:
+                - option "Choose a class" [disabled]
+                - option "Barbarian"
+                - option "Bard"
+                - option "Cleric"
+                - option "Druid"
+                - option "Fighter"
+                - option "Monk"
+                - option "Paladin"
+                - option "Ranger" [selected]
+                - option "Rogue"
+                - option "Sorcerer"
+                - option "Warlock"
+                - option "Wizard"
+            - generic [ref=e388]:
+              - text: Background
+              - combobox "Background" [ref=e389]:
+                - option "Choose a background" [disabled]
+                - option "Acolyte"
+                - option "Charlatan"
+                - option "Criminal"
+                - option "Entertainer"
+                - option "Folk Hero"
+                - option "Guild Artisan"
+                - option "Hermit"
+                - option "Noble"
+                - option "Outlander" [selected]
+                - option "Sage"
+                - option "Sailor"
+                - option "Soldier"
+                - option "Urchin"
+            - generic [ref=e390]:
+              - text: Alignment
+              - combobox "Alignment" [ref=e391]:
+                - option "Choose an alignment" [disabled] [selected]
+                - option "Lawful Good"
+                - option "Neutral Good"
+                - option "Chaotic Good"
+                - option "Lawful Neutral"
+                - option "True Neutral"
+                - option "Chaotic Neutral"
+                - option "Lawful Evil"
+                - option "Neutral Evil"
+                - option "Chaotic Evil"
+          - generic [ref=e392]:
+            - paragraph [ref=e393]: The next step reviews both the campaign pitch and this character build.
+            - generic [ref=e394]:
+              - button "Back" [ref=e395]
+              - button "Continue to confirmation" [ref=e396]

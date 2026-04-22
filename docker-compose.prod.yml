@@ -5,10 +5,11 @@ networks:
 
 services:
   api:
+    image: gm-api:${GM_RELEASE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: gm-api
+    container_name: ${GM_API_CONTAINER_NAME:-gm-api}
     restart: unless-stopped
     env_file: .env
     networks:
@@ -21,10 +22,11 @@ services:
       retries: 3
 
   web:
+    image: gm-web:${GM_RELEASE_TAG:-latest}
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: gm-web
+    container_name: ${GM_WEB_CONTAINER_NAME:-gm-web}
     restart: unless-stopped
     depends_on:
       api:

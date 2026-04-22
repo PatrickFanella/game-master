@@ -1,0 +1,30 @@
+{
+  "authMeStatus": 200,
+  "authMeBody": {
+    "token": "",
+    "user": {
+      "id": "682e3e39-cae2-493e-8d58-64af4324c055",
+      "name": "F3 Final QA",
+      "email": "f3-final-qa-20260422-0104@example.com"
+    }
+  },
+  "createStatus": 201,
+  "created": {
+    "id": "ea42efb8-b3ac-40c1-9163-da9c5dacf986",
+    "name": "F3 QA Campaign",
+    "description": "",
+    "genre": "",
+    "tone": "",
+    "themes": [],
+    "status": "active",
+    "rules_mode": "narrative",
+    "created_by": "682e3e39-cae2-493e-8d58-64af4324c055",
+    "created_at": "2026-04-22T01:06:13.124761Z",
+    "updated_at": "2026-04-22T01:06:13.124761Z"
+  },
+  "wsUrl": "wss://edda.subcult.tv/api/v1/campaigns/ea42efb8-b3ac-40c1-9163-da9c5dacf986/ws",
+  "wsResult": {
+    "ok": true,
+    "stage": "open"
+  }
+}

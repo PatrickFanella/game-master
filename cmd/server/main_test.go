@@ -70,6 +70,7 @@ func TestNewRouterHealthAndAPIGroups(t *testing.T) {
 	if !strings.Contains(apiHealthRes.Body.String(), `"status":"ok"`) {
 		t.Fatalf("GET /api/healthz body = %q, want JSON status", apiHealthRes.Body.String())
 	}
+	assertNoCacheHeaders(t, apiHealthRes.Header())
 
 	// With real handlers and nil dependencies, campaigns returns an auth error or server error.
 	// Just verify the route exists and doesn't panic.
@@ -80,6 +81,7 @@ func TestNewRouterHealthAndAPIGroups(t *testing.T) {
 	if campaignRes.Code == http.StatusNotFound {
 		t.Fatalf("GET /api/v1/campaigns status = %d, want route to exist", campaignRes.Code)
 	}
+	assertNoCacheHeaders(t, campaignRes.Header())
 }
 
 func TestNewRouterRecovererAndCORS(t *testing.T) {
@@ -120,5 +122,22 @@ func TestNewRouterRecovererAndCORS(t *testing.T) {
 	router.ServeHTTP(reqIDRes, reqIDReq)
 	if strings.TrimSpace(reqIDRes.Body.String()) == "" {
 		t.Fatal("request ID middleware did not populate request context")
+	}
+}
+
+func assertNoCacheHeaders(t *testing.T, headers http.Header) {
+	t.Helper()
+
+	if got := headers.Get("Cache-Control"); got != "no-store, no-cache, must-revalidate, max-age=0, s-maxage=0" {
+		t.Fatalf("Cache-Control = %q, want no-store response", got)
+	}
+	if got := headers.Get("Pragma"); got != "no-cache" {
+		t.Fatalf("Pragma = %q, want %q", got, "no-cache")
+	}
+	if got := headers.Get("Expires"); got != "0" {
+		t.Fatalf("Expires = %q, want %q", got, "0")
+	}
+	if got := headers.Get("Surrogate-Control"); got != "no-store" {
+		t.Fatalf("Surrogate-Control = %q, want %q", got, "no-store")
 	}
 }

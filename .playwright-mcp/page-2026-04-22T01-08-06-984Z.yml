@@ -1,0 +1,62 @@
+- main [ref=e39]:
+  - generic [ref=e40]:
+    - generic [ref=e41]:
+      - generic [ref=e42]:
+        - paragraph [ref=e43]: Game Master
+        - button "F F3 Final QA" [ref=e45]:
+          - generic [ref=e46]: F
+          - generic [ref=e47]: F3 Final QA
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - heading "Start a new campaign" [level=1] [ref=e50]
+          - paragraph [ref=e51]: "Replace the old flat create form with the TUI-style startup wizard: frame the campaign, shape the hero, confirm the setup, then hand off straight into the opening scene."
+        - link "Back to campaigns" [ref=e53] [cursor=pointer]:
+          - /url: /
+    - generic [ref=e55]:
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - generic [ref=e59]: "01"
+          - generic [ref=e60]: Campaign setup
+        - generic [ref=e61]:
+          - generic [ref=e62]: "02"
+          - generic [ref=e63]: Rules mode
+        - generic [ref=e64]:
+          - generic [ref=e65]: "03"
+          - generic [ref=e66]: Character setup
+        - generic [ref=e67]:
+          - generic [ref=e68]: "04"
+          - generic [ref=e69]: Confirmation
+        - generic [ref=e70]:
+          - generic [ref=e71]: "05"
+          - generic [ref=e72]: World handoff
+      - generic [ref=e97]:
+        - generic [ref=e98]:
+          - generic [ref=e99]:
+            - paragraph [ref=e100]: Campaign interview
+            - generic [ref=e101]:
+              - heading "Describe the campaign you want to play" [level=2] [ref=e102]
+              - paragraph [ref=e103]: The guide asks follow-up questions until the campaign profile is complete, then the frontend generates the campaign name before handing off into character creation.
+          - log [ref=e104]:
+            - generic [ref=e105]:
+              - paragraph [ref=e106]: Starting interview
+              - paragraph [ref=e107]: The guide is opening the conversation and will ask the first campaign question momentarily.
+            - generic [ref=e109]:
+              - paragraph [ref=e110]: Guide
+              - paragraph [ref=e111]: Thinking through the next question…
+        - complementary [ref=e112]:
+          - generic [ref=e113]:
+            - generic [ref=e114]:
+              - generic [ref=e115]: Your campaign notes
+              - textbox "Your campaign notes" [disabled] [ref=e116]:
+                - /placeholder: Dark fantasy frontier. I want doomed heroics, court intrigue, and old gods waking beneath the ice…
+            - generic [ref=e117]:
+              - paragraph [ref=e118]: Keep answers short if you want. The interview keeps drilling into missing details until the campaign profile is complete.
+              - generic [ref=e119]:
+                - button "Back" [ref=e120]
+                - button "Sending…" [disabled] [ref=e121]
+          - generic [ref=e122]:
+            - heading "Interview flow" [level=3] [ref=e123]
+            - list [ref=e124]:
+              - listitem [ref=e125]: The guide can start the conversation before you type anything.
+              - listitem [ref=e126]: Short answers work. The interview will keep drilling into missing details.
+              - listitem [ref=e127]: Use back if you want to switch creation methods without losing the surrounding shell.

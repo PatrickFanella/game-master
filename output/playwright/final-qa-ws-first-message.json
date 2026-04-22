@@ -1,0 +1,21 @@
+{
+  "createStatus": 201,
+  "created": {
+    "id": "c6e29364-db95-4c45-a515-115a0c439a9b",
+    "name": "Final QA Message Campaign",
+    "description": "",
+    "genre": "",
+    "tone": "",
+    "themes": [],
+    "status": "active",
+    "rules_mode": "narrative",
+    "created_by": "df97ea83-bfff-4312-bac9-05922ac6bb1b",
+    "created_at": "2026-04-22T00:39:28.758405Z",
+    "updated_at": "2026-04-22T00:39:28.758405Z"
+  },
+  "wsUrl": "wss://edda.subcult.tv/api/v1/campaigns/c6e29364-db95-4c45-a515-115a0c439a9b/ws",
+  "wsResult": {
+    "ok": false,
+    "stage": "timeout"
+  }
+}

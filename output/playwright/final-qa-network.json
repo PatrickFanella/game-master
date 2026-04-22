@@ -1,0 +1,35 @@
+[POST] https://edda.subcult.tv/api/v1/auth/register => [201] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    referer: https://edda.subcult.tv/register
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    content-type: application/json
+    sec-ch-ua-mobile: ?0
+  Request body: {"name":"Final QA","email":"final-qa-20260422-0035@example.com","password":"finalqa123"}
+[GET] https://edda.subcult.tv/api/v1/campaigns => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZjk3ZWE4My1iZmZmLTQzMTItYmFjOS0wNTkyMmFjNmJiMWIiLCJleHAiOjE3Nzc0MjI5MjksImlhdCI6MTc3NjgxODEyOX0.ShiDVn-DtoIdRMiDfATH80WWp-oGYzuDfyhdB0O5wzQ
+    referer: https://edda.subcult.tv/
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0
+[GET] https://edda.subcult.tv/api/v1/auth/me => [401] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    referer: https://edda.subcult.tv/new
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0
+[POST] https://edda.subcult.tv/api/v1/campaigns => [401] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    referer: https://edda.subcult.tv/new
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    content-type: application/json
+    sec-ch-ua-mobile: ?0
+  Request body: {"name":"Final QA Campaign","description":"","genre":"","tone":"","themes":[],"rules_mode":"narrative"}

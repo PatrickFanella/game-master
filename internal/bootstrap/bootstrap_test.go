@@ -153,6 +153,14 @@ func (s *stubQuerier) CreateQuest(ctx context.Context, arg statedb.CreateQuestPa
 	return statedb.Quest{}, nil
 }
 
+func (s *stubQuerier) CreateQuestHistoryEntry(ctx context.Context, arg statedb.CreateQuestHistoryEntryParams) (statedb.QuestHistory, error) {
+	return statedb.QuestHistory{}, nil
+}
+
+func (s *stubQuerier) CreateQuestNote(ctx context.Context, arg statedb.CreateQuestNoteParams) (statedb.QuestNote, error) {
+	return statedb.QuestNote{}, nil
+}
+
 func (s *stubQuerier) CreateRelationship(ctx context.Context, arg statedb.CreateRelationshipParams) (statedb.EntityRelationship, error) {
 	return statedb.EntityRelationship{}, nil
 }
@@ -169,6 +177,9 @@ func (s *stubQuerier) DeleteCulture(ctx context.Context, id pgtype.UUID) error  
 func (s *stubQuerier) DeleteEconomicSystem(ctx context.Context, id pgtype.UUID) error { return nil }
 func (s *stubQuerier) DeleteItem(ctx context.Context, id pgtype.UUID) error           { return nil }
 func (s *stubQuerier) DeleteLanguage(ctx context.Context, id pgtype.UUID) error       { return nil }
+func (s *stubQuerier) DeleteQuestNote(ctx context.Context, arg statedb.DeleteQuestNoteParams) error {
+	return nil
+}
 func (s *stubQuerier) DeleteRelationship(ctx context.Context, arg statedb.DeleteRelationshipParams) error {
 	return nil
 }
@@ -425,6 +436,12 @@ func (s *stubQuerier) ListPlayerKnownLocations(_ context.Context, _ pgtype.UUID)
 	return nil, nil
 }
 func (s *stubQuerier) ListPlayerVisitedLocations(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
+	return nil, nil
+}
+func (s *stubQuerier) ListQuestHistory(_ context.Context, _ pgtype.UUID) ([]statedb.QuestHistory, error) {
+	return nil, nil
+}
+func (s *stubQuerier) ListQuestNotes(_ context.Context, _ pgtype.UUID) ([]statedb.QuestNote, error) {
 	return nil, nil
 }
 func (s *stubQuerier) SetLocationPlayerKnown(_ context.Context, _ pgtype.UUID) error  { return nil }

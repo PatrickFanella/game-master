@@ -1,0 +1,52 @@
+- main [ref=e55]:
+  - generic [ref=e56]:
+    - generic [ref=e57]:
+      - generic [ref=e58]:
+        - paragraph [ref=e59]: Game Master
+        - button "F F3 Final QA" [ref=e61]:
+          - generic [ref=e62]: F
+          - generic [ref=e63]: F3 Final QA
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - heading "Start a new campaign" [level=1] [ref=e66]
+          - paragraph [ref=e67]: "Replace the old flat create form with the TUI-style startup wizard: frame the campaign, shape the hero, confirm the setup, then hand off straight into the opening scene."
+        - link "Back to campaigns" [ref=e69] [cursor=pointer]:
+          - /url: /
+    - generic [ref=e71]:
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]: "01"
+          - generic [ref=e76]: Campaign setup
+        - generic [ref=e77]:
+          - generic [ref=e78]: "02"
+          - generic [ref=e79]: Rules mode
+        - generic [ref=e80]:
+          - generic [ref=e81]: "03"
+          - generic [ref=e82]: Character setup
+        - generic [ref=e83]:
+          - generic [ref=e84]: "04"
+          - generic [ref=e85]: Confirmation
+        - generic [ref=e86]:
+          - generic [ref=e87]: "05"
+          - generic [ref=e88]: World handoff
+      - generic [ref=e349]:
+        - generic [ref=e350]:
+          - paragraph [ref=e351]: Start game
+          - generic [ref=e352]:
+            - heading "Choose how to create the hero" [level=2] [ref=e353]
+            - paragraph [ref=e354]: "Campaign locked: Shattered Realms of Aetherion. Next, either talk through the character in an interview or build them from guided D&D-style attributes."
+        - generic [ref=e355]:
+          - button "Conversational Character interview Let the guide ask natural follow-up questions and extract the complete CharacterProfile for world-building." [ref=e356]:
+            - paragraph [ref=e357]: Conversational
+            - generic [ref=e359]:
+              - heading "Character interview" [level=3] [ref=e360]
+              - paragraph [ref=e361]: Let the guide ask natural follow-up questions and extract the complete CharacterProfile for world-building.
+          - button "Structured picks Guided character build Pick name, race, class, background, and alignment. The frontend mirrors the Go character builder semantics to produce the final profile." [ref=e363]:
+            - paragraph [ref=e364]: Structured picks
+            - generic [ref=e366]:
+              - heading "Guided character build" [level=3] [ref=e367]
+              - paragraph [ref=e368]: Pick name, race, class, background, and alignment. The frontend mirrors the Go character builder semantics to produce the final profile.
+        - paragraph [ref=e370]: A fractured continent where ancient magic has shattered the land into floating islands, each ruled by warring elemental titans. Players must navigate treacherous skies and forgotten ruins to restore balance before the world collapses into chaos.
+        - generic [ref=e371]:
+          - button "Back" [ref=e372]
+          - button "Continue" [disabled] [ref=e373]

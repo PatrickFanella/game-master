@@ -1,0 +1,21 @@
+- main [ref=e5]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - paragraph [ref=e9]: Game Master
+        - button "F F3 Final QA" [ref=e11]
+      - generic [ref=e14]:
+        - generic [ref=e15]
+        - link "New campaign" [ref=e19] [cursor=pointer]:
+          - /url: /new
+    - article [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]
+        - paragraph [ref=e29]: Manual QA live check
+        - generic [ref=e30]
+      - generic [ref=e37]:
+        - link "Open campaign" [ref=e38] [cursor=pointer]:
+          - /url: /play/00b87af2-68b4-478c-a0bd-4287051d4d29
+        - link "Replay" [ref=e39] [cursor=pointer]:
+          - /url: /replay/00b87af2-68b4-478c-a0bd-4287051d4d29
+        - button "Delete" [ref=e40]

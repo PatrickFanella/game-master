@@ -1,0 +1,19 @@
+[POST] https://edda.subcult.tv/api/v1/auth/register => [201] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    referer: https://edda.subcult.tv/register
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    content-type: application/json
+    sec-ch-ua-mobile: ?0
+  Request body: {"name":"F3 Final QA","email":"f3-final-qa-20260422-0104@example.com","password":"f3finalqa123"}
+[GET] https://edda.subcult.tv/api/v1/campaigns => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODJlM2UzOS1jYWUyLTQ5M2UtOGQ1OC02NGFmNDMyNGMwNTUiLCJleHAiOjE3Nzc0MjQ3MDYsImlhdCI6MTc3NjgxOTkwNn0.-E6eIbU-S_fPFmAsRNDUi54kq2iV0O2eLDpWWjTvHH4
+    referer: https://edda.subcult.tv/
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0

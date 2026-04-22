@@ -30,7 +30,7 @@ func TestCampaignTypesJSONShape(t *testing.T) {
 		CreatedAt:   time.Unix(100, 0).UTC(),
 		UpdatedAt:   time.Unix(200, 0).UTC(),
 	}
-	assertJSONKeys(t, response, "id", "name", "description", "genre", "tone", "themes", "status", "created_by", "created_at", "updated_at")
+	assertJSONKeys(t, response, "id", "name", "description", "genre", "tone", "themes", "status", "rules_mode", "created_by", "created_at", "updated_at")
 
 	list := CampaignListResponse{Campaigns: []CampaignResponse{response}}
 	assertJSONKeys(t, list, "campaigns")
@@ -138,10 +138,10 @@ func TestActionTurnAndEnvelopeTypesJSONShape(t *testing.T) {
 			Details:    map[string]any{"location_id": "loc-1"},
 		}},
 	}
-	assertJSONKeys(t, result, "narrative", "state_changes")
+	assertJSONKeys(t, result, "narrative", "state_changes", "combat_active")
 
 	alias := TurnResponse(result)
-	assertJSONKeys(t, alias, "narrative", "state_changes")
+	assertJSONKeys(t, alias, "narrative", "state_changes", "combat_active")
 
 	envelope := WebSocketMessageEnvelope{
 		Type:      "turn_result",

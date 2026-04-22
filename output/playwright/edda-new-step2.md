@@ -1,0 +1,76 @@
+- main [ref=e55]:
+  - generic [ref=e56]:
+    - generic [ref=e57]:
+      - generic [ref=e58]:
+        - paragraph [ref=e59]: Game Master
+        - button "F F3 Final QA" [ref=e61]:
+          - generic [ref=e62]: F
+          - generic [ref=e63]: F3 Final QA
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - heading "Start a new campaign" [level=1] [ref=e66]
+          - paragraph [ref=e67]: "Replace the old flat create form with the TUI-style startup wizard: frame the campaign, shape the hero, confirm the setup, then hand off straight into the opening scene."
+        - link "Back to campaigns" [ref=e69] [cursor=pointer]:
+          - /url: /
+    - generic [ref=e71]:
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]: "01"
+          - generic [ref=e76]: Campaign setup
+        - generic [ref=e77]:
+          - generic [ref=e78]: "02"
+          - generic [ref=e79]: Rules mode
+        - generic [ref=e80]:
+          - generic [ref=e81]: "03"
+          - generic [ref=e82]: Character setup
+        - generic [ref=e83]:
+          - generic [ref=e84]: "04"
+          - generic [ref=e85]: Confirmation
+        - generic [ref=e86]:
+          - generic [ref=e87]: "05"
+          - generic [ref=e88]: World handoff
+      - generic [ref=e113]:
+        - generic [ref=e114]:
+          - paragraph [ref=e115]: Campaign attributes
+          - generic [ref=e116]:
+            - heading "Choose the campaign frame" [level=2] [ref=e117]
+            - paragraph [ref=e118]: Pick the core genre, world shape, and tone. These selections seed the proposal generator before world-building hands off into play.
+        - generic [ref=e119]:
+          - generic [ref=e120]:
+            - generic [ref=e121]:
+              - heading "Genre" [level=3] [ref=e122]
+              - paragraph [ref=e123]: What broad fiction tradition should the campaign draw from?
+            - generic [ref=e124]:
+              - button "Fantasy Magic, mythic threats, lost kingdoms, and ancient ruins." [ref=e125]
+              - button "Sci-Fi Advanced technology, strange worlds, and speculative futures." [ref=e131]
+              - button "Horror Fear, dread, and survival against overwhelming darkness." [ref=e137]
+              - button "Historical Ground the campaign in a recognizable real-world era." [ref=e143]
+              - button "Modern Contemporary life colliding with mystery, danger, or the uncanny." [ref=e149]
+              - button "Post-Apocalyptic Scarcity, collapse, and rebuilding after catastrophe." [ref=e155]
+              - button "Steampunk Industrial wonder, strange engines, and clockwork ambition." [ref=e161]
+          - generic [ref=e167]:
+            - generic [ref=e168]:
+              - heading "Setting style" [level=3] [ref=e169]
+              - paragraph [ref=e170]: What kind of space should the campaign mostly unfold in?
+            - generic [ref=e171]:
+              - button "Open Wilderness Frontier travel, scattered settlements, and untamed regions." [ref=e172]
+              - button "Urban Sprawl Dense cities, district politics, and layered social factions." [ref=e178]
+              - button "Island Archipelago Sea lanes, isolated cultures, and contested ports." [ref=e184]
+              - button "Underground Caverns, buried cities, and claustrophobic depths." [ref=e190]
+              - button "War-Torn Kingdom Broken borders, military pressure, and unstable loyalties." [ref=e196]
+              - button "Peaceful Realm Calm on the surface, with tension hidden under stability." [ref=e202]
+          - generic [ref=e208]:
+            - generic [ref=e209]:
+              - heading "Tone" [level=3] [ref=e210]
+              - paragraph [ref=e211]: How should the campaign feel moment to moment?
+            - generic [ref=e212]:
+              - button "Gritty and Dark Hard choices, costly victories, and constant danger." [ref=e213]
+              - button "Light-Hearted Warmth, optimism, and room for playful turns." [ref=e219]
+              - button "Epic and Grand Mythic stakes, sweeping scale, and larger-than-life action." [ref=e225]
+              - button "Mysterious Hidden motives, buried truths, and slow-burn discovery." [ref=e231]
+              - button "Humorous Comic beats, absurdity, and a lighter dramatic touch." [ref=e237]
+              - button "Tense and Suspenseful Pressure, uncertainty, and danger that keeps tightening." [ref=e243]
+        - generic [ref=e249]: Select a value for genre, setting style, and tone before continuing.
+        - generic [ref=e250]:
+          - button "Back" [ref=e251]
+          - button "Generate proposals" [disabled] [ref=e252]

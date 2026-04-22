@@ -1,0 +1,20 @@
+- main [ref=e33]:
+  - generic [ref=e34]:
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - paragraph [ref=e37]: Game Master
+        - button "F F3 Final QA" [ref=e39]:
+          - generic [ref=e40]: F
+          - generic [ref=e41]: F3 Final QA
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - heading "Campaigns" [level=1] [ref=e44]
+          - paragraph [ref=e45]: Pick up an existing campaign or start a new one.
+        - link "New campaign" [ref=e47] [cursor=pointer]:
+          - /url: /new
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - heading "No campaigns yet" [level=2] [ref=e51]
+        - paragraph [ref=e52]: Create your first campaign to start building a world.
+      - link "Create a campaign" [ref=e54] [cursor=pointer]:
+        - /url: /new

@@ -1,0 +1,54 @@
+[GET] https://edda.subcult.tv/api/v1/auth/me => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODJlM2UzOS1jYWUyLTQ5M2UtOGQ1OC02NGFmNDMyNGMwNTUiLCJleHAiOjE3Nzc0MjQ3NjIsImlhdCI6MTc3NjgxOTk2Mn0.rVoIE1ne6qY6i_Kpfn-6wTYNg4arZkod42LFU1GF2uk
+    referer: https://edda.subcult.tv/
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0
+[GET] https://edda.subcult.tv/api/v1/campaigns => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODJlM2UzOS1jYWUyLTQ5M2UtOGQ1OC02NGFmNDMyNGMwNTUiLCJleHAiOjE3Nzc0MjQ3NjIsImlhdCI6MTc3NjgxOTk2Mn0.rVoIE1ne6qY6i_Kpfn-6wTYNg4arZkod42LFU1GF2uk
+    referer: https://edda.subcult.tv/
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0
+[GET] https://edda.subcult.tv/api/v1/campaigns/ea42efb8-b3ac-40c1-9163-da9c5dacf986 => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODJlM2UzOS1jYWUyLTQ5M2UtOGQ1OC02NGFmNDMyNGMwNTUiLCJleHAiOjE3Nzc0MjQ3NjIsImlhdCI6MTc3NjgxOTk2Mn0.rVoIE1ne6qY6i_Kpfn-6wTYNg4arZkod42LFU1GF2uk
+    referer: https://edda.subcult.tv/play/ea42efb8-b3ac-40c1-9163-da9c5dacf986
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0
+[GET] https://edda.subcult.tv/api/v1/campaigns/ea42efb8-b3ac-40c1-9163-da9c5dacf986/time => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODJlM2UzOS1jYWUyLTQ5M2UtOGQ1OC02NGFmNDMyNGMwNTUiLCJleHAiOjE3Nzc0MjQ3NjIsImlhdCI6MTc3NjgxOTk2Mn0.rVoIE1ne6qY6i_Kpfn-6wTYNg4arZkod42LFU1GF2uk
+    referer: https://edda.subcult.tv/play/ea42efb8-b3ac-40c1-9163-da9c5dacf986
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0
+[GET] https://edda.subcult.tv/api/v1/campaigns/ea42efb8-b3ac-40c1-9163-da9c5dacf986/history => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODJlM2UzOS1jYWUyLTQ5M2UtOGQ1OC02NGFmNDMyNGMwNTUiLCJleHAiOjE3Nzc0MjQ3NjIsImlhdCI6MTc3NjgxOTk2Mn0.rVoIE1ne6qY6i_Kpfn-6wTYNg4arZkod42LFU1GF2uk
+    referer: https://edda.subcult.tv/play/ea42efb8-b3ac-40c1-9163-da9c5dacf986
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0
+[GET] https://edda.subcult.tv/api/v1/campaigns/ea42efb8-b3ac-40c1-9163-da9c5dacf986/quests => [200] 
+  Request headers:
+    sec-ch-ua-platform: "Linux"
+    authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODJlM2UzOS1jYWUyLTQ5M2UtOGQ1OC02NGFmNDMyNGMwNTUiLCJleHAiOjE3Nzc0MjQ3NjIsImlhdCI6MTc3NjgxOTk2Mn0.rVoIE1ne6qY6i_Kpfn-6wTYNg4arZkod42LFU1GF2uk
+    referer: https://edda.subcult.tv/play/ea42efb8-b3ac-40c1-9163-da9c5dacf986
+    user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36
+    accept: application/json
+    sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+    sec-ch-ua-mobile: ?0

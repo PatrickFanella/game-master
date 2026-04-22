@@ -22,6 +22,8 @@ import (
 	"github.com/PatrickFanella/game-master/pkg/api"
 )
 
+const testJWTSecret = "test-secret"
+
 // wsStubEngine implements engine.GameEngine with controllable ProcessTurnStream.
 type wsStubEngine struct {
 	streamEvents []engine.StreamEvent
@@ -327,4 +329,47 @@ func TestHandleWebSocket_StreamErrorEvent(t *testing.T) {
 			t.Errorf("error leaked internal details: %q", errPayload["error"])
 		}
 	})
+}
+
+func TestHandleWebSocket_AllowsCookieBackedJWTUpgrade(t *testing.T) {
+	eng := &wsStubEngine{
+		streamEvents: []engine.StreamEvent{{Type: "chunk", Text: "You see a dragon."}},
+	}
+	h := &ActionHandlers{Engine: eng, Logger: log.Default()}
+	campaignID := uuid.New().String()
+	userID := uuid.New()
+	token, err := auth.GenerateToken(userID, testJWTSecret, auth.DefaultTokenTTL)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+
+	r := chi.NewRouter()
+	r.Use(auth.NewJWTMiddleware(testJWTSecret).Authenticate)
+	r.Route("/campaigns/{id}", func(r chi.Router) {
+		r.Get("/ws", h.HandleWebSocket)
+	})
+
+	srv := httptest.NewServer(r)
+	defer srv.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/campaigns/" + campaignID + "/ws"
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+		HTTPHeader: http.Header{
+			"Origin": []string{"http://127.0.0.1:5173"},
+			"Cookie": []string{auth.AuthCookieName + "=" + token},
+		},
+	})
+	if err != nil {
+		t.Fatalf("dial websocket: %v", err)
+	}
+	defer func() { _ = conn.CloseNow() }()
+
+	sendAction(t, ctx, conn, "look around")
+	env := readEnvelope(t, ctx, conn)
+	if env.Type != "chunk" {
+		t.Fatalf("expected type chunk, got %q", env.Type)
+	}
 }

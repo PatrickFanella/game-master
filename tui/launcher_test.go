@@ -94,6 +94,14 @@ func (n *noopQuerier) CreateQuest(ctx context.Context, arg statedb.CreateQuestPa
 	return statedb.Quest{}, nil
 }
 
+func (n *noopQuerier) CreateQuestHistoryEntry(ctx context.Context, arg statedb.CreateQuestHistoryEntryParams) (statedb.QuestHistory, error) {
+	return statedb.QuestHistory{}, nil
+}
+
+func (n *noopQuerier) CreateQuestNote(ctx context.Context, arg statedb.CreateQuestNoteParams) (statedb.QuestNote, error) {
+	return statedb.QuestNote{}, nil
+}
+
 func (n *noopQuerier) CreateRelationship(ctx context.Context, arg statedb.CreateRelationshipParams) (statedb.EntityRelationship, error) {
 	return statedb.EntityRelationship{}, nil
 }
@@ -114,6 +122,9 @@ func (n *noopQuerier) DeleteCulture(ctx context.Context, id pgtype.UUID) error  
 func (n *noopQuerier) DeleteEconomicSystem(ctx context.Context, id pgtype.UUID) error { return nil }
 func (n *noopQuerier) DeleteItem(ctx context.Context, id pgtype.UUID) error           { return nil }
 func (n *noopQuerier) DeleteLanguage(ctx context.Context, id pgtype.UUID) error       { return nil }
+func (n *noopQuerier) DeleteQuestNote(ctx context.Context, arg statedb.DeleteQuestNoteParams) error {
+	return nil
+}
 func (n *noopQuerier) DeleteRelationship(ctx context.Context, arg statedb.DeleteRelationshipParams) error {
 	return nil
 }
@@ -375,6 +386,12 @@ func (n *noopQuerier) ListPlayerKnownLocations(_ context.Context, _ pgtype.UUID)
 	return nil, nil
 }
 func (n *noopQuerier) ListPlayerVisitedLocations(_ context.Context, _ pgtype.UUID) ([]statedb.Location, error) {
+	return nil, nil
+}
+func (n *noopQuerier) ListQuestHistory(_ context.Context, _ pgtype.UUID) ([]statedb.QuestHistory, error) {
+	return nil, nil
+}
+func (n *noopQuerier) ListQuestNotes(_ context.Context, _ pgtype.UUID) ([]statedb.QuestNote, error) {
 	return nil, nil
 }
 func (n *noopQuerier) SetLocationPlayerKnown(_ context.Context, _ pgtype.UUID) error  { return nil }

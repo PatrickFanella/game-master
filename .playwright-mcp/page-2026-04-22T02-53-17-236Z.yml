@@ -1,0 +1,26 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - paragraph [ref=e7]: Game Master
+        - generic [ref=e8]:
+          - button "T Test User" [active] [ref=e9]:
+            - generic [ref=e10]: T
+            - generic [ref=e11]: Test User
+          - generic [ref=e26]:
+            - generic [ref=e27]:
+              - paragraph [ref=e28]: Test User
+              - paragraph [ref=e29]: test@example.com
+            - button "Sign out" [ref=e30]
+      - generic [ref=e12]:
+        - generic [ref=e13]:
+          - heading "Campaigns" [level=1] [ref=e14]
+          - paragraph [ref=e15]: Pick up an existing campaign or start a new one.
+        - link "New campaign" [ref=e17] [cursor=pointer]:
+          - /url: /new
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - heading "No campaigns yet" [level=2] [ref=e21]
+        - paragraph [ref=e22]: Create your first campaign to start building a world.
+      - link "Create a campaign" [ref=e24] [cursor=pointer]:
+        - /url: /new

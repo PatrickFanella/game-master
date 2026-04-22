@@ -114,6 +114,8 @@ func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setSessionCookie(w, r, token)
+
 	writeJSON(w, http.StatusCreated, authResponse{
 		Token: token,
 		User: userJSON{
@@ -159,6 +161,8 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to generate token")
 		return
 	}
+
+	setSessionCookie(w, r, token)
 
 	writeJSON(w, http.StatusOK, authResponse{
 		Token: token,
@@ -209,4 +213,37 @@ func (h *AuthHandlers) Me(w http.ResponseWriter, r *http.Request) {
 
 func uuidFromPgtype(id pgtype.UUID) uuid.UUID {
 	return uuid.UUID(id.Bytes)
+}
+
+func setSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     AuthCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   requestUsesHTTPS(r),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(DefaultTokenTTL.Seconds()),
+	})
+}
+
+// ClearSessionCookie clears the browser-sendable auth cookie used for same-origin websocket auth.
+func ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     AuthCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   requestUsesHTTPS(r),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+}
+
+func requestUsesHTTPS(r *http.Request) bool {
+	if r != nil && r.TLS != nil {
+		return true
+	}
+
+	return strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https")
 }

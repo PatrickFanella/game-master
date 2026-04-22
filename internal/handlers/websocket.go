@@ -28,6 +28,7 @@ var websocketAcceptOptions = &websocket.AcceptOptions{
 	OriginPatterns: []string{
 		"localhost:*",
 		"127.0.0.1:*",
+		"https://edda.subcult.tv",
 	},
 }
 
